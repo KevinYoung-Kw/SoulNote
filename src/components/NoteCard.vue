@@ -34,16 +34,32 @@ const props = defineProps({
 const noteCardRef = ref(null);
 const { noteRef, playGenerateAnimation } = useNoteAnimation();
 
-const backgroundMap = {
+// 检测当前是否为深色模式
+const isDarkMode = computed(() => document.body.classList.contains('dark-mode'));
+
+// 定义亮色模式和深色模式下的背景
+const lightModeBackgrounds = {
   'paper-1': 'linear-gradient(to right bottom, #FFFFFF, #F9F3E5)',
   'paper-2': 'linear-gradient(to right bottom, #FFF9F9, #FFE8E8)',
   'paper-3': 'linear-gradient(to right bottom, #F0F8FF, #E6F0F9)',
   'paper-4': 'linear-gradient(to right bottom, #F5FFF5, #E6F9E6)'
 };
 
-const cardStyle = computed(() => ({
-  background: backgroundMap[props.background] || backgroundMap['paper-1']
-}));
+const darkModeBackgrounds = {
+  'paper-1': 'linear-gradient(to right bottom, #2A2A2A, #343434)',
+  'paper-2': 'linear-gradient(to right bottom, #332E2E, #3A2E2E)',
+  'paper-3': 'linear-gradient(to right bottom, #2E3436, #2E3A44)',
+  'paper-4': 'linear-gradient(to right bottom, #2E362E, #2E3A2E)'
+};
+
+// 根据当前模式选择背景
+const cardStyle = computed(() => {
+  const backgroundMap = isDarkMode.value ? darkModeBackgrounds : lightModeBackgrounds;
+  return {
+    background: backgroundMap[props.background] || backgroundMap['paper-1'],
+    color: isDarkMode.value ? '#E0E0E0' : '#333333'
+  };
+});
 
 onMounted(() => {
   noteRef.value = noteCardRef.value;
@@ -60,19 +76,18 @@ onMounted(() => {
   aspect-ratio: 4 / 5;
   padding: var(--spacing-xl);
   margin: var(--spacing-lg) 0;
-  background-color: white;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .note-content {
   font-family: var(--font-decorative);
   line-height: 1.6;
-  color: var(--text-color);
   text-align: center;
   z-index: 2;
   padding: 0 var(--spacing-md);
@@ -98,5 +113,13 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.15);
   transform: rotate(-15deg);
   z-index: 1;
+}
+
+:global(.dark-mode) .note-watermark {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+:global(.dark-mode) .note-glow {
+  background: radial-gradient(circle at center, rgba(80,80,80,0.6) 0%, rgba(60,60,60,0) 70%);
 }
 </style>

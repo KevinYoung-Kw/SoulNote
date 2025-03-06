@@ -112,6 +112,25 @@
           版本: 1.0.0
         </div>
       </section>
+      
+      <!-- 添加数据与隐私部分 -->
+      <section class="settings-section">
+        <h2 class="section-title">数据与隐私</h2>
+        
+        <div class="setting-item">
+          <label class="setting-label">数据存储</label>
+          <div class="setting-value">
+            <span class="badge">本地</span>
+          </div>
+        </div>
+        
+        <div class="setting-item reset-app-item">
+          <label class="setting-label">重置应用</label>
+          <button class="btn btn-danger reset-btn" @click="showResetConfirm = true">
+            <i class="fas fa-exclamation-triangle"></i> 重置
+          </button>
+        </div>
+      </section>
     </div>
     
     <!-- 星座选择弹窗 -->
@@ -172,20 +191,63 @@
         </div>
       </div>
     </div>
+    
+    <!-- 重置确认弹窗 -->
+    <div class="modal reset-confirm-modal" v-if="showResetConfirm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>确认重置</h3>
+        </div>
+        
+        <div class="modal-body">
+          <div class="warning-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <p class="reset-warning">此操作将清除所有应用数据，包括：</p>
+          <ul class="reset-list">
+            <li>所有收藏的纸条</li>
+            <li>个人偏好设置</li>
+            <li>应用配置</li>
+          </ul>
+          <p class="reset-note">重置后，应用将返回到首次安装状态，此操作无法撤销。</p>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="showResetConfirm = false">取消</button>
+          <button 
+            class="btn btn-danger" 
+            @click="resetApplication"
+            :disabled="isResetting"
+          >
+            {{ isResetting ? '重置中...' : '确认重置' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getUserPreferences, saveUserPreferences } from '../services/storageService';
+import { getUserPreferences, saveUserPreferences, resetUserData } from '../services/storageService';
 
 const router = useRouter();
 const showZodiacSelector = ref(false);
 const showMbtiSelector = ref(false);
 const isDarkMode = ref(false);
+const showResetConfirm = ref(false);
+const isResetting = ref(false);
 
-const preferences = reactive(getUserPreferences());
+// 使用reactive创建一个空对象，稍后填充数据
+const preferences = reactive({
+  zodiac: null,
+  mbti: null,
+  language: 'zh',
+  theme: 'light',
+  fontSize: 24,
+  background: 'paper-1'
+});
 
 // 星座数据
 const zodiacs = [
@@ -304,8 +366,13 @@ function decreaseFontSize() {
   }
 }
 
-function savePreferences() {
-  saveUserPreferences(preferences);
+async function savePreferences() {
+  try {
+    await saveUserPreferences(preferences);
+  } catch (error) {
+    console.error('保存偏好设置失败:', error);
+    alert('保存设置失败，请重试');
+  }
 }
 
 function goBack() {
@@ -320,10 +387,55 @@ function openAboutUs() {
   alert('关于我们页面暂未实现');
 }
 
+/**
+ * 重置应用
+ * 清除所有用户数据并重定向到欢迎页面
+ */
+async function resetApplication() {
+  try {
+    isResetting.value = true;
+    
+    // 执行重置操作
+    const success = await resetUserData();
+    
+    if (success) {
+      // 显示成功提示
+      alert('应用已成功重置！');
+      
+      // 重定向到欢迎页面
+      router.push('/');
+      
+      // 刷新页面以确保所有状态都被清除
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } else {
+      throw new Error('重置失败，请重试');
+    }
+  } catch (error) {
+    console.error('重置应用失败:', error);
+    alert(error.message || '重置应用失败，请重试');
+  } finally {
+    isResetting.value = false;
+    showResetConfirm.value = false;
+  }
+}
+
 // 生命周期
-onMounted(() => {
-  isDarkMode.value = preferences.theme === 'dark';
-  document.body.classList.toggle('dark-mode', isDarkMode.value);
+onMounted(async () => {
+  try {
+    // 获取用户偏好
+    const userPrefs = await getUserPreferences();
+    
+    // 更新本地响应式对象
+    Object.assign(preferences, userPrefs);
+    
+    // 设置暗黑模式
+    isDarkMode.value = preferences.theme === 'dark';
+    document.body.classList.toggle('dark-mode', isDarkMode.value);
+  } catch (error) {
+    console.error('加载用户偏好失败:', error);
+  }
 });
 
 // 监听偏好变化自动保存
@@ -629,5 +741,88 @@ input:checked + .switch-label::after {
   .mbti-buttons {
     grid-template-columns: 1fr;
   }
+}
+
+/* 重置确认弹窗样式 */
+.reset-confirm-modal .modal-content {
+  max-width: 400px;
+}
+
+.warning-icon {
+  font-size: 48px;
+  color: #e74c3c;
+  text-align: center;
+  margin: var(--spacing-md) 0;
+}
+
+.reset-warning {
+  font-weight: 500;
+  margin-bottom: var(--spacing-md);
+}
+
+.reset-list {
+  margin-bottom: var(--spacing-md);
+  padding-left: var(--spacing-xl);
+}
+
+.reset-list li {
+  margin-bottom: var(--spacing-xs);
+}
+
+.reset-note {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+.btn-danger:disabled {
+  background-color: #e57373;
+  cursor: not-allowed;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 12px;
+}
+
+/* 确保重置按钮样式正确 */
+.reset-app-item {
+  align-items: center;
+}
+
+.reset-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: 14px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+}
+
+.reset-btn i {
+  margin-right: var(--spacing-xs);
+  font-size: 16px;
+}
+
+/* 确保modal显示正确 */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  gap: var(--spacing-md);
 }
 </style>

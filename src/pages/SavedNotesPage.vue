@@ -103,8 +103,13 @@ const detailNoteRef = ref(null);
 const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
 
 // 获取收藏的笔记
-function loadSavedNotes() {
-  savedNotes.value = getSavedNotes();
+async function loadSavedNotes() {
+  try {
+    savedNotes.value = await getSavedNotes();
+  } catch (error) {
+    console.error('加载收藏笔记失败:', error);
+    savedNotes.value = [];
+  }
 }
 
 // 查看笔记详情
@@ -114,28 +119,38 @@ function viewNote(note) {
 }
 
 // 删除当前笔记
-function deleteCurrentNote() {
+async function deleteCurrentNote() {
   if (!currentNote.value) return;
   
   if (confirm('确定要删除这条心语吗？')) {
-    const success = deleteNote(currentNote.value.id);
-    if (success) {
-      loadSavedNotes();
-      showNoteDetail.value = false;
-    } else {
+    try {
+      const success = await deleteNote(currentNote.value.id);
+      if (success) {
+        await loadSavedNotes();
+        showNoteDetail.value = false;
+      } else {
+        alert('删除失败，请重试');
+      }
+    } catch (error) {
+      console.error('删除笔记失败:', error);
       alert('删除失败，请重试');
     }
   }
 }
 
 // 清空所有收藏
-function deleteAll() {
+async function deleteAll() {
   if (confirm('确定要清空所有收藏吗？此操作不可恢复。')) {
-    const success = clearSavedNotes();
-    if (success) {
-      loadSavedNotes();
-      showActionMenu.value = false;
-    } else {
+    try {
+      const success = await clearSavedNotes();
+      if (success) {
+        await loadSavedNotes();
+        showActionMenu.value = false;
+      } else {
+        alert('操作失败，请重试');
+      }
+    } catch (error) {
+      console.error('清空收藏失败:', error);
       alert('操作失败，请重试');
     }
   }

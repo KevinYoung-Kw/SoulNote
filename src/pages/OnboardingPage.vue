@@ -130,7 +130,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { saveUserPreferences } from '../services/storageService';
+import { saveUserPreferences, setOnboardingCompleted } from '../services/storageService';
 import welcomeSvg from '../assets/onboarding-welcome.svg';
 import completeSvg from '../assets/onboarding-complete.svg';
 
@@ -240,15 +240,20 @@ function nextStep() {
   }
 }
 
-function completeOnboarding() {
-  // 保存用户偏好
-  saveUserPreferences(userPreferences);
-  
-  // 标记完成引导流程
-  localStorage.setItem('soul-note-onboarding-completed', 'true');
-  
-  // 导航到主页
-  router.push('/home');
+async function completeOnboarding() {
+  try {
+    // 保存用户偏好
+    await saveUserPreferences(userPreferences);
+    
+    // 标记完成引导流程
+    await setOnboardingCompleted(true);
+    
+    // 导航到主页
+    router.push('/home');
+  } catch (error) {
+    console.error('完成引导流程失败:', error);
+    alert('设置保存失败，请重试');
+  }
 }
 
 function openMBTITest() {

@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import { getOnboardingCompleted } from '../services/storageService';
 
 const routes = [
   {
@@ -39,20 +40,31 @@ const router = createRouter({
 });
 
 // 路由守卫，检查是否完成引导流程
-router.beforeEach((to, from, next) => {
-  const hasCompletedOnboarding = localStorage.getItem('soul-note-onboarding-completed') === 'true';
-  
-  // 如果需要完成引导但尚未完成，重定向到引导页
-  if (to.meta.requiresOnboarding && !hasCompletedOnboarding) {
-    next({ name: 'Onboarding' });
-  } 
-  // 如果已完成引导且访问欢迎/引导页面，重定向到首页
-  else if (hasCompletedOnboarding && (to.name === 'Welcome' || to.name === 'Onboarding')) {
-    next({ name: 'Home' });
-  }
-  // 其他情况正常导航
-  else {
-    next();
+router.beforeEach(async (to, from, next) => {
+  try {
+    // 异步获取引导完成状态
+    const hasCompletedOnboarding = await getOnboardingCompleted();
+    
+    // 如果需要完成引导但尚未完成，重定向到引导页
+    if (to.meta.requiresOnboarding && !hasCompletedOnboarding) {
+      next({ name: 'Onboarding' });
+    } 
+    // 如果已完成引导且访问欢迎/引导页面，重定向到首页
+    else if (hasCompletedOnboarding && (to.name === 'Welcome' || to.name === 'Onboarding')) {
+      next({ name: 'Home' });
+    }
+    // 其他情况正常导航
+    else {
+      next();
+    }
+  } catch (error) {
+    console.error('路由守卫错误:', error);
+    // 出错时默认导航到欢迎页
+    if (to.name !== 'Welcome') {
+      next({ name: 'Welcome' });
+    } else {
+      next();
+    }
   }
 });
 

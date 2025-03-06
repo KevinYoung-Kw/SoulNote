@@ -1,8 +1,8 @@
 <template>
   <div class="home-page">
-    <!-- 顶部栏 -->
+    <!-- 顶部栏 - 修改设置图标行为 -->
     <header class="header">
-      <button class="icon-btn" @click="showSettings = true">
+      <button class="icon-btn" @click="goToSettings">
         <i class="fas fa-cog"></i>
       </button>
       <h1 class="app-title">星语心笺</h1>
@@ -116,38 +116,7 @@
       </div>
     </div>
     
-    <!-- 设置弹窗 -->
-    <div class="settings-modal" v-if="showSettings">
-      <div class="settings-content">
-        <div class="settings-header">
-          <h2>设置</h2>
-          <button class="icon-btn" @click="showSettings = false">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <div class="settings-body">
-          <div class="settings-section">
-            <h3>个人偏好设置</h3>
-            <p>这些设置将影响生成内容的个性化程度</p>
-            <!-- 个人设置内容 -->
-          </div>
-          
-          <div class="settings-section">
-            <h3>应用设置</h3>
-            <div class="setting-item">
-              <span>暗色模式</span>
-              <input type="checkbox" v-model="darkMode"/>
-            </div>
-          </div>
-        </div>
-        
-        <div class="settings-footer">
-          <button class="btn btn-secondary" @click="showSettings = false">取消</button>
-          <button class="btn btn-primary" @click="saveSettings">确定</button>
-        </div>
-      </div>
-    </div>
+    <!-- 移除设置弹窗，改用路由导航 -->
   </div>
 </template>
 
@@ -165,7 +134,7 @@ const noteCardRef = ref(null);
 
 // 状态管理
 const showParams = ref(false);
-const showSettings = ref(false);
+// 移除 showSettings - const showSettings = ref(false);
 const isGenerating = ref(false);
 const isAnimating = ref(false);
 const noteContent = ref('点击下方"生成心语"按钮，开始您的心灵之旅...');
@@ -316,44 +285,34 @@ function goToSavedNotes() {
   router.push('/saved');
 }
 
-function saveSettings() {
-  saveUserPreferences({
-    zodiac: params.zodiac,
-    mbti: params.mbti,
-    language: params.language,
-    theme: darkMode.value ? 'dark' : 'light',
-    fontSize: fontSize.value,
-    background: currentBackground.value
-  });
-  
-  showSettings.value = false;
-}
-
-function increaseFontSize() {
-  if (fontSize.value < 36) fontSize.value += 2;
-}
-
-function decreaseFontSize() {
-  if (fontSize.value > 16) fontSize.value -= 2;
+// 导航到设置页
+function goToSettings() {
+  router.push('/settings');
 }
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
   // 加载用户偏好设置
-  const preferences = getUserPreferences();
-  if (preferences) {
-    params.zodiac = preferences.zodiac;
-    params.mbti = preferences.mbti;
-    params.language = preferences.language || 'zh';
-    darkMode.value = preferences.theme === 'dark';
-    fontSize.value = preferences.fontSize || 24;
-    currentBackground.value = preferences.background || 'paper-1';
+  try {
+    const preferences = await getUserPreferences();
+    if (preferences) {
+      params.zodiac = preferences.zodiac;
+      params.mbti = preferences.mbti;
+      params.language = preferences.language || 'zh';
+      darkMode.value = preferences.theme === 'dark';
+      fontSize.value = preferences.fontSize || 24;
+      currentBackground.value = preferences.background || 'paper-1';
+    }
+  } catch (error) {
+    console.error('加载用户偏好设置失败:', error);
   }
 });
 
-// 监听暗黑模式变化
+// 监听暗黑模式变化 - 仍然需要处理本页面的深色模式状态
 watch(darkMode, (isDark) => {
   document.body.classList.toggle('dark-mode', isDark);
+  // 如果需要在暗黑模式变化时重新渲染纸条，可以在这里添加逻辑
+  noteCardRef.value?.$forceUpdate();
 });
 </script>
 
@@ -533,70 +492,7 @@ watch(darkMode, (isDark) => {
   justify-content: center;
 }
 
-.settings-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.settings-content {
-  width: 90%;
-  max-width: 500px;
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.settings-header h2 {
-  margin: 0;
-}
-
-.settings-body {
-  padding: var(--spacing-md);
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.settings-section {
-  margin-bottom: var(--spacing-lg);
-}
-
-.settings-section h3 {
-  margin-bottom: var(--spacing-sm);
-}
-
-.setting-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-sm) 0;
-}
-
-.settings-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--border-color);
-}
-
-.settings-footer button {
-  margin-left: var(--spacing-md);
-}
+/* 移除设置模态框相关的CSS */
 
 /* 暗黑模式样式 */
 :global(.dark-mode) {
