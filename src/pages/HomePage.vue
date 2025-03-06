@@ -190,6 +190,7 @@ const noteContent = ref('点击下方"生成心语"按钮，开始您的心灵�
 const currentBackground = ref('paper-1');
 const fontSize = ref(24);
 const darkMode = ref(false);
+const loadingMessage = ref(''); 
 
 // 导出功能
 const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
@@ -329,15 +330,34 @@ const emojiCategories = [
   }
 ];
 
-// 加载状态
-const loadingMessages = [
+// 加载状态 - 区分普通模式和毒舌模式
+const normalLoadingMessages = [
   "正在收集灵感...",
   "正在编织文字...",
   "正在注入温暖...",
   "正在构思内容...",
   "正在校对文案..."
 ];
-const loadingMessage = ref(loadingMessages[0]);
+
+// 毒舌模式专用加载提示
+const savageLoadingMessages = [
+  "正在搜刮你的黑历史...",
+  "正在翻你的老底...",
+  "正在组织犀利语言...",
+  "正在找你的软肋...",
+  "正在磨刀霍霍...",
+  "正在准备扎心内容...",
+  "正在分析你的弱点...",
+  "正在酝酿致命一击...",
+  "正在挖掘你不愿面对的真相...",
+  "正在研究怎么让你破防..."
+];
+
+// 根据模式选择加载信息
+const loadingMessages = computed(() => {
+  return params.savageMode ? savageLoadingMessages : normalLoadingMessages;
+});
+
 let loadingInterval = null;
 
 // 动态计算响应时间和动画时长
@@ -356,10 +376,10 @@ async function generateNote() {
   
   // 设置加载消息循环
   let messageIndex = 0;
-  loadingMessage.value = loadingMessages[messageIndex];
+  loadingMessage.value = loadingMessages.value[messageIndex];
   loadingInterval = setInterval(() => {
-    messageIndex = (messageIndex + 1) % loadingMessages.length;
-    loadingMessage.value = loadingMessages[messageIndex];
+    messageIndex = (messageIndex + 1) % loadingMessages.value.length;
+    loadingMessage.value = loadingMessages.value[messageIndex];
   }, 2000);
   
   // 获取当前模型的预估响应时间
