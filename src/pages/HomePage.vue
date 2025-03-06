@@ -12,6 +12,7 @@
     </header>
     
     <!-- 参数区域 -->
+    <!--
     <div class="params-section" :class="{ 'expanded': showParams }">
       <div class="params-toggle" @click="showParams = !showParams">
         <span>参数设置</span>
@@ -46,6 +47,7 @@
         </div>
       </div>
     </div>
+    -->
     
     <!-- 纸条展示区 -->
     <div class="note-container" ref="noteContainerRef">
@@ -320,7 +322,7 @@ async function generateNote() {
   if (isGenerating.value) return;
   
   isGenerating.value = true;
-  isAnimating.value = true;
+  isAnimating.value = true;  // 设置动画标志
   
   try {
     // 验证必要参数
@@ -340,6 +342,8 @@ async function generateNote() {
     noteContent.value = '内容生成失败，请稍后重试...';
   } finally {
     isGenerating.value = false;
+    // 注意：我们不在这里将isAnimating设为false，
+    // 因为需要在动画完成后才设置，这由NoteCard组件负责
   }
 }
 

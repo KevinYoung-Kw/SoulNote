@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useNoteAnimation } from '../composables/useNoteAnimation';
 
 const props = defineProps({
@@ -39,7 +39,7 @@ const props = defineProps({
 });
 
 const noteCardRef = ref(null);
-const { noteRef, playGenerateAnimation } = useNoteAnimation();
+const { noteRef, isAnimating, playGenerateAnimation } = useNoteAnimation();
 
 // 检测当前是否为深色模式
 const isDarkMode = computed(() => document.body.classList.contains('dark-mode'));
@@ -75,6 +75,13 @@ const cardStyle = computed(() => {
 onMounted(() => {
   noteRef.value = noteCardRef.value;
   if (props.animate) {
+    playGenerateAnimation();
+  }
+});
+
+// 监听内容变化，触发动画
+watch(() => props.content, (newContent, oldContent) => {
+  if (newContent !== oldContent && noteRef.value && props.animate) {
     playGenerateAnimation();
   }
 });

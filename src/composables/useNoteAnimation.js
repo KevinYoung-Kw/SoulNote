@@ -5,18 +5,22 @@ export function useNoteAnimation() {
   const noteRef = ref(null);
   const isAnimating = ref(false);
   
+  /**
+   * 播放纸条生成动画
+   * 实现从模糊到清晰、淡入淡出的效果
+   */
   function playGenerateAnimation() {
     if (!noteRef.value) return;
     
     isAnimating.value = true;
     
-    // 重置初始状态
+    // 设置初始状态
     gsap.set(noteRef.value, {
       filter: 'blur(15px)',
       opacity: 0,
       scale: 0.95
     });
-    
+
     // 创建动画序列
     const timeline = gsap.timeline({
       onComplete: () => {
@@ -40,20 +44,27 @@ export function useNoteAnimation() {
       ease: 'power2.out'
     });
     
-    // 3. 添加辉光效果
-    timeline.fromTo(
-      '.note-glow',
-      { opacity: 0 },
-      { opacity: 0.7, duration: 0.5, ease: 'power2.inOut' },
-      '-=0.8'
-    );
-    
-    // 4. 淡出辉光效果
-    timeline.to('.note-glow', {
-      opacity: 0,
-      duration: 0.8,
-      ease: 'power2.inOut'
-    });
+    // 3. 显示光晕效果
+    if (noteRef.value.querySelector('.note-glow')) {
+      timeline.fromTo(
+        noteRef.value.querySelector('.note-glow'),
+        { opacity: 0 },
+        { 
+          opacity: 0.7, 
+          duration: 0.5, 
+          ease: 'power2.inOut',
+          onComplete: () => {
+            // 光晕效果淡出
+            gsap.to(noteRef.value.querySelector('.note-glow'), {
+              opacity: 0,
+              duration: 1.5,
+              delay: 0.2
+            });
+          }
+        },
+        '-=0.8'
+      );
+    }
     
     return timeline;
   }
