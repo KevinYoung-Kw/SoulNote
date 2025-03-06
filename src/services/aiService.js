@@ -21,8 +21,54 @@ const zodiacMap = {
   'pisces': '双鱼座'
 };
 
+// 模型响应时间记录
+const modelResponseTimes = {
+  'qwen-max': 2000,  // 预估值，单位ms
+  'qwen-plus': 1500,
+  'qwen-turbo': 1000,
+  'deepseek-r1': 7000,
+  'default': 3000
+};
+
+// 响应时间历史记录，用于动态调整
+const responseTimeHistory = {};
+
 /**
- * 使用Qwen生成心灵纸条内容
+ * 获取模型的预估响应时间
+ * @param {string} model 模型名称
+ * @returns {number} 预估响应时间(ms)
+ */
+export function getEstimatedResponseTime(model) {
+  // 如果有历史记录，返回历史平均值
+  if (responseTimeHistory[model] && responseTimeHistory[model].length > 0) {
+    const sum = responseTimeHistory[model].reduce((a, b) => a + b, 0);
+    return Math.floor(sum / responseTimeHistory[model].length);
+  }
+  
+  // 否则返回预设值
+  return modelResponseTimes[model] || modelResponseTimes['default'];
+}
+
+/**
+ * 记录模型响应时间
+ * @param {string} model 模型名称
+ * @param {number} time 响应时间(ms)
+ */
+function recordResponseTime(model, time) {
+  if (!responseTimeHistory[model]) {
+    responseTimeHistory[model] = [];
+  }
+  
+  // 保持最多10条历史记录
+  if (responseTimeHistory[model].length >= 10) {
+    responseTimeHistory[model].shift();
+  }
+  
+  responseTimeHistory[model].push(time);
+}
+
+/**
+ * 使用AI模型生成心灵纸条内容
  * @param {Object} params 生成参数
  * @returns {Promise<string>} 生成的内容
  */
@@ -30,14 +76,15 @@ export async function generateNoteContent(params) {
   try {
     // 准备API请求参数
     const prompt = buildPrompt(params);
+    const startTime = Date.now();
     
-    // 调用Qwen API
+    // 调用API
     const response = await axios.post(`${API_URL}/chat/completions`, {
-      model: API_MODEL, // 从环境变量获取模型名称
+      model: API_MODEL,
       messages: [
         {
           role: "system",
-          content: "你是一位专业的心理咨询师和励志作家，擅长为不同人群创作简短温暖的正能量文案。"
+          content: "你是一位专业的心理咨询师和励志作家，擅长为不同人群创作简短温暖的正向文案。"
         },
         {
           role: "user",
@@ -54,6 +101,11 @@ export async function generateNoteContent(params) {
       }
     });
     
+    // 记录响应时间
+    const responseTime = Date.now() - startTime;
+    recordResponseTime(API_MODEL, responseTime);
+    
+    console.log(`API响应时间: ${responseTime}ms, 模型: ${API_MODEL}`);
     console.log('API请求成功，响应:', response.data);
     
     // 解析并返回内容
@@ -86,15 +138,16 @@ function buildPrompt(params) {
   if (params.language === 'en-zh') {
     return `请为一位${zodiacChinese}、${mbtiType}性格特点的人，创作一段简短的中英双语心灵鼓励短文。
     当前心情/场景：${mood}
-    当前时段：${timeOfDay}
+    当前事件：${timeOfDay}
     
     要求：
     1. 先输出中文，然后输出对应的英文翻译
     2. 中文20-50字左右，然后换行，输出对应翻译的英文
     3. 内容温暖积极，有治愈感，避免陈词滥调
-    4. 文风简洁有力，能引起共鸣
+    4. 文风简洁有力，能引起该性格特点人的共鸣
     5. 不要带任何标题、引言或额外说明
-    6. 直接输出正文内容，不要带引号`;
+    6. 不要刻意强调星座或性格特点，让内容自然流畅
+    7. 直接输出正文内容，不要带引号`;
   } else {
     return `请为一位${zodiacChinese}、${mbtiType}性格特点的人，创作一段简短的心灵鼓励短文。
     当前心情/场景：${mood}
@@ -103,8 +156,9 @@ function buildPrompt(params) {
     要求：
     1. 内容20-50字左右
     2. 内容温暖积极，有治愈感，避免陈词滥调
-    3. 文风简洁有力，能引起共鸣
+    3. 文风简洁有力，能引起该性格特点人的共鸣
     4. 不要带任何标题、引言或额外说明
+    5. 不要刻意强调星座或性格特点，让内容自然流畅
     5. 直接输出正文内容，不要带引号`;
   }
 }
@@ -114,21 +168,13 @@ function buildPrompt(params) {
  * @returns {string} 时段描述
  */
 function getTimeOfDay() {
-  const hour = new Date().getHours();
-  
-  if (hour >= 5 && hour < 9) {
-    return '早晨';
-  } else if (hour >= 9 && hour < 12) {
-    return '上午';
-  } else if (hour >= 12 && hour < 14) {
-    return '中午';
-  } else if (hour >= 14 && hour < 18) {
-    return '下午';
-  } else if (hour >= 18 && hour < 22) {
-    return '晚上';
-  } else {
-    return '深夜';
-  }
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const date = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${date} ${hours}:${minutes}`;
 }
 
 /**

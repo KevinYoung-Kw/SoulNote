@@ -35,11 +35,15 @@ const props = defineProps({
   animate: {
     type: Boolean,
     default: false
+  },
+  animationDuration: {
+    type: Number,
+    default: 2.0 // 默认动画时长2秒
   }
 });
 
 const noteCardRef = ref(null);
-const { noteRef, isAnimating, playGenerateAnimation } = useNoteAnimation();
+const { noteRef, isAnimating, playGenerateAnimation } = useNoteAnimation(props.animationDuration);
 
 // 检测当前是否为深色模式
 const isDarkMode = computed(() => document.body.classList.contains('dark-mode'));
@@ -84,6 +88,11 @@ watch(() => props.content, (newContent, oldContent) => {
   if (newContent !== oldContent && noteRef.value && props.animate) {
     playGenerateAnimation();
   }
+});
+
+// 监听动画时长变化
+watch(() => props.animationDuration, (newDuration) => {
+  // 这里不需要额外处理，因为useNoteAnimation会在下一次调用时使用新的动画时长
 });
 </script>
 

@@ -94,12 +94,14 @@
         </div>
       </div>
       
+      <!-- 加载指示器 - 移到生成按钮上方 -->
       <NoteCard 
         :content="noteContent" 
         :mood="params.mood"
         :background="currentBackground"
         :fontSize="fontSize"
         :animate="isAnimating"
+        :animation-duration="animationDuration"
         ref="noteCardRef"
       />
       
@@ -127,6 +129,14 @@
     
     <!-- 控制区域 -->
     <div class="control-section">
+      <!-- 加载指示器放在这里，按钮上方 -->
+      <LoadingIndicator 
+        v-if="isGenerating" 
+        :is-loading="isGenerating"
+        :message="loadingMessage"
+        :adaptive-time="estimatedResponseTime"
+      />
+      
       <button 
         class="btn btn-primary generate-btn" 
         @click="generateNote"
@@ -158,10 +168,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
-import { generateNoteContent, generateLocalContent } from '../services/aiService';
+import LoadingIndicator from '../components/LoadingIndicator.vue';
+import { generateNoteContent, generateLocalContent, getEstimatedResponseTime } from '../services/aiService';
 import { saveUserPreferences, getUserPreferences, saveNote as saveNoteToStorage } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
 
@@ -317,12 +328,41 @@ const emojiCategories = [
   }
 ];
 
+// 加载状态
+const loadingMessages = [
+  "正在收集灵感...",
+  "正在编织文字...",
+  "正在注入温暖...",
+  "正在构思内容...",
+  "正在校对文案..."
+];
+const loadingMessage = ref(loadingMessages[0]);
+let loadingInterval = null;
+
+// 动态计算响应时间和动画时长
+const estimatedResponseTime = ref(3000); // 默认3秒
+const animationDuration = computed(() => {
+  // 根据响应时间动态调整动画时长，但最少1.5秒最多3秒
+  const baseDuration = Math.min(Math.max(estimatedResponseTime.value / 3000, 1.5), 3);
+  return baseDuration;
+});
+
 // 方法
 async function generateNote() {
   if (isGenerating.value) return;
   
   isGenerating.value = true;
-  isAnimating.value = true;  // 设置动画标志
+  
+  // 设置加载消息循环
+  let messageIndex = 0;
+  loadingMessage.value = loadingMessages[messageIndex];
+  loadingInterval = setInterval(() => {
+    messageIndex = (messageIndex + 1) % loadingMessages.length;
+    loadingMessage.value = loadingMessages[messageIndex];
+  }, 2000);
+  
+  // 获取当前模型的预估响应时间
+  estimatedResponseTime.value = getEstimatedResponseTime(import.meta.env.VITE_API_MODEL || 'default');
   
   try {
     // 验证必要参数
@@ -337,13 +377,25 @@ async function generateNote() {
     
     // 更新内容
     noteContent.value = content;
+    
+    // 清除加载消息循环
+    clearInterval(loadingInterval);
+    loadingInterval = null;
+    
+    // 加载完成后开始动画
+    setTimeout(() => {
+      isAnimating.value = true;
+      isGenerating.value = false;
+    }, 300); // 短暂延迟，让加载条完成到100%
+    
   } catch (error) {
     console.error('生成失败:', error);
     noteContent.value = '内容生成失败，请稍后重试...';
-  } finally {
+    
+    // 清除加载消息循环
+    clearInterval(loadingInterval);
+    loadingInterval = null;
     isGenerating.value = false;
-    // 注意：我们不在这里将isAnimating设为false，
-    // 因为需要在动画完成后才设置，这由NoteCard组件负责
   }
 }
 
@@ -469,6 +521,14 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('加载用户偏好设置失败:', error);
+  }
+});
+
+onBeforeUnmount(() => {
+  // 清除任何可能存在的定时器
+  if (loadingInterval) {
+    clearInterval(loadingInterval);
+    loadingInterval = null;
   }
 });
 
@@ -626,13 +686,17 @@ watch(darkMode, (isDark) => {
 
 .control-section {
   margin: var(--spacing-md);
+  position: relative; /* 确保相对定位，为加载指示器提供定位基础 */
 }
 
+/* 调整生成按钮上方间距，为加载指示器留出空间 */
 .generate-btn {
   width: 100%;
   padding: var(--spacing-md) 0;
   font-size: 18px;
   margin-bottom: var(--spacing-md);
+  position: relative; /* 添加相对定位 */
+  z-index: 1; /* 确保按钮在上层 */
 }
 
 .generate-btn i {

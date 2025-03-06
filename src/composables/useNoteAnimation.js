@@ -1,17 +1,20 @@
 import { ref } from 'vue';
 import gsap from 'gsap';
 
-export function useNoteAnimation() {
+export function useNoteAnimation(defaultDuration = 2.0) {
   const noteRef = ref(null);
   const isAnimating = ref(false);
   
   /**
    * 播放纸条生成动画
    * 实现从模糊到清晰、淡入淡出的效果
+   * @param {number} customDuration 自定义动画时长（秒）
+   * @returns {object} GSAP时间线对象
    */
-  function playGenerateAnimation() {
+  function playGenerateAnimation(customDuration) {
     if (!noteRef.value) return;
     
+    const duration = customDuration || defaultDuration;
     isAnimating.value = true;
     
     // 设置初始状态
@@ -31,7 +34,7 @@ export function useNoteAnimation() {
     // 1. 淡入模糊状态
     timeline.to(noteRef.value, {
       opacity: 0.7,
-      duration: 0.5,
+      duration: duration * 0.25, // 占总时长的1/4
       ease: 'power2.inOut'
     });
     
@@ -40,7 +43,7 @@ export function useNoteAnimation() {
       filter: 'blur(0px)',
       scale: 1,
       opacity: 1,
-      duration: 1.2,
+      duration: duration * 0.6, // 占总时长的3/5
       ease: 'power2.out'
     });
     
@@ -51,14 +54,14 @@ export function useNoteAnimation() {
         { opacity: 0 },
         { 
           opacity: 0.7, 
-          duration: 0.5, 
+          duration: duration * 0.25, 
           ease: 'power2.inOut',
           onComplete: () => {
             // 光晕效果淡出
             gsap.to(noteRef.value.querySelector('.note-glow'), {
               opacity: 0,
-              duration: 1.5,
-              delay: 0.2
+              duration: duration * 0.75,
+              delay: 0.1
             });
           }
         },
