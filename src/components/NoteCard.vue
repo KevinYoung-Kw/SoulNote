@@ -52,81 +52,50 @@ const { noteRef, isAnimating, playGenerateAnimation } = useNoteAnimation(props.a
 const isDarkMode = computed(() => document.body.classList.contains('dark-mode'));
 const isSavageMode = computed(() => document.body.classList.contains('savage-mode'));
 
-// 定义亮色模式下的背景
-const lightModeBackgrounds = {
-  'paper-1': 'linear-gradient(to right bottom, #FFFFFF, #F9F3E5)',
-  'paper-2': 'linear-gradient(to right bottom, #FFF9F9, #FFE8E8)',
-  'paper-3': 'linear-gradient(to right bottom, #F0F8FF, #E6F0F9)',
-  'paper-4': 'linear-gradient(to right bottom, #F5FFF5, #E6F9E6)'
-};
+// 使用CSS变量映射背景
+const getBackgroundVariable = computed(() => {
+  // 根据背景类型确定对应的CSS变量索引
+  const bgIndex = props.background.replace('paper-', '');
+  return `var(--note-bg-${bgIndex})`;
+});
 
-// 修改为更柔和的深色背景
-const darkModeBackgrounds = {
-  'paper-1': 'linear-gradient(to right bottom, #3C3C3C, #444444)',
-  'paper-2': 'linear-gradient(to right bottom, #3E3839, #463B3C)',
-  'paper-3': 'linear-gradient(to right bottom, #373D40, #394249)',
-  'paper-4': 'linear-gradient(to right bottom, #384038, #3F4A3F)'
-};
-
-// 毒舌模式亮色背景 - 带有微妙刺激感的色调
-const savageLightBackgrounds = {
-  'paper-1': 'linear-gradient(to right bottom, #FFF4E0, #FFD8A9)', // 警告黄
-  'paper-2': 'linear-gradient(to right bottom, #FFEBEB, #FFCCD5)', // 辛辣粉
-  'paper-3': 'linear-gradient(to right bottom, #E3FFFD, #CAFFFE)', // 刺眼浅蓝
-  'paper-4': 'linear-gradient(to right bottom, #FFF7D4, #FFE15D)' // 尖锐黄
-};
-
-// 毒舌模式暗色背景 - 更加强烈的对比色
-const savageDarkBackgrounds = {
-  'paper-1': 'linear-gradient(to right bottom, #3A2434, #4A3045)', // 深讽刺紫
-  'paper-2': 'linear-gradient(to right bottom, #4A1F1F, #5C2626)', // 刺痛红
-  'paper-3': 'linear-gradient(to right bottom, #1F2A4A, #263866)', // 冷嘲蓝
-  'paper-4': 'linear-gradient(to right bottom, #354221, #475C2C)' // 尖酸绿
-};
-
-// 根据当前模式选择背景
-// 根据当前模式选择背景
+// 简化的卡片样式计算
 const cardStyle = computed(() => {
-  // 添加调试日志
-  console.log('Computing card style:');
-  console.log('- Dark mode:', isDarkMode.value);
-  console.log('- Savage mode:', isSavageMode.value);
-  console.log('- Background prop:', props.background);
+  // 获取背景
+  const background = getBackgroundVariable.value;
   
-  let backgroundMap;
-  let result = {};
+  // 基础样式
+  const style = {
+    background: background,
+    color: 'var(--text-color)',
+    boxShadow: 'var(--shadow-md)',
+  };
   
-  // 首先判断是否为毒舌模式
+  // 毒舌模式下的特殊样式
   if (isSavageMode.value) {
-    console.log('Applying savage mode style');
-    backgroundMap = isDarkMode.value ? savageDarkBackgrounds : savageLightBackgrounds;
-    
-    // 确保背景值被正确设置
-    const bgValue = backgroundMap[props.background] || backgroundMap['paper-1'];
-    console.log('Selected background:', bgValue);
-    
-    // 毒舌模式下的文本和阴影特殊处理
-    result = {
-      background: bgValue,
-      color: isDarkMode.value ? '#FFB6B6' : '#B71C1C', // 毒舌模式文字颜色更具刺激性
-      boxShadow: isDarkMode.value 
-        ? '0 4px 12px rgba(255, 82, 82, 0.25)' 
-        : '0 4px 12px rgba(255, 123, 123, 0.15)',
-      fontWeight: '500' // 稍微加粗以增强扎心感
-    };
-  } else {
-    backgroundMap = isDarkMode.value ? darkModeBackgrounds : lightModeBackgrounds;
-    result = {
-      background: backgroundMap[props.background] || backgroundMap['paper-1'],
-      color: isDarkMode.value ? '#E0E0E0' : '#333333',
-      boxShadow: isDarkMode.value 
-        ? '0 4px 12px rgba(0, 0, 0, 0.25)' 
-        : 'var(--shadow-md)'
-    };
+    // 根据是否暗黑模式选择文本颜色
+    if (isDarkMode.value) {
+      style.color = 'var(--savage-text)'; // 暗黑毒舌模式下使用浅色文本
+    } else {
+      style.color = '#333333'; // 亮色毒舌模式下使用深色文本
+    }
+    style.boxShadow = 'var(--savage-shadow)';
+    style.fontWeight = '500'; // 稍微加粗以增强扎心感
   }
   
-  console.log('Final style:', result);
-  return result;
+  return style;
+});
+
+// 表情符号样式
+const moodStyle = computed(() => {
+  if (isSavageMode.value) {
+    return {
+      color: isDarkMode.value ? 'var(--savage-text)' : '#333333'
+    };
+  }
+  return {
+    color: 'inherit'
+  };
 });
 
 onMounted(() => {
@@ -211,5 +180,14 @@ watch(() => props.animationDuration, (newDuration) => {
 
 :global(.dark-mode) .note-glow {
   background: radial-gradient(circle at center, rgba(100,100,100,0.4) 0%, rgba(80,80,80,0) 70%);
+}
+
+/* 毒舌模式特殊样式 */
+.savage-note .note-watermark {
+  color: rgba(183, 28, 28, 0.15);
+}
+
+:global(.dark-mode) .savage-note .note-watermark {
+  color: rgba(255, 182, 182, 0.15);
 }
 </style>

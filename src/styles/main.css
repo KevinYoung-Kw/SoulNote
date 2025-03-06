@@ -36,6 +36,81 @@
   --transition-fast: 0.2s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
+  
+  /* 纸条背景 - 亮色 */
+  --note-bg-1: linear-gradient(to right bottom, #FFFFFF, #F9F3E5);
+  --note-bg-2: linear-gradient(to right bottom, #FFF9F9, #FFE8E8);
+  --note-bg-3: linear-gradient(to right bottom, #F0F8FF, #E6F0F9);
+  --note-bg-4: linear-gradient(to right bottom, #F5FFF5, #E6F9E6);
+}
+
+/* 暗黑模式变量 */
+body.dark-mode {
+  --primary-color: #8DB39E; /* 稍微亮一点的原色 */
+  --accent-color: #E8C4C4;
+  --text-color: #E0E0E0;
+  --text-secondary: #A0A0A0;
+  --bg-color: #1A1A1A;
+  --card-bg: #2C2C2C;
+  --border-color: #444444;
+  --success-color: #8DB39E;
+  --error-color: #E88C8C;
+  --warning-color: #FFD166;
+  
+  /* 阴影 - 暗色模式下更深 */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+  
+  /* 纸条背景 - 暗色 */
+  --note-bg-1: linear-gradient(to right bottom, #3C3C3C, #444444);
+  --note-bg-2: linear-gradient(to right bottom, #3E3839, #463B3C);
+  --note-bg-3: linear-gradient(to right bottom, #373D40, #394249);
+  --note-bg-4: linear-gradient(to right bottom, #384038, #3F4A3F);
+}
+
+/* 毒舌模式变量 - 亮色基础 */
+body.savage-mode:not(.dark-mode) {
+  /* 保持原有的页面背景色 */
+  --bg-color: #F9F3E5;
+  --card-bg: #FFFFFF;
+  --text-color: #333333;
+  --text-secondary: #777777;
+  
+  --primary-color: #ff5252;
+  --accent-color: #ff8a80;
+  --success-color: #ff5252;
+  
+  /* 毒舌模式专用变量 */
+  --savage-text: #B71C1C;
+  --savage-shadow: 0 4px 12px rgba(255, 123, 123, 0.15);
+  
+  /* 纸条背景 - 毒舌亮色 */
+  --note-bg-1: linear-gradient(to right bottom, #FFF4E0, #FFD8A9);
+  --note-bg-2: linear-gradient(to right bottom, #FFEBEB, #FFCCD5);
+  --note-bg-3: linear-gradient(to right bottom, #E3FFFD, #CAFFFE);
+  --note-bg-4: linear-gradient(to right bottom, #FFF7D4, #FFE15D);
+}
+
+/* 毒舌模式 + 暗黑模式组合 */
+body.dark-mode.savage-mode {
+  --primary-color: #ff5252;
+  --accent-color: #ff8a80;
+  --text-color: #FFE0E0;
+  --text-secondary: #FFB0B0;
+  --bg-color: #1A1A1A; /* 确保黑暗背景 */
+  --card-bg: #2C2C2C;
+  --border-color: #444444;
+  
+  /* 毒舌模式专用变量 - 暗色 */
+  --savage-text: #FFB6B6;
+  --savage-shadow: 0 4px 12px rgba(255, 82, 82, 0.25);
+  
+  /* 纸条背景 - 毒舌暗色 */
+  --note-bg-1: linear-gradient(to right bottom, #3A2434, #4A3045);
+  --note-bg-2: linear-gradient(to right bottom, #4A1F1F, #5C2626);
+  --note-bg-3: linear-gradient(to right bottom, #1F2A4A, #263866);
+  --note-bg-4: linear-gradient(to right bottom, #354221, #475C2C);
 }
 
 /* 基础样式重置 */
@@ -43,6 +118,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 body {

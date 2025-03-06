@@ -1,4 +1,12 @@
 /* Dark Mode Overrides */
+
+/* 基础元素的暗黑模式 */
+body.dark-mode {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* 输入控件样式 */
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
@@ -22,6 +30,16 @@ body.dark-mode textarea:focus {
 }
 
 /* 改善按钮在暗黑模式下的样式 */
+body.dark-mode .btn-primary {
+  background-color: var(--primary-color);
+  color: #121212;
+}
+
+body.dark-mode .btn-secondary {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
 body.dark-mode .action-btn {
   background-color: #444444;
 }
@@ -32,12 +50,19 @@ body.dark-mode .action-btn:hover {
 
 /* 改善设置项目在暗黑模式下的样式 */
 body.dark-mode .setting-item {
-  border-color: #505050;
+  border-color: var(--border-color);
+}
+
+/* 改善卡片在暗黑模式下的样式 */
+body.dark-mode .card {
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-md);
 }
 
 /* 改善模态框在暗黑模式下的样式 */
 body.dark-mode .modal-content {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-lg);
 }
 
 /* 滚动条美化 */
@@ -56,6 +81,31 @@ body.dark-mode ::-webkit-scrollbar-thumb {
 
 body.dark-mode ::-webkit-scrollbar-thumb:hover {
   background: #777777;
+}
+
+/* 毒舌模式与暗黑模式结合的额外样式 */
+body.dark-mode.savage-mode .btn-primary,
+body.dark-mode.savage-mode .btn-secondary {
+  border-color: var(--primary-color);
+  color: var(--text-color);
+}
+
+body.dark-mode.savage-mode .setting-item {
+  border-color: #505050;
+}
+
+/* 修复页面和卡片背景 */
+body.dark-mode .settings-page,
+body.dark-mode .home-page,
+body.dark-mode .saved-notes-page,
+body.dark-mode .onboarding-page {
+  background-color: var(--bg-color);
+}
+
+body.dark-mode .settings-section,
+body.dark-mode .note-container,
+body.dark-mode .card {
+  background-color: var(--card-bg);
 }
 
 /* 平滑过渡所有元素 */

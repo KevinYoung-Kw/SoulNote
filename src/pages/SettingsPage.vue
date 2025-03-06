@@ -371,16 +371,12 @@ function toggleDarkMode() {
   savePreferences();
 }
 
-// 添加毒舌模式切换函数
-// 在SettingsPage.vue中
+// 改进毒舌模式切换函数
 function toggleSavageMode() {
-  preferences.savageMode = !preferences.savageMode;
-  if (preferences.savageMode) {
-    document.body.classList.add('savage-mode');
-  } else {
-    document.body.classList.remove('savage-mode');
-  }
+  preferences.savageMode = isSavageMode.value;
+  document.body.classList.toggle('savage-mode', isSavageMode.value);
   console.log('Savage mode toggled:', preferences.savageMode);
+  savePreferences();
 }
 
 function increaseFontSize() {
@@ -468,6 +464,13 @@ onMounted(async () => {
     // 设置毒舌模式
     isSavageMode.value = preferences.savageMode || false;
     document.body.classList.toggle('savage-mode', isSavageMode.value);
+    
+    // 检查并打印当前激活的模式
+    console.log('Current modes:', {
+      darkMode: isDarkMode.value,
+      savageMode: isSavageMode.value
+    });
+    console.log('Body classes:', document.body.classList);
   } catch (error) {
     console.error('加载用户偏好失败:', error);
   }
@@ -898,18 +901,18 @@ input:checked + .switch-label::after {
 
 /* 改进毒舌模式的视觉提示 */
 .savage-mode .savage-mode-description p {
-  color: var(--savage-primary-color);
+  color: var(--primary-color);
   font-weight: bold;
 }
 
 .savage-mode .section-title {
-  color: var(--savage-primary-color);
+  color: var(--primary-color);
   text-shadow: 0 0 3px rgba(255, 82, 82, 0.3);
 }
 
 /* 毒舌模式下的开关样式 */
 .savage-mode input:checked + .switch-label {
-  background-color: var(--savage-primary-color);
+  background-color: var(--primary-color);
   box-shadow: 0 0 5px rgba(255, 82, 82, 0.5);
 }
 </style>
