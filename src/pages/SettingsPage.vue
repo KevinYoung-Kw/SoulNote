@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-page">
+  <div class="settings-page" :class="{'savage-mode': preferences.savageMode}">
     <header class="header">
       <button class="icon-btn" @click="goBack">
         <i class="fas fa-arrow-left"></i>
@@ -61,6 +61,23 @@
             />
             <label for="darkModeSwitch" class="switch-label"></label>
           </div>
+        </div>
+        
+        <!-- 添加毒舌模式切换选项 -->
+        <div class="setting-item savage-mode-setting">
+          <label class="setting-label">毒舌模式</label>
+          <div class="setting-switch">
+            <input 
+              type="checkbox" 
+              id="savageModeSwitch" 
+              v-model="isSavageMode"
+              @change="toggleSavageMode"
+            />
+            <label for="savageModeSwitch" class="switch-label"></label>
+          </div>
+        </div>
+        <div class="savage-mode-description" v-if="preferences.savageMode">
+          <p>已开启毒舌模式 - 请做好被扎心的准备！</p>
         </div>
         
         <div class="setting-item">
@@ -236,6 +253,7 @@ const router = useRouter();
 const showZodiacSelector = ref(false);
 const showMbtiSelector = ref(false);
 const isDarkMode = ref(false);
+const isSavageMode = ref(false); // 添加毒舌模式状态
 const showResetConfirm = ref(false);
 const isResetting = ref(false);
 
@@ -246,7 +264,8 @@ const preferences = reactive({
   language: 'zh',
   theme: 'light',
   fontSize: 24,
-  background: 'paper-1'
+  background: 'paper-1',
+  savageMode: false // 添加毒舌模式参数
 });
 
 // 星座数据
@@ -352,6 +371,18 @@ function toggleDarkMode() {
   savePreferences();
 }
 
+// 添加毒舌模式切换函数
+// 在SettingsPage.vue中
+function toggleSavageMode() {
+  preferences.savageMode = !preferences.savageMode;
+  if (preferences.savageMode) {
+    document.body.classList.add('savage-mode');
+  } else {
+    document.body.classList.remove('savage-mode');
+  }
+  console.log('Savage mode toggled:', preferences.savageMode);
+}
+
 function increaseFontSize() {
   if (preferences.fontSize < 36) {
     preferences.fontSize += 2;
@@ -433,6 +464,10 @@ onMounted(async () => {
     // 设置暗黑模式
     isDarkMode.value = preferences.theme === 'dark';
     document.body.classList.toggle('dark-mode', isDarkMode.value);
+    
+    // 设置毒舌模式
+    isSavageMode.value = preferences.savageMode || false;
+    document.body.classList.toggle('savage-mode', isSavageMode.value);
   } catch (error) {
     console.error('加载用户偏好失败:', error);
   }
@@ -824,5 +859,57 @@ input:checked + .switch-label::after {
   padding: var(--spacing-md);
   border-top: 1px solid var(--border-color);
   gap: var(--spacing-md);
+}
+
+/* 添加毒舌模式相关样式 */
+.savage-mode-setting {
+  position: relative;
+}
+
+.savage-mode-description {
+  font-size: 14px;
+  color: var(--savage-primary-color, #ff5252);
+  margin-top: -10px;
+  padding-bottom: var(--spacing-md);
+  font-style: italic;
+}
+
+/* 毒舌模式下的全局样式变量 */
+:global(body.savage-mode) {
+  --bg-color: #1a1a1a;
+  --card-bg: #2c2c2c;
+  --text-color: #e0e0e0;
+  --text-secondary: #9e9e9e;
+  --border-color: #3a3a3a;
+  --primary-color: #ff5252;
+  --savage-primary-color: #ff5252;
+  --savage-card-bg: #2c2c2c;
+  --savage-text-color: #e0e0e0;
+  --savage-text-secondary: #9e9e9e;
+  
+  /* 信笺相关样式变量 */
+  --savage-note-bg-1: linear-gradient(to right bottom, #3c2a2a, #4c3636);
+  --savage-note-bg-2: linear-gradient(to right bottom, #4a2a2c, #5c3638);
+  --savage-note-bg-3: linear-gradient(to right bottom, #2a2a3c, #36364c);
+  --savage-note-bg-4: linear-gradient(to right bottom, #2a3c2e, #364c3a);
+  --savage-note-text: #ff9e9e;
+  --savage-note-shadow: 0 4px 12px rgba(255, 82, 82, 0.25);
+}
+
+/* 改进毒舌模式的视觉提示 */
+.savage-mode .savage-mode-description p {
+  color: var(--savage-primary-color);
+  font-weight: bold;
+}
+
+.savage-mode .section-title {
+  color: var(--savage-primary-color);
+  text-shadow: 0 0 3px rgba(255, 82, 82, 0.3);
+}
+
+/* 毒舌模式下的开关样式 */
+.savage-mode input:checked + .switch-label {
+  background-color: var(--savage-primary-color);
+  box-shadow: 0 0 5px rgba(255, 82, 82, 0.5);
 }
 </style>

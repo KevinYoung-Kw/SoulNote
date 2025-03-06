@@ -1,5 +1,5 @@
 <template>
-  <div class="home-page">
+  <div class="home-page" :class="{'savage-mode': params.savageMode}">
     <!-- 顶部栏 - 修改设置图标行为 -->
     <header class="header">
       <button class="icon-btn" @click="goToSettings">
@@ -199,7 +199,8 @@ const params = reactive({
   zodiac: null,
   mbti: null,
   mood: '',
-  language: 'zh'
+  language: 'zh',
+  savageMode: false  // 保留参数，但移除UI控制
 });
 
 // 数据源
@@ -493,7 +494,8 @@ async function updateLocalPreferences() {
     await saveUserPreferences({
       ...currentPrefs,
       fontSize: fontSize.value,
-      background: currentBackground.value
+      background: currentBackground.value,
+      savageMode: params.savageMode  // 保存毒舌模式状态
     });
   } catch (error) {
     console.error('更新本地偏好设置失败:', error);
@@ -518,6 +520,7 @@ onMounted(async () => {
       darkMode.value = preferences.theme === 'dark';
       fontSize.value = preferences.fontSize || 24;
       currentBackground.value = preferences.background || 'paper-1';
+      params.savageMode = preferences.savageMode || false;  // 保留，从设置加载
     }
   } catch (error) {
     console.error('加载用户偏好设置失败:', error);
@@ -538,6 +541,14 @@ watch(darkMode, (isDark) => {
   // 如果需要在暗黑模式变化时重新渲染纸条，可以在这里添加逻辑
   noteCardRef.value?.$forceUpdate();
 });
+
+// 监听毒舌模式变化
+watch(() => params.savageMode, (isSavage) => {
+  document.body.classList.toggle('savage-mode', isSavage);
+  // 强制重新渲染纸条以应用新样式
+  noteCardRef.value?.$forceUpdate();
+}, { immediate: true });
+
 </script>
 
 <style scoped>
@@ -862,5 +873,39 @@ watch(darkMode, (isDark) => {
 /* 调整主容器上边距，给心情控件腾出空间 */
 .note-container {
   margin-top: 0;
+}
+
+/* 当毒舌模式开启时，可以添加一些视觉提示 */
+.savage-mode .app-title {
+  color: var(--primary-color);
+}
+
+/* 调整纸条容器上边距，给毒舌模式开关腾出空间 */
+.note-container {
+  margin-top: 0;
+}
+
+/* 毒舌模式的样式覆盖 */
+.savage-mode .app-title {
+  color: var(--savage-primary-color, #ff5252);
+  text-shadow: 0 0 5px rgba(255, 82, 82, 0.2);
+}
+
+.savage-mode .generate-btn {
+  background-color: var(--savage-primary-color, #ff5252);
+  border-color: var(--savage-accent-color, #8a0000);
+}
+
+.savage-mode .generate-btn:hover {
+  background-color: var(--savage-accent-color, #8a0000);
+}
+
+.savage-mode .action-btn {
+  background-color: #333333;
+}
+
+.savage-mode .action-btn:hover {
+  background-color: #444444;
+  color: var(--savage-primary-color, #ff5252);
 }
 </style>

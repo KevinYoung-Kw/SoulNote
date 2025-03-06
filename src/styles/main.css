@@ -208,3 +208,10 @@ body {
     font-size: 20px;
   }
 }
+
+/* 在主CSS文件 (例如 app.css 或 main.css) 中 */
+body.savage-mode {
+  --savage-primary: #ff5252;
+  --savage-secondary: #ff8a80;
+  --savage-accent: #ffcdd2;
+}
