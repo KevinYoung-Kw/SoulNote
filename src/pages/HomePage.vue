@@ -38,16 +38,6 @@
         </div>
         
         <div class="param-item">
-          <label>心情/状态</label>
-          <input 
-            type="text" 
-            v-model="params.mood" 
-            class="param-input"
-            placeholder="输入emoji或文字描述"
-          />
-        </div>
-        
-        <div class="param-item">
           <label>语言</label>
           <div class="toggle-switch">
             <span :class="{ active: params.language === 'zh' }" @click="params.language = 'zh'">中文</span>
@@ -59,8 +49,52 @@
     
     <!-- 纸条展示区 -->
     <div class="note-container" ref="noteContainerRef">
+      <!-- 添加心情/场景输入 -->
+      <div class="mood-input-container">
+        <div class="mood-toggle" @click="showEmojiPicker = !showEmojiPicker">
+          <span class="mood-label">心情 / 场景:</span>
+          <span class="mood-value">{{ params.mood || '点击添加' }}</span>
+          <i class="fas fa-chevron-down"></i>
+        </div>
+        
+        <!-- Emoji类别选择器 -->
+        <div class="emoji-picker" v-if="showEmojiPicker" @click.stop>
+          <div class="emoji-tabs">
+            <div 
+              v-for="(category, idx) in emojiCategories" 
+              :key="idx" 
+              :class="['emoji-tab', {active: currentEmojiCategory === idx}]"
+              @click="currentEmojiCategory = idx"
+            >
+              <i :class="category.icon"></i>
+            </div>
+          </div>
+          <div class="emoji-list">
+            <div 
+              v-for="emoji in emojiCategories[currentEmojiCategory].emojis" 
+              :key="emoji.symbol"
+              class="emoji-item"
+              @click="selectEmoji(emoji.symbol)"
+            >
+              {{ emoji.symbol }}
+            </div>
+          </div>
+          <div class="emoji-custom">
+            <input 
+              type="text" 
+              v-model="params.mood" 
+              class="mood-input"
+              placeholder="自定义内容..."
+              @keyup.enter="showEmojiPicker = false"
+            />
+            <button class="btn-small" @click="showEmojiPicker = false">确定</button>
+          </div>
+        </div>
+      </div>
+      
       <NoteCard 
         :content="noteContent" 
+        :mood="params.mood"
         :background="currentBackground"
         :fontSize="fontSize"
         :animate="isAnimating"
@@ -116,7 +150,8 @@
       </div>
     </div>
     
-    <!-- 移除设置弹窗，改用路由导航 -->
+    <!-- 点击外部关闭emoji选择器 -->
+    <div class="overlay" v-if="showEmojiPicker" @click="showEmojiPicker = false"></div>
   </div>
 </template>
 
@@ -134,7 +169,8 @@ const noteCardRef = ref(null);
 
 // 状态管理
 const showParams = ref(false);
-// 移除 showSettings - const showSettings = ref(false);
+const showEmojiPicker = ref(false);
+const currentEmojiCategory = ref(0);
 const isGenerating = ref(false);
 const isAnimating = ref(false);
 const noteContent = ref('点击下方"生成心语"按钮，开始您的心灵之旅...');
@@ -193,6 +229,90 @@ const backgrounds = [
   { value: 'paper-2', label: '淡粉色' },
   { value: 'paper-3', label: '淡蓝色' },
   { value: 'paper-4', label: '淡绿色' }
+];
+
+// Emoji分类数据
+const emojiCategories = [
+  {
+    name: '心情',
+    icon: 'fas fa-smile',
+    emojis: [
+      { symbol: '😊', name: '开心' },
+      { symbol: '😄', name: '笑' },
+      { symbol: '🥰', name: '爱' },
+      { symbol: '😌', name: '放松' },
+      { symbol: '🤔', name: '思考' },
+      { symbol: '😢', name: '伤心' },
+      { symbol: '😴', name: '疲倦' },
+      { symbol: '😎', name: '酷' },
+      { symbol: '🤩', name: '激动' },
+      { symbol: '😤', name: '坚定' }
+    ]
+  },
+  {
+    name: '场景',
+    icon: 'fas fa-map-marker-alt',
+    emojis: [
+      { symbol: '🏠', name: '家' },
+      { symbol: '🏢', name: '工作' },
+      { symbol: '🏫', name: '学校' },
+      { symbol: '☕', name: '咖啡厅' },
+      { symbol: '🏞️', name: '户外' },
+      { symbol: '🏙️', name: '城市' },
+      { symbol: '🌊', name: '海边' },
+      { symbol: '🏔️', name: '山' },
+      { symbol: '🚗', name: '路上' },
+      { symbol: '✈️', name: '旅行' }
+    ]
+  },
+  {
+    name: '活动',
+    icon: 'fas fa-running',
+    emojis: [
+      { symbol: '📚', name: '阅读' },
+      { symbol: '🎮', name: '游戏' },
+      { symbol: '🎵', name: '音乐' },
+      { symbol: '🎬', name: '电影' },
+      { symbol: '🍽️', name: '用餐' },
+      { symbol: '🧘', name: '冥想' },
+      { symbol: '🏃', name: '运动' },
+      { symbol: '💻', name: '工作' },
+      { symbol: '🛌', name: '休息' },
+      { symbol: '🎨', name: '创作' }
+    ]
+  },
+  {
+    name: '天气',
+    icon: 'fas fa-cloud-sun',
+    emojis: [
+      { symbol: '☀️', name: '晴天' },
+      { symbol: '🌤️', name: '多云' },
+      { symbol: '☁️', name: '阴天' },
+      { symbol: '🌧️', name: '下雨' },
+      { symbol: '⛈️', name: '雷雨' },
+      { symbol: '❄️', name: '雪' },
+      { symbol: '🌈', name: '彩虹' },
+      { symbol: '🌙', name: '夜晚' },
+      { symbol: '🌅', name: '日出' },
+      { symbol: '🌇', name: '日落' }
+    ]
+  },
+  {
+    name: '季节',
+    icon: 'fas fa-leaf',
+    emojis: [
+      { symbol: '🌸', name: '春天' },
+      { symbol: '🌻', name: '夏天' },
+      { symbol: '🍂', name: '秋天' },
+      { symbol: '❄️', name: '冬天' },
+      { symbol: '🌱', name: '发芽' },
+      { symbol: '🌿', name: '成长' },
+      { symbol: '🍁', name: '收获' },
+      { symbol: '🎄', name: '节日' },
+      { symbol: '🎋', name: '许愿' },
+      { symbol: '🎑', name: '赏月' }
+    ]
+  }
 ];
 
 // 方法
@@ -288,6 +408,46 @@ function goToSavedNotes() {
 // 导航到设置页
 function goToSettings() {
   router.push('/settings');
+}
+
+// 修复字体大小调整功能
+function increaseFontSize() {
+  if (fontSize.value < 36) {
+    fontSize.value += 2;
+    // 将变更保存到本地，但无需更新远程设置
+    updateLocalPreferences();
+  }
+}
+
+function decreaseFontSize() {
+  if (fontSize.value > 16) {
+    fontSize.value -= 2;
+    // 将变更保存到本地，但无需更新远程设置
+    updateLocalPreferences();
+  }
+}
+
+// 添加一个方法来更新本地偏好设置
+async function updateLocalPreferences() {
+  try {
+    // 获取当前偏好
+    const currentPrefs = await getUserPreferences();
+    
+    // 更新本地保存的设置
+    await saveUserPreferences({
+      ...currentPrefs,
+      fontSize: fontSize.value,
+      background: currentBackground.value
+    });
+  } catch (error) {
+    console.error('更新本地偏好设置失败:', error);
+  }
+}
+
+// 选择emoji
+function selectEmoji(symbol) {
+  params.mood = symbol;
+  showEmojiPicker.value = false;
 }
 
 // 生命周期
@@ -510,5 +670,129 @@ watch(darkMode, (isDark) => {
     height: 40px;
     font-size: 18px;
   }
+}
+
+/* 心情输入样式 */
+.mood-input-container {
+  position: relative;
+  margin: var(--spacing-md) 0;
+}
+
+.mood-toggle {
+  display: flex;
+  align-items: center;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  margin-bottom: var(--spacing-sm);
+}
+
+.mood-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-right: var(--spacing-sm);
+}
+
+.mood-value {
+  flex: 1;
+  font-size: 16px;
+}
+
+.emoji-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+  margin-top: var(--spacing-xs);
+  max-height: 300px;
+}
+
+.emoji-tabs {
+  display: flex;
+  padding: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.emoji-tab {
+  flex: 1;
+  text-align: center;
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.emoji-tab.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.emoji-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: var(--spacing-sm);
+  gap: var(--spacing-xs);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.emoji-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.emoji-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.emoji-custom {
+  display: flex;
+  padding: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.mood-input {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-right: var(--spacing-sm);
+}
+
+.btn-small {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: transparent;
+  z-index: 5;
+}
+
+/* 调整主容器上边距，给心情控件腾出空间 */
+.note-container {
+  margin-top: 0;
 }
 </style>

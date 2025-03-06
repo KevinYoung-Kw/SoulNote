@@ -1,5 +1,8 @@
 <template>
   <div class="note-card" ref="noteCardRef" :style="cardStyle">
+    <!-- 添加心情/场景显示 -->
+    <div class="note-mood" v-if="mood">{{ mood }}</div>
+    
     <div class="note-content" :style="{ fontSize: `${fontSize}px` }">{{ content }}</div>
     <div class="note-glow"></div>
     <div class="note-watermark">
@@ -16,6 +19,10 @@ const props = defineProps({
   content: {
     type: String,
     default: '在无限宇宙中，你是独一无二的星光。今天的每一步，都是内心力量的证明。'
+  },
+  mood: {
+    type: String,
+    default: ''
   },
   background: {
     type: String,
@@ -45,11 +52,12 @@ const lightModeBackgrounds = {
   'paper-4': 'linear-gradient(to right bottom, #F5FFF5, #E6F9E6)'
 };
 
+// 修改为更柔和的深色背景
 const darkModeBackgrounds = {
-  'paper-1': 'linear-gradient(to right bottom, #2A2A2A, #343434)',
-  'paper-2': 'linear-gradient(to right bottom, #332E2E, #3A2E2E)',
-  'paper-3': 'linear-gradient(to right bottom, #2E3436, #2E3A44)',
-  'paper-4': 'linear-gradient(to right bottom, #2E362E, #2E3A2E)'
+  'paper-1': 'linear-gradient(to right bottom, #3C3C3C, #444444)',
+  'paper-2': 'linear-gradient(to right bottom, #3E3839, #463B3C)',
+  'paper-3': 'linear-gradient(to right bottom, #373D40, #394249)',
+  'paper-4': 'linear-gradient(to right bottom, #384038, #3F4A3F)'
 };
 
 // 根据当前模式选择背景
@@ -57,7 +65,10 @@ const cardStyle = computed(() => {
   const backgroundMap = isDarkMode.value ? darkModeBackgrounds : lightModeBackgrounds;
   return {
     background: backgroundMap[props.background] || backgroundMap['paper-1'],
-    color: isDarkMode.value ? '#E0E0E0' : '#333333'
+    color: isDarkMode.value ? '#E0E0E0' : '#333333',
+    boxShadow: isDarkMode.value 
+      ? '0 4px 12px rgba(0, 0, 0, 0.25)' 
+      : 'var(--shadow-md)'
   };
 });
 
@@ -77,12 +88,11 @@ onMounted(() => {
   padding: var(--spacing-xl);
   margin: var(--spacing-lg) 0;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .note-content {
@@ -91,6 +101,16 @@ onMounted(() => {
   text-align: center;
   z-index: 2;
   padding: 0 var(--spacing-md);
+}
+
+/* 添加心情/场景样式 */
+.note-mood {
+  position: absolute;
+  top: var(--spacing-md);
+  left: var(--spacing-md);
+  font-size: 24px;
+  z-index: 2;
+  opacity: 0.85;
 }
 
 .note-glow {
@@ -113,6 +133,7 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.15);
   transform: rotate(-15deg);
   z-index: 1;
+  transition: color 0.3s ease;
 }
 
 :global(.dark-mode) .note-watermark {
@@ -120,6 +141,6 @@ onMounted(() => {
 }
 
 :global(.dark-mode) .note-glow {
-  background: radial-gradient(circle at center, rgba(80,80,80,0.6) 0%, rgba(60,60,60,0) 70%);
+  background: radial-gradient(circle at center, rgba(100,100,100,0.4) 0%, rgba(80,80,80,0) 70%);
 }
 </style>

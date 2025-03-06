@@ -22,6 +22,7 @@
     :root {
       /* 全局主题变量 */
       --primary-color: #7B9E89;
+      --primary-color-dark: #6A8D78;
       --accent-color: #E8C4C4;
       --text-color: #333333;
       --text-secondary: #666666;
@@ -57,18 +58,22 @@
     }
     
     body.dark-mode {
+      /* 更柔和的深色主题 */
       --primary-color: #8DB39E;
+      --primary-color-dark: #7A9E8A; 
       --accent-color: #E8C4C4;
       --text-color: #E0E0E0;
-      --text-secondary: #A0A0A0;
-      --bg-color: #1E1E1E;
-      --card-bg: #2A2A2A;
-      --border-color: #3A3A3A;
+      --text-secondary: #B0B0B0;
+      
+      /* 更柔和的背景色 */
+      --bg-color: #2C2C2C;
+      --card-bg: #383838;
+      --border-color: #505050;
       
       /* 暗色模式下阴影调整 */
-      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
-      --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.15);
+      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.2);
+      --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.25);
     }
     
     * {
@@ -84,6 +89,8 @@
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      /* 添加平滑过渡 */
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
     
     .btn {
@@ -109,11 +116,15 @@
     }
     
     .btn-primary:hover {
-      background-color: #6A8D78; /* 稍深的主色调 */
+      background-color: var(--primary-color-dark);
     }
     
     .btn-secondary:hover {
       background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    body.dark-mode .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.05);
     }
     
     #app {

@@ -1,0 +1,64 @@
+/* Dark Mode Overrides */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background-color: #424242;
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode select::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #909090;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(141, 179, 158, 0.3);
+}
+
+/* 改善按钮在暗黑模式下的样式 */
+body.dark-mode .action-btn {
+  background-color: #444444;
+}
+
+body.dark-mode .action-btn:hover {
+  background-color: #505050;
+}
+
+/* 改善设置项目在暗黑模式下的样式 */
+body.dark-mode .setting-item {
+  border-color: #505050;
+}
+
+/* 改善模态框在暗黑模式下的样式 */
+body.dark-mode .modal-content {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* 滚动条美化 */
+body.dark-mode ::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+  background: #333333;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: #666666;
+  border-radius: 4px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #777777;
+}
+
+/* 平滑过渡所有元素 */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
