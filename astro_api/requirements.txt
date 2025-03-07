@@ -1,0 +1,6 @@
+flask
+bs4
+requests
+gunicorn
+opencc-python-reimplemented
+apscheduler

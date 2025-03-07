@@ -10,6 +10,9 @@ logs/
 # Dependency directories
 node_modules/
 
+# astro_api
+astro_api/astro_cache.json
+
 # Build directories
 dist/
 build/
@@ -46,3 +49,4 @@ Thumbs.db
 
 # Vite
 .vite
+
