@@ -168,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
 import LoadingIndicator from '../components/LoadingIndicator.vue';
@@ -368,7 +368,8 @@ const animationDuration = computed(() => {
   return baseDuration;
 });
 
-// 方法
+
+// 修改生成笔记函数，允许更长的内容
 async function generateNote() {
   if (isGenerating.value) return;
   
@@ -409,6 +410,15 @@ async function generateNote() {
       isGenerating.value = false;
     }, 300); // 短暂延迟，让加载条完成到100%
     
+    // 内容生成完成后，根据内容长度确保纸条可见
+    setTimeout(() => {
+      const noteContainer = noteContainerRef.value;
+      if (noteContainer) {
+        // 确保纸条在视口中可见
+        noteContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 500);
+    
   } catch (error) {
     console.error('生成失败:', error);
     noteContent.value = '内容生成失败，请稍后重试...';
@@ -419,6 +429,7 @@ async function generateNote() {
     isGenerating.value = false;
   }
 }
+
 
 function regenerateNote() {
   if (!isGenerating.value) {
@@ -490,17 +501,37 @@ function goToSettings() {
 // 修复字体大小调整功能
 function increaseFontSize() {
   if (fontSize.value < 36) {
+    // 先更新状态
     fontSize.value += 2;
-    // 将变更保存到本地，但无需更新远程设置
+    // 立即应用到组件
+    if (noteCardRef.value) {
+      // 通过$el.querySelector直接修改DOM元素，确保立即生效
+      const contentEl = noteCardRef.value.$el.querySelector('.note-content');
+      if (contentEl) {
+        contentEl.style.fontSize = `${fontSize.value}px`;
+      }
+    }
+    // 将变更保存到本地
     updateLocalPreferences();
+    console.log('Increased font size to:', fontSize.value);
   }
 }
 
 function decreaseFontSize() {
   if (fontSize.value > 16) {
+    // 先更新状态
     fontSize.value -= 2;
-    // 将变更保存到本地，但无需更新远程设置
+    // 立即应用到组件
+    if (noteCardRef.value) {
+      // 通过$el.querySelector直接修改DOM元素，确保立即生效
+      const contentEl = noteCardRef.value.$el.querySelector('.note-content');
+      if (contentEl) {
+        contentEl.style.fontSize = `${fontSize.value}px`;
+      }
+    }
+    // 将变更保存到本地
     updateLocalPreferences();
+    console.log('Decreased font size to:', fontSize.value);
   }
 }
 
@@ -517,10 +548,31 @@ async function updateLocalPreferences() {
       background: currentBackground.value,
       savageMode: params.savageMode  // 保存毒舌模式状态
     });
+    
+    // 强制NoteCard组件更新
+    if (noteCardRef.value) {
+      noteCardRef.value.$forceUpdate();
+    }
   } catch (error) {
     console.error('更新本地偏好设置失败:', error);
   }
 }
+
+// 监听字体大小变化，确保视图更新
+watch(fontSize, (newSize) => {
+  console.log('Font size changed in HomePage:', newSize);
+  
+  // 确保DOM更新，不仅仅依赖于组件刷新
+  nextTick(() => {
+    if (noteCardRef.value && noteCardRef.value.$el) {
+      const contentEl = noteCardRef.value.$el.querySelector('.note-content');
+      if (contentEl) {
+        contentEl.style.fontSize = `${newSize}px`;
+        console.log('直接通过DOM更新字体大小:', newSize);
+      }
+    }
+  });
+}, { immediate: true });
 
 // 选择emoji
 function selectEmoji(symbol) {
@@ -624,31 +676,6 @@ watch(() => params.savageMode, (isSavage) => {
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md);
-  cursor: pointer;
-}
-
-.params-content {
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--border-color);
-  transition: all var(--transition-normal);
-}
-
-.param-item {
-  margin-bottom: var(--spacing-md);
-}
-
-.param-item label {
-  display: block;
-  margin-bottom: var(--spacing-xs);
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.param-selector,
-.param-input {
-  width: 100%;
-  padding: var(--spacing-sm);
-  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 16px;
@@ -928,4 +955,16 @@ watch(() => params.savageMode, (isSavage) => {
   background-color: #444444;
   color: var(--savage-primary-color, #ff5252);
 }
+
+/* 添加一个额外的样式来确保长内容可以正常显示 */
+.note-container {
+  margin: 0 var(--spacing-md);
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: visible; /* 允许内容溢出，以支持动态高度的纸条 */
+  min-height: 400px; /* 确保有足够的最小高度 */
+}
+
+
 </style>

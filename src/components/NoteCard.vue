@@ -6,7 +6,7 @@
     :style="cardStyle"
   >
     <div class="note-mood" v-if="props.mood" :style="moodStyle">{{ props.mood }}</div>
-    <div class="note-content" :style="{ fontSize: `${props.fontSize}px` }">{{ props.content }}</div>
+    <div class="note-content" :style="contentStyle">{{ props.content }}</div>
     <div class="note-glow"></div>
     <div class="note-watermark">
       <span>星语心笺</span>
@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useNoteAnimation } from '../composables/useNoteAnimation';
 
 const props = defineProps({
@@ -59,7 +59,7 @@ const getBackgroundVariable = computed(() => {
   return `var(--note-bg-${bgIndex})`;
 });
 
-// 简化的卡片样式计算
+// 计算卡片样式，包括动态高度
 const cardStyle = computed(() => {
   // 获取背景
   const background = getBackgroundVariable.value;
@@ -70,6 +70,14 @@ const cardStyle = computed(() => {
     color: 'var(--text-color)',
     boxShadow: 'var(--shadow-md)',
   };
+  
+  // 根据内容长度动态调整高度
+  const contentLength = props.content ? props.content.length : 0;
+  if (contentLength > 100) {
+    // 如果内容超过100个字符，调整高度比例
+    const heightRatio = Math.min(6, 5 + (contentLength - 100) / 200); // 最多增加到6:5的比例
+    style.aspectRatio = `4 / ${heightRatio}`;
+  }
   
   // 毒舌模式下的特殊样式
   if (isSavageMode.value) {
@@ -84,6 +92,16 @@ const cardStyle = computed(() => {
   }
   
   return style;
+});
+
+// 创建内容样式的计算属性，确保字体大小变化时能够正确更新
+const contentStyle = computed(() => {
+  console.log("应用字体大小:", props.fontSize);
+  return {
+    fontSize: `${props.fontSize}px`,
+    fontFamily: 'var(--font-decorative)',
+    lineHeight: 1.6
+  };
 });
 
 // 表情符号样式
@@ -112,6 +130,19 @@ watch(() => props.content, (newContent, oldContent) => {
   }
 });
 
+// 监听字体大小变化，强制更新DOM
+watch(() => props.fontSize, (newSize) => {
+  console.log('Font size changed to:', newSize);
+  // 确保DOM更新
+  nextTick(() => {
+    const contentEl = noteCardRef.value?.querySelector('.note-content');
+    if (contentEl) {
+      contentEl.style.fontSize = `${newSize}px`;
+      console.log('直接更新DOM元素字体大小:', newSize);
+    }
+  });
+}, { immediate: true });
+
 // 监听动画时长变化
 watch(() => props.animationDuration, (newDuration) => {
   // 这里不需要额外处理，因为useNoteAnimation会在下一次调用时使用新的动画时长
@@ -122,7 +153,7 @@ watch(() => props.animationDuration, (newDuration) => {
 .note-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 4 / 5; /* 默认比例，可以被内联样式覆盖 */
   padding: var(--spacing-xl);
   margin: var(--spacing-lg) 0;
   border-radius: var(--radius-md);
@@ -130,7 +161,9 @@ watch(() => props.animationDuration, (newDuration) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, aspect-ratio 0.5s ease;
+  min-height: 300px; /* 设置最小高度确保短内容也有足够空间 */
+  max-height: 800px; /* 设置最大高度防止过长内容导致卡片过大 */
 }
 
 .note-content {
@@ -139,6 +172,18 @@ watch(() => props.animationDuration, (newDuration) => {
   text-align: center;
   z-index: 2;
   padding: 0 var(--spacing-md);
+  overflow-y: auto; /* 允许长内容滚动 */
+  max-height: 100%; /* 防止内容超出卡片 */
+  width: 100%; /* 确保宽度充满容器 */
+  /* 重要：不要在这里设置固定的字体大小，应该使用内联样式 */
+  /* 隐藏滚动条但保留功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* 隐藏Webkit浏览器的滚动条 */
+.note-content::-webkit-scrollbar {
+  display: none;
 }
 
 /* 添加心情/场景样式 */
@@ -189,5 +234,13 @@ watch(() => props.animationDuration, (newDuration) => {
 
 :global(.dark-mode) .savage-note .note-watermark {
   color: rgba(255, 182, 182, 0.15);
+}
+
+/* 媒体查询，在小屏幕上调整内边距 */
+@media (max-width: 480px) {
+  .note-card {
+    padding: var(--spacing-lg) var(--spacing-md);
+    min-height: 250px; /* 小屏幕上稍微减小最小高度 */
+  }
 }
 </style>

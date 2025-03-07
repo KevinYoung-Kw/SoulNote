@@ -29,6 +29,18 @@ onMounted(async () => {
       console.log('Savage mode activated on app load');
     }
     
+    // 添加全局事件监听，用于处理偏好设置更新
+    document.addEventListener('preferences-updated', async (event) => {
+      console.log('Preferences updated event received:', event.detail);
+      const updatedPrefs = await getUserPreferences();
+      
+      // 更新页面状态以适应新的偏好设置
+      if (updatedPrefs) {
+        document.body.classList.toggle('dark-mode', updatedPrefs.theme === 'dark');
+        document.body.classList.toggle('savage-mode', updatedPrefs.savageMode);
+      }
+    });
+    
     // 调试信息
     console.log('Loaded preferences:', preferences);
     console.log('Current body classes:', document.body.classList.toString());

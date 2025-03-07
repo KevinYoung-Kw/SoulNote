@@ -383,6 +383,7 @@ function increaseFontSize() {
   if (preferences.fontSize < 36) {
     preferences.fontSize += 2;
     savePreferences();
+    console.log('Settings page increased font size to:', preferences.fontSize);
   }
 }
 
@@ -390,12 +391,17 @@ function decreaseFontSize() {
   if (preferences.fontSize > 16) {
     preferences.fontSize -= 2;
     savePreferences();
+    console.log('Settings page decreased font size to:', preferences.fontSize);
   }
 }
 
 async function savePreferences() {
   try {
     await saveUserPreferences(preferences);
+    // 通知应用字体大小已经更新
+    document.dispatchEvent(new CustomEvent('preferences-updated', {
+      detail: { fontSize: preferences.fontSize }
+    }));
   } catch (error) {
     console.error('保存偏好设置失败:', error);
     alert('保存设置失败，请重试');
@@ -760,7 +766,7 @@ input:checked + .switch-label::after {
 .mbti-button.active {
   background-color: var(--primary-color);
   color: white;
-  border-color: var(--primary-color);
+  border-color: var (--primary-color);
 }
 
 .mbti-code {
