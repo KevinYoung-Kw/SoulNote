@@ -4,13 +4,39 @@
       <component :is="Component" />
     </transition>
   </router-view>
+  
+  <!-- 管理员入口 - 通过特殊手势或按键组合触发 -->
+  <div 
+    v-if="showAdminButton" 
+    class="admin-button" 
+    title="管理面板"
+    @click="navigateToAdmin"
+  >
+    <i class="fas fa-cog"></i>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { getUserPreferences } from './services/storageService';
 
+const router = useRouter();
+const showAdminButton = ref(false);
 const appReady = ref(false);
+
+// 监听特殊组合键
+function handleKeyDown(e) {
+  // Ctrl+Alt+A 组合键显示管理员按钮
+  if (e.ctrlKey && e.altKey && e.key === 'a') {
+    showAdminButton.value = !showAdminButton.value;
+  }
+}
+
+// 导航到管理面板
+function navigateToAdmin() {
+  router.push('/admin');
+}
 
 onMounted(async () => {
   try {
@@ -49,6 +75,14 @@ onMounted(async () => {
   } finally {
     appReady.value = true;
   }
+
+  // 注册快捷键监听
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  // 移除快捷键监听
+  window.removeEventListener('keydown', handleKeyDown);
 });
 </script>
 
@@ -61,5 +95,29 @@ onMounted(async () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 管理员入口按钮 */
+.admin-button {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-fast);
+}
+
+.admin-button:hover {
+  transform: scale(1.1);
+  background-color: var(--primary-color);
 }
 </style>

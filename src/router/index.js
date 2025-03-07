@@ -3,6 +3,9 @@ import { getOnboardingCompleted } from '../services/storageService';
 import PrivacyPolicyPage from '../pages/PrivacyPolicyPage.vue';
 import AboutUsPage from '../pages/AboutUsPage.vue';
 
+// 导入管理面板组件
+const AdminPanel = () => import('../pages/AdminPanel.vue');
+
 const routes = [
   {
     path: '/',
@@ -43,6 +46,15 @@ const routes = [
     path: '/about-us',
     name: 'AboutUs',
     component: AboutUsPage
+  },
+  // 添加管理面板路由
+  {
+    path: '/admin',
+    name: 'AdminPanel',
+    component: AdminPanel,
+    meta: {
+      title: '管理面板 - 星语心笺'
+    }
   }
 ];
 

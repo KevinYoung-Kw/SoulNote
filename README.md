@@ -135,6 +135,73 @@
 - 敏感操作建议使用服务端代理
 - 可选择Netlify/Vercel等平台的Serverless Functions
 
+## 开发指南
+
+### 前端部分
+
+1. 安装依赖
+```bash
+npm install
+```
+
+2. 启动开发服务器
+```bash
+npm run dev
+```
+
+### 后端部分 (邀请码验证)
+
+1. 进入后端目录
+```bash
+cd server
+```
+
+2. 安装依赖
+```bash
+npm install
+```
+
+3. 启动后端服务
+```bash
+npm run dev
+```
+
+4. 生产环境启动
+```bash
+npm start
+```
+
+### 配置邀请码系统
+
+1. 在 `server/.env` 文件中设置管理员密钥
+```
+ADMIN_KEY=your_admin_key
+```
+
+2. 使用API生成新的邀请码
+```
+POST http://localhost:4000/api/generate-invite-code
+Content-Type: application/json
+
+{
+  "adminKey": "your_admin_key",
+  "maxUses": 100,
+  "prefix": "SOUL"
+}
+```
+
+3. 查看统计数据
+```
+GET http://localhost:4000/api/stats?key=your_admin_key
+```
+
+### 访问管理面板
+
+1. 启动后端服务后，访问以下URL进入管理面板
+```
+http://localhost:4000/admin
+```
+
 ## 开发团队
 
 "星语心笺"是一个开源项目，欢迎贡献代码和提出建议。

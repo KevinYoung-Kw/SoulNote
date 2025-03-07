@@ -18,8 +18,42 @@
         </div>
       </div>
 
-      <!-- 步骤2: 使用须知 -->
+      <!-- 新增: 邀请码验证 -->
       <div class="onboarding-step" v-else-if="currentStep === 2">
+        <h1 class="step-title">欢迎内测</h1>
+        <p class="step-desc">请输入您的邀请码继续使用</p>
+        
+        <div class="invite-code-container">
+          <div class="invite-code-input">
+            <input 
+              type="text" 
+              v-model="inviteCode" 
+              placeholder="请输入邀请码"
+              :class="{ 'error': inviteCodeError }"
+            />
+            <p class="error-message" v-if="inviteCodeError">{{ inviteCodeErrorMessage }}</p>
+          </div>
+          <button 
+            class="btn verify-btn" 
+            :class="{ 'btn-primary': !isVerifying, 'btn-disabled': isVerifying }" 
+            @click="verifyInviteCode"
+            :disabled="isVerifying || !inviteCode"
+          >
+            <span v-if="!isVerifying">验证</span>
+            <span v-else><i class="fas fa-spinner fa-spin"></i></span>
+          </button>
+        </div>
+        
+        <div class="invite-code-info">
+          <p>
+            <i class="fas fa-info-circle"></i> 
+            内测期间需要邀请码才能使用本应用。如需获取邀请码，请关注我们的社交媒体账号或联系管理员。
+          </p>
+        </div>
+      </div>
+
+      <!-- 步骤2: 使用须知 (现在是步骤3) -->
+      <div class="onboarding-step" v-else-if="currentStep === 3">
         <h1 class="step-title">使用须知</h1>
         <p class="step-desc">开始使用前，请了解以下重要信息</p>
         
@@ -49,8 +83,8 @@
         </div>
       </div>    
 
-      <!-- 步骤2: 性别选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 3">
+      <!-- 步骤3: 性别选择 (现在是步骤4) -->
+      <div class="onboarding-step" v-else-if="currentStep === 4">
         <h1 class="step-title">您的性别是？</h1>
         <p class="step-desc">让我们更好地了解您</p>
         
@@ -82,8 +116,8 @@
         </div>
       </div>
       
-      <!-- 步骤3: 年龄选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 4">
+      <!-- 步骤3: 年龄选择 (现在是步骤5) -->
+      <div class="onboarding-step" v-else-if="currentStep === 5">
         <h1 class="step-title">您的年龄段是？</h1>
         <p class="step-desc">我们将根据年龄特点提供更贴切的内容</p>
         
@@ -100,8 +134,8 @@
         </div>
       </div>
       
-      <!-- 步骤4: 婚恋状况 -->
-      <div class="onboarding-step" v-else-if="currentStep === 5">
+      <!-- 步骤4: 婚恋状况 (现在是步骤6) -->
+      <div class="onboarding-step" v-else-if="currentStep === 6">
         <h1 class="step-title">您的感情状况？</h1>
         <p class="step-desc">了解您的情感状态有助于我们创作更贴合您内心的文字</p>
         
@@ -119,8 +153,8 @@
         </div>
       </div>
       
-      <!-- 步骤5: 星座选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 6">
+      <!-- 步骤5: 星座选择 (现在是步骤7) -->
+      <div class="onboarding-step" v-else-if="currentStep === 7">
         <h1 class="step-title">您的星座是？</h1>
         <p class="step-desc">我们将根据星座特质为您提供更契合的内容</p>
         
@@ -138,8 +172,8 @@
         </div>
       </div>
       
-      <!-- 步骤6: MBTI选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 7">
+      <!-- 步骤6: MBTI选择 (现在是步骤8) -->
+      <div class="onboarding-step" v-else-if="currentStep === 8">
         <h1 class="step-title">您的MBTI人格类型？</h1>
         <p class="step-desc">了解您的思考与决策方式有助于我们创作更贴合您内心的文字</p>
         
@@ -166,8 +200,8 @@
         </div>
       </div>
       
-      <!-- 步骤7: 语言偏好 -->
-      <div class="onboarding-step" v-else-if="currentStep === 8">
+      <!-- 步骤7: 语言偏好 (现在是步骤9) -->
+      <div class="onboarding-step" v-else-if="currentStep === 9">
         <h1 class="step-title">语言偏好</h1>
         <p class="step-desc">选择您希望生成的心语纸条的语言类型</p>
         
@@ -198,8 +232,8 @@
         </div>
       </div>
       
-      <!-- 步骤8: 完成设置 -->
-      <div class="onboarding-step" v-else-if="currentStep === 9">
+      <!-- 步骤8: 完成设置 (现在是步骤10) -->
+      <div class="onboarding-step" v-else-if="currentStep === 10">
         <h1 class="step-title">设置完成！</h1>
         <p class="step-desc">现在开始享受您的专属心灵纸条吧</p>
         
@@ -238,9 +272,21 @@ import { saveUserPreferences, setOnboardingCompleted } from '../services/storage
 import { sanitizeContent } from '../utils/contentUtils'; // 引入新的工具函数
 import welcomeSvg from '../assets/onboarding-welcome.svg';
 import completeSvg from '../assets/onboarding-complete.svg';
+// 导入axios用于API调用
+import axios from 'axios';
 
 // 预加载字体
 const fontPreloaded = ref(false);
+
+// 邀请码相关状态
+const inviteCode = ref('');
+const inviteCodeVerified = ref(false);
+const isVerifying = ref(false);
+const inviteCodeError = ref(false);
+const inviteCodeErrorMessage = ref('');
+
+// 后端API URL - 应该从环境变量获取
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 onMounted(() => {
   // 尝试预加载字体
@@ -260,11 +306,14 @@ onMounted(() => {
     console.warn('浏览器不支持字体API，跳过字体预加载');
     fontPreloaded.value = true;
   }
+
+  // 检查已存在的邀请码
+  checkExistingInviteCode();
 });
 
 const router = useRouter();
 const currentStep = ref(1);
-const totalSteps = 8; // 增加总步骤数
+const totalSteps = 10; // 增加总步骤数
 
 const userPreferences = reactive({
   gender: null,
@@ -392,28 +441,36 @@ function prevStep() {
 
 function nextStep() {
   if (currentStep.value < totalSteps) {
+    // 如果是邀请码验证步骤，验证邀请码
+    if (currentStep.value === 2) {
+      if (!inviteCodeVerified.value) {
+        verifyInviteCode();
+        return;
+      }
+    }
+    
     // 验证当前步骤是否已完成
-    if (currentStep.value === 3 && !userPreferences.gender) {
+    if (currentStep.value === 4 && !userPreferences.gender) {
       alert('请选择您的性别');
       return;
     }
     
-    if (currentStep.value === 4 && !userPreferences.age) {
+    if (currentStep.value === 5 && !userPreferences.age) {
       alert('请选择您的年龄段');
       return;
     }
     
-    if (currentStep.value === 5 && !userPreferences.relationship) {
+    if (currentStep.value === 6 && !userPreferences.relationship) {
       alert('请选择您的感情状况');
       return;
     }
     
-    if (currentStep.value === 6 && !userPreferences.zodiac) {
+    if (currentStep.value === 7 && !userPreferences.zodiac) {
       alert('请选择一个星座');
       return;
     }
     
-    if (currentStep.value === 7 && !userPreferences.mbti) {
+    if (currentStep.value === 8 && !userPreferences.mbti) {
       alert('请选择一个MBTI人格类型');
       return;
     }
@@ -421,6 +478,64 @@ function nextStep() {
     currentStep.value++;
   } else {
     completeOnboarding();
+  }
+}
+
+// 验证邀请码
+async function verifyInviteCode() {
+  if (!inviteCode.value || isVerifying.value) return;
+  
+  try {
+    isVerifying.value = true;
+    inviteCodeError.value = false;
+    
+    // 获取客户端IP (可选，如果后端能获取，则不需要这一步)
+    let clientIP = '';
+    try {
+      const ipResponse = await axios.get('https://api.ipify.org?format=json');
+      clientIP = ipResponse.data.ip;
+    } catch (error) {
+      console.warn('无法获取客户端IP:', error);
+    }
+    
+    // 调用验证API
+    const response = await axios.post(`${API_BASE_URL}/api/verify-invite-code`, {
+      inviteCode: inviteCode.value,
+      clientIP
+    });
+    
+    if (response.data.valid) {
+      inviteCodeVerified.value = true;
+      // 存储验证结果和邀请码
+      localStorage.setItem('soul-note-invite-code', inviteCode.value);
+      localStorage.setItem('soul-note-invite-verified', 'true');
+      // 进入下一步
+      currentStep.value++;
+    } else {
+      inviteCodeError.value = true;
+      inviteCodeErrorMessage.value = response.data.message || '邀请码无效或已过期';
+    }
+  } catch (error) {
+    console.error('验证邀请码失败:', error);
+    inviteCodeError.value = true;
+    inviteCodeErrorMessage.value = '网络错误，请稍后再试';
+  } finally {
+    isVerifying.value = false;
+  }
+}
+
+// 检查是否已验证过邀请码
+function checkExistingInviteCode() {
+  const storedCode = localStorage.getItem('soul-note-invite-code');
+  const verified = localStorage.getItem('soul-note-invite-verified') === 'true';
+  
+  if (storedCode && verified) {
+    inviteCode.value = storedCode;
+    inviteCodeVerified.value = true;
+    // 如果已验证，可以跳过验证步骤
+    if (currentStep.value === 2) {
+      currentStep.value++;
+    }
   }
 }
 
@@ -973,4 +1088,81 @@ function navigateTo(path) {
   font-family: var(--font-note);
 }
 
+/* 邀请码样式 */
+.invite-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  max-width: 400px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.invite-code-input {
+  width: 100%;
+  position: relative;
+}
+
+.invite-code-input input {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: 18px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  text-align: center;
+  letter-spacing: 2px;
+  font-family: monospace;
+  transition: border-color var(--transition-fast);
+}
+
+.invite-code-input input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.invite-code-input input.error {
+  border-color: var(--error-color);
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 14px;
+  margin-top: var(--spacing-sm);
+  text-align: center;
+}
+
+.verify-btn {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
+
+.btn-disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.invite-code-info {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-md);
+  background-color: rgba(123, 158, 137, 0.1);
+  border-radius: var(--radius-md);
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.invite-code-info p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+}
+
+.invite-code-info i {
+  color: var(--primary-color);
+  margin-right: var(--spacing-sm);
+  margin-top: 3px;
+}
 </style>
