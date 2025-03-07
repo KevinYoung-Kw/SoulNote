@@ -4,6 +4,7 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const API_KEY = import.meta.env.VITE_API_KEY || '';
 const API_MODEL = import.meta.env.VITE_API_MODEL || 'qwen-max';
+const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
 
 // 星座名称映射（英文到中文）
 const zodiacMap = {
@@ -68,27 +69,63 @@ function recordResponseTime(model, time) {
 }
 
 /**
+ * 调试日志输出
+ * @param {string} type 日志类型
+ * @param {any} content 日志内容
+ */
+function debugLog(type, content) {
+  if (!DEBUG_MODE) return;
+  
+  const styles = {
+    prompt: 'background: #3498db; color: white; padding: 2px 4px; border-radius: 3px;',
+    response: 'background: #2ecc71; color: white; padding: 2px 4px; border-radius: 3px;',
+    error: 'background: #e74c3c; color: white; padding: 2px 4px; border-radius: 3px;'
+  };
+  
+  console.group(`%cAI Service Debug [${type.toUpperCase()}]`, styles[type] || '');
+  
+  if (typeof content === 'object') {
+    console.dir(content);
+  } else {
+    console.log(content);
+  }
+  
+  console.groupEnd();
+}
+
+/**
  * 获取星座特质描述
  * @param {string} zodiac 星座名称
  * @returns {string} 星座特质描述
  */
 function getZodiacTraits(zodiac) {
   const traits = {
-    'aries': '热情、积极、直接，渴望新挑战，有时缺乏耐心，做事果断',
-    'taurus': '踏实、可靠、重视稳定，追求美好生活，有时固执，需要时间接受变化',
-    'gemini': '好奇、灵活、善于交流，喜欢多样性，可能注意力分散，思维跳跃',
-    'cancer': '敏感、富同情心、重视家庭，情感丰富，有时情绪波动，需要安全感',
-    'leo': '自信、慷慨、有创造力，寻求认可，有时自我中心，渴望被赞赏',
-    'virgo': '细致、实际、分析能力强，追求完美，有时过度批判，善于解决问题',
-    'libra': '和平、公正、追求和谐，重视关系，有时优柔寡断，善于看到多方面',
-    'scorpio': '热情、坚定、洞察力强，情感深沉，有时多疑，对信任要求高',
-    'sagittarius': '乐观、诚实、追求自由，热爱冒险，有时缺乏耐心，直言不讳',
-    'capricorn': '务实、有规划、自律，目标明确，有时过于严肃，责任感强',
-    'aquarius': '独立、创新、人道主义，思想开放，有时显得疏远，注重个性',
-    'pisces': '富有同情心、直觉敏锐、富想象力，情感丰富，有时逃避现实，善解人意'
+    'aries': '正向特质：充沛活力、勇敢无畏、领导能力强、直率坦诚、乐于挑战、创新精神；负向特质：急躁冲动、自我中心、缺乏耐心、好斗好胜、粗心大意、容易放弃',
+    
+    'taurus': '正向特质：可靠稳重、耐心专注、务实高效、审美细腻、忠诚坚定、享受生活；负向特质：固执己见、抗拒变化、占有欲强、行动迟缓、物质主义、记仇不忘',
+    
+    'gemini': '正向特质：思维敏捷、好奇心强、沟通能力佳、适应力强、学习迅速、创意丰富；负向特质：情绪多变、注意力分散、优柔寡断、表里不一、肤浅片面、缺乏定性',
+    
+    'cancer': '正向特质：富有同情心、保护欲强、记忆力好、情感丰富、直觉敏锐、珍视传统；负向特质：情绪化强、过度敏感、依赖性高、控制欲强、记仇耿耿、情绪多变',
+    
+    'leo': '正向特质：阳光自信、慷慨大方、领导魅力、创造力强、忠诚勇敢、温暖热情；负向特质：自我中心、好面子爱虚荣、权威独断、不接受批评、骄傲自大、铺张浪费',
+    
+    'virgo': '正向特质：分析能力强、注重细节、实际可靠、追求完美、勤劳踏实、理性逻辑；负向特质：过度挑剔、焦虑忧心、完美主义、过于自我批评、吹毛求疵、难以满足',
+    
+    'libra': '正向特质：追求和谐、公平正义、外交手腕佳、审美优雅、善解人意、平易近人；负向特质：犹豫不决、过度依赖他人、避免冲突、表面和平、难以坚持立场、过度理想化',
+    
+    'scorpio': '正向特质：洞察力强、意志坚定、忠诚专一、执着追求、直觉敏锐、深度思考；负向特质：多疑猜忌、极端固执、报复心强、情绪偏执、控制欲强、难以释怀',
+    
+    'sagittarius': '正向特质：乐观开朗、思想自由、诚实直言、热爱冒险、幽默风趣、博学多才；负向特质：缺乏耐心、言语无状、缺乏责任感、善变轻浮、过度理想化、承诺难守',
+    
+    'capricorn': '正向特质：自律严谨、责任心强、耐心坚韧、条理分明、稳重可靠、目标明确；负向特质：悲观保守、过于严肃、工作狂倾向、情感压抑、过度自我苛责、功利现实',
+    
+    'aquarius': '正向特质：创新前卫、思想独立、人道主义、理性客观、才智过人、团队合作；负向特质：叛逆特立独行、情感疏离、过度理想化、难以捉摸、固执己见、不切实际',
+    
+    'pisces': '正向特质：富有同理心、艺术感性、直觉敏锐、无私奉献、想象力丰富、心地善良；负向特质：沉溺幻想、缺乏自律、优柔寡断、易受影响、逃避现实、边界感模糊'
   };
   
-  return traits[zodiac] || '独特的性格特点';
+  return traits[zodiac] || '独特而复杂的性格特点，既有显著优势，也有需要平衡的方面';
 }
 
 /**
@@ -110,60 +147,170 @@ async function getZodiacFortune(zodiacParam, aspect = 'overall') {
     // 确保索引在有效范围内(0-11)
     zodiacIndex = Math.max(0, Math.min(11, parseInt(zodiacIndex)));
     
-    // 调用API
-    const response = await axios.get(`http://127.0.0.1:5000/api/astro/${zodiacIndex}?convert=true`);
-    
-    if (response.data) {
-      // 解析返回的运势数据
-      const items = response.data.items || [];
-      const fortuneData = {
-        title: response.data.title || `今日${zodiacMap[Object.keys(zodiacMap)[zodiacIndex]]}运势`,
-        overall: { rating: '', content: '' },
-        love: { rating: '', content: '' },
-        career: { rating: '', content: '' },
-        wealth: { rating: '', content: '' }
-      };
+    // 尝试从本地缓存读取数据
+    let astroData;
+    try {
+      // 导入cached数据 - 在生产环境中要确保这个文件会被正确打包
+      const cacheModule = await import('../../astro_api/astro_cache.json');
+      astroData = cacheModule.default || cacheModule;
       
-      // 解析运势评分和内容
-      for (let i = 0; i < items.length; i += 2) {
-        if (items[i].includes('整體') || items[i].includes('整体')) {
-          fortuneData.overall.rating = items[i].replace(/.*整[體体]運勢/, '').trim();
-          fortuneData.overall.content = items[i + 1] || '';
-        } else if (items[i].includes('愛情') || items[i].includes('爱情')) {
-          fortuneData.love.rating = items[i].replace(/.*愛?情運勢/, '').trim();
-          fortuneData.love.content = items[i + 1] || '';
-        } else if (items[i].includes('事業') || items[i].includes('事业')) {
-          fortuneData.career.rating = items[i].replace(/.*事[業业]運勢/, '').trim();
-          fortuneData.career.content = items[i + 1] || '';
-        } else if (items[i].includes('財運') || items[i].includes('财运')) {
-          fortuneData.wealth.rating = items[i].replace(/.*財?運運勢/, '').trim();
-          fortuneData.wealth.content = items[i + 1] || '';
-        }
-      }
-      
-      // 返回指定方面的运势或整体运势
-      return {
-        all: fortuneData,
-        selected: aspect === 'overall' ? fortuneData.overall : 
-                  aspect === 'love' ? fortuneData.love :
-                  aspect === 'career' ? fortuneData.career : 
-                  aspect === 'wealth' ? fortuneData.wealth : fortuneData.overall
-      };
+      debugLog('fortune', '从本地缓存加载星座运势数据');
+    } catch (cacheError) {
+      console.error('无法加载星座运势缓存:', cacheError);
+      throw new Error('星座运势缓存不可用');
     }
     
-    throw new Error('运势数据解析失败');
+    // 检查是否有对应星座的数据
+    if (!astroData[zodiacIndex]) {
+      throw new Error(`缓存中没有星座索引${zodiacIndex}的数据`);
+    }
+    
+    // 检查数据是否是今天的
+    const today = new Date().toISOString().split('T')[0];
+    if (astroData[zodiacIndex].date !== today) {
+      console.warn(`星座运势数据不是最新的. 缓存日期: ${astroData[zodiacIndex].date}, 今天: ${today}`);
+      // 注意：在实际应用中可能需要更新缓存，但由于是前端应用，这里只发出警告
+    }
+    
+    // 解析数据
+    const items = astroData[zodiacIndex].items || [];
+    const fortuneData = {
+      title: astroData[zodiacIndex].title || `今日${zodiacMap[Object.keys(zodiacMap)[zodiacIndex]]}运势`,
+      overall: { rating: '★★★☆☆', content: '今日运势一般，保持平常心。' },
+      love: { rating: '★★★☆☆', content: '感情上需要多一些理解和包容。' },
+      career: { rating: '★★★☆☆', content: '工作中可能会遇到一些挑战，但总体平稳。' },
+      wealth: { rating: '★★★☆☆', content: '财务状况稳定，避免不必要的支出。' }
+    };
+    
+    // 调试输出完整数据
+    debugLog('fortune', { items: items });
+    
+    // 改进的运势解析逻辑
+    let currentCategory = null;
+    
+    for (let i = 0; i < items.length; i++) {
+      const currentItem = items[i].trim();
+      
+      // 跳过空行
+      if (!currentItem) continue;
+      
+      // 检查是否是运势类别行
+      if (currentItem.includes('整體運勢') || currentItem.includes('整体运势')) {
+        currentCategory = 'overall';
+        // 提取星级评分
+        const ratingMatch = currentItem.match(/[★☆]+/);
+        if (ratingMatch) {
+          fortuneData.overall.rating = ratingMatch[0];
+        }
+        
+        // 检查是否同一行包含内容描述
+        const contentMatch = currentItem.split(/[：:]/);
+        if (contentMatch.length > 1 && contentMatch[1].trim()) {
+          fortuneData.overall.content = contentMatch[1].trim();
+        }
+      } 
+      else if (currentItem.includes('愛情運勢') || currentItem.includes('爱情运势')) {
+        currentCategory = 'love';
+        // 提取星级评分
+        const ratingMatch = currentItem.match(/[★☆]+/);
+        if (ratingMatch) {
+          fortuneData.love.rating = ratingMatch[0];
+        }
+        
+        // 检查是否同一行包含内容描述
+        const contentMatch = currentItem.split(/[：:]/);
+        if (contentMatch.length > 1 && contentMatch[1].trim()) {
+          fortuneData.love.content = contentMatch[1].trim();
+        }
+      } 
+      else if (currentItem.includes('事業運勢') || currentItem.includes('事业运势')) {
+        currentCategory = 'career';
+        // 提取星级评分
+        const ratingMatch = currentItem.match(/[★☆]+/);
+        if (ratingMatch) {
+          fortuneData.career.rating = ratingMatch[0];
+        }
+        
+        // 检查是否同一行包含内容描述
+        const contentMatch = currentItem.split(/[：:]/);
+        if (contentMatch.length > 1 && contentMatch[1].trim()) {
+          fortuneData.career.content = contentMatch[1].trim();
+        }
+      } 
+      else if (currentItem.includes('財運運勢') || currentItem.includes('财运运势')) {
+        currentCategory = 'wealth';
+        // 提取星级评分
+        const ratingMatch = currentItem.match(/[★☆]+/);
+        if (ratingMatch) {
+          fortuneData.wealth.rating = ratingMatch[0];
+        }
+        
+        // 检查是否同一行包含内容描述
+        const contentMatch = currentItem.split(/[：:]/);
+        if (contentMatch.length > 1 && contentMatch[1].trim()) {
+          fortuneData.wealth.content = contentMatch[1].trim();
+        }
+      } 
+      else if (currentCategory) {
+        // 当前行不是类别标题，而是内容描述
+        // 只有当前一行没有提取到描述内容时，才使用这一行作为描述
+        if (currentCategory === 'overall' && fortuneData.overall.content === '今日运势一般，保持平常心。') {
+          fortuneData.overall.content = currentItem;
+        } 
+        else if (currentCategory === 'love' && fortuneData.love.content === '感情上需要多一些理解和包容。') {
+          fortuneData.love.content = currentItem;
+        } 
+        else if (currentCategory === 'career' && fortuneData.career.content === '工作中可能会遇到一些挑战，但总体平稳。') {
+          fortuneData.career.content = currentItem;
+        } 
+        else if (currentCategory === 'wealth' && fortuneData.wealth.content === '财务状况稳定，避免不必要的支出。') {
+          fortuneData.wealth.content = currentItem;
+        }
+        // 处理完内容后重置当前类别，避免后续行被误识别为同一类别的内容
+        currentCategory = null;
+      }
+    }
+    
+    // 调试输出解析结果
+    debugLog('fortune', { parsedData: fortuneData });
+    
+    // 返回指定方面的运势或整体运势
+    return {
+      all: fortuneData,
+      selected: aspect === 'overall' ? fortuneData.overall : 
+                aspect === 'love' ? fortuneData.love :
+                aspect === 'career' ? fortuneData.career : 
+                aspect === 'wealth' ? fortuneData.wealth : fortuneData.overall
+    };
   } catch (error) {
-    console.error('获取星座运势失败:', error);
+    debugLog('error', `获取星座运势失败: ${error.message || error}`);
+    console.error('获取星座运势失败:', error.message || error);
+    
     // 返回默认运势，避免整个流程中断
+    const zodiacName = typeof zodiacParam === 'string' && isNaN(zodiacParam) ? 
+                      zodiacParam.toLowerCase() : 
+                      Object.keys(zodiacMap)[typeof zodiacParam === 'string' ? 0 : zodiacParam];
+    
+    // 创建更丰富的默认运势内容
+    const defaultFortuneContent = {
+      overall: `今日运势一般，宜保持平常心。适合做好规划，避免冲动决策。`,
+      love: `感情上需要多一些理解和包容。沟通是关键，耐心倾听对方的想法。`,
+      career: `工作中可能会遇到一些挑战，但总体平稳。合理安排任务优先级，避免分心。`,
+      wealth: `财务状况稳定，避免不必要的支出。适合做长期投资规划，不宜冲动消费。`
+    };
+    
     return {
       all: {
-        title: `今日${zodiacMap[Object.keys(zodiacMap)[typeof zodiacParam === 'string' ? 0 : zodiacParam]]}运势`,
-        overall: { rating: '★★★☆☆', content: '今日运势一般，保持平常心。' },
-        love: { rating: '★★★☆☆', content: '感情上需要多一些理解和包容。' },
-        career: { rating: '★★★☆☆', content: '工作中可能会遇到一些挑战，但总体平稳。' },
-        wealth: { rating: '★★★☆☆', content: '财务状况稳定，避免不必要的支出。' }
+        title: `今日${zodiacMap[zodiacName] || '星座'}运势`,
+        overall: { rating: '★★★☆☆', content: defaultFortuneContent.overall },
+        love: { rating: '★★★☆☆', content: defaultFortuneContent.love },
+        career: { rating: '★★★☆☆', content: defaultFortuneContent.career },
+        wealth: { rating: '★★★☆☆', content: defaultFortuneContent.wealth }
       },
-      selected: { rating: '★★★☆☆', content: '今日运势一般，保持平常心。' }
+      selected: { 
+        rating: '★★★☆☆', 
+        content: defaultFortuneContent[aspect] || defaultFortuneContent.overall 
+      }
     };
   }
 }
@@ -175,22 +322,37 @@ async function getZodiacFortune(zodiacParam, aspect = 'overall') {
  */
 function getMbtiTraits(mbtiType) {
   const traits = {
-    'INTJ': '战略性思考，独立自主，高标准，善于规划，注重效率和逻辑',
-    'INTP': '分析思维，好奇心强，重视知识，独立思考，喜欢探索可能性',
-    'ENTJ': '决断力强，组织能力佳，目标导向，喜欢领导，注重效率和成果',
-    'ENTP': '思维活跃，善于辩论，创新能力强，喜欢挑战，思考开放',
-    'INFJ': '有远见，理想主义，善解人意，注重意义，有强烈的价值观',
-    'INFP': '理想主义，重视真实性，富有创意，注重个人价值观，善于感受',
-    'ENFJ': '有感染力，善于激励他人，关注他人发展，有责任感，追求和谐',
-    'ENFP': '热情，创意丰富，善于交流，看重可能性，追求个人成长与意义',
-    'ISTJ': '可靠，实际，系统化，重视秩序和规则，注重责任和传统',
-    'ISFJ': '忠诚，体贴，重视细节，有责任感，重视传统和他人需求',
-    'ESTJ': '高效，实际，注重秩序，决断力强，喜欢组织和领导',
-    'ESFJ': '友善，乐于助人，注重和谐，责任感强，重视传统和社交',
-    'ISTP': '灵活，实际，善于解决问题，独立，喜欢探索事物运作方式',
-    'ISFP': '敏感，和平，审美能力强，喜欢自由，生活在当下，重视和谐',
-    'ESTP': '行动导向，实用主义，适应力强，喜欢冒险，享受当下',
-    'ESFP': '热情友好，重视体验，适应性强，喜欢社交，生活在当下'
+    'INTJ': '正向特质：战略性思维、独立自主、高效精准、系统规划、追求卓越、创新洞见；负向特质：过分完美主义、情感表达困难、缺乏灵活性、不善交际、过度批判、难以妥协',
+    
+    'INTP': '正向特质：逻辑分析、概念思维、创新能力强、独立思考、求知欲强、理论洞察；负向特质：社交疏离、过度理论化、拖延决策、忽视情感、不切实际、过于沉浸思考',
+    
+    'ENTJ': '正向特质：领导才能、决断力强、战略眼光、组织规划、目标驱动、坦率直接；负向特质：强势专断、情感冷漠、过于苛责、缺乏耐心、控制欲强、工作狂倾向',
+    
+    'ENTP': '正向特质：创意思维、辩论技巧、适应力强、思想开放、解决问题能力佳、充满活力；负向特质：注意力分散、难以坚持、好辩争论、忽视细节、挑战权威、情绪波动',
+    
+    'INFJ': '正向特质：洞察人性、理想主义、深思熟虑、创意表达、同理心强、追求意义；负向特质：过度理想化、自我批判、完美主义、难以面对冲突、情感负荷重、逃避现实',
+    
+    'INFP': '正向特质：深刻的同理心、丰富想象力、价值观坚定、创意思考、真诚热情、善于适应；负向特质：过度敏感、现实感弱、优柔寡断、过度自我批评、不切实际、情绪化',
+    
+    'ENFJ': '正向特质：人际影响力、鼓舞他人、组织能力强、善解人意、追求和谐、富有远见；负向特质：过度迎合他人、忽视自身需求、情绪化决策、控制欲强、难以接受批评、过度负责',
+    
+    'ENFP': '正向特质：热情活力、创新思维、适应力强、人际魅力、乐观积极、表达能力佳；负向特质：注意力分散、难以坚持、情绪波动大、实践能力弱、难以做决定、过度理想化',
+    
+    'ISTJ': '正向特质：可靠负责、注重细节、逻辑思考、组织能力强、务实高效、坚守承诺；负向特质：僵化教条、抗拒变化、情感表达困难、过分保守、批判倾向、缺乏创新',
+    
+    'ISFJ': '正向特质：忠诚可靠、关怀他人、注重细节、善于观察、实际可靠、保护他人；负向特质：过度牺牲自我、难以拒绝、过于传统、回避冲突、压抑情感、过度担忧',
+    
+    'ESTJ': '正向特质：高效执行、组织能力佳、实用务实、直接诚实、责任感强、坚定决断；负向特质：固执己见、情感表达少、过度教条、缺乏灵活性、对抗性强、急躁苛刻',
+    
+    'ESFJ': '正向特质：热心助人、责任感强、关注他人需求、组织能力佳、交际能力强、注重和谐；负向特质：过度在意他人看法、情绪敏感、需要认可、忽视自身需求、保守传统、难以应对批评',
+    
+    'ISTP': '正向特质：实际果断、技术精通、灵活应变、冷静沉着、独立自主、解决问题能力强；负向特质：冷漠疏离、规则感弱、难以承诺、情感表达少、冒险倾向、缺乏长期规划',
+    
+    'ISFP': '正向特质：艺术敏感度、真诚温和、适应力强、欣赏美感、专注当下、和平主义；负向特质：消极被动、情绪化、缺乏自信、难以长期规划、边界感弱、逃避冲突',
+    
+    'ESTP': '正向特质：行动力强、实用主义、适应力佳、风险管理能力、谈判技巧好、丰富活力；负向特质：缺乏耐心、追求刺激、规则意识弱、漫不经心、注意力短暂、缺乏长远规划',
+    
+    'ESFP': '正向特质：活力四射、社交能力强、乐观积极、实用性强、享受当下、适应力佳；负向特质：冲动行事、难以专注、逃避责任、抗拒计划、缺乏自律、情绪化决策'
   };
   
   return traits[mbtiType] || '独特的思维和行为模式';
@@ -207,27 +369,46 @@ export async function generateNoteContent(params) {
     const prompt = await buildPrompt(params);
     const startTime = Date.now();
     
+    // 在调试模式下输出提示词
+    debugLog('prompt', prompt);
+    
     // 系统提示词 - 确保是字符串而不是对象
     const systemPrompt = params.savageMode ? getSavageModeSystemPrompt() : 
       "你是一位理解不同性格特质的好友。在回应时，你会以下面方式体现对方的性格特点：对于不同星座，你理解他们核心特质；对于MBTI类型，你会考虑其思考和决策方式。你不会直接提到或标明他们的性格类型，而是自然地将这些特质融入你的回应中。你的语气亲切随性，像长期了解对方的朋友，用语口语化而非正式。请将你的思考过程放在<think></think>标签内，最终的纸条内容放在<content></content>标签内。";
 
-    // 调用API
-    const response = await axios.post(`${API_URL}/chat/completions`, {
+    // 调试模式下输出系统提示词
+    debugLog('prompt', `系统提示词: ${systemPrompt}`);
+    
+    // 构建API请求数据
+    const requestData = {
       model: API_MODEL,
       messages: [
         {
           role: "system",
-          content: systemPrompt  // 确保是字符串
+          content: systemPrompt
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      max_tokens: 1000,  // 增加token数量以容纳更详细的思考过程
+      max_tokens: 1000,
       temperature: 1.5,
       stream: false
-    }, {
+    };
+    
+    // 调试模式下输出完整请求
+    debugLog('prompt', {
+      url: `${API_URL}/chat/completions`,
+      data: requestData,
+      headers: {
+        'Authorization': `Bearer ${API_KEY.substring(0, 5)}...`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // 调用API
+    const response = await axios.post(`${API_URL}/chat/completions`, requestData, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
         'Content-Type': 'application/json'
@@ -239,26 +420,40 @@ export async function generateNoteContent(params) {
     recordResponseTime(API_MODEL, responseTime);
     
     console.log(`API响应时间: ${responseTime}ms, 模型: ${API_MODEL}`);
-    console.log('API请求成功，响应:', response.data);
+    
+    // 调试模式下输出完整响应
+    if (DEBUG_MODE) {
+      debugLog('response', response.data);
+    } else {
+      console.log('API请求成功，响应:', response.data);
+    }
     
     // 解析并返回内容，只保留<content>标签中的内容
     if (response.data && response.data.choices && response.data.choices.length > 0) {
       const fullContent = response.data.choices[0].message.content.trim();
       
+      // 调试模式下输出完整内容
+      debugLog('response', `模型完整输出: ${fullContent}`);
+      
       // 提取<content>标签中的内容
       const contentMatch = fullContent.match(/<content>([\s\S]*?)<\/content>/i);
       if (contentMatch && contentMatch[1]) {
-        return contentMatch[1].trim();
+        const finalContent = contentMatch[1].trim();
+        debugLog('response', `解析后的内容: ${finalContent}`);
+        return finalContent;
       } else {
         // 如果没找到<content>标签，返回完整内容，但过滤掉<think>标签部分
         const filteredContent = fullContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        debugLog('response', `过滤后的内容: ${filteredContent}`);
         return filteredContent;
       }
     } else {
+      debugLog('error', '无效的API响应结构');
       console.warn('API响应格式异常:', response.data);
       throw new Error('API响应中未包含生成内容');
     }
   } catch (error) {
+    debugLog('error', error.response?.data || error.message || error);
     console.error('生成内容失败:', error.response?.data || error.message);
     // 失败时使用本地生成
     return generateLocalContent(params);
@@ -277,7 +472,7 @@ function getSavageModeSystemPrompt() {
 2.适当使用低俗粗鄙的语言，巧妙地抓住对方性格的软肋
 3. 回应应当让人"破防"，让对方感到既尴尬又好笑
 4. 不要直接指出对方的星座或MBTI类型
-5. 如果情景合适，可以直接使用一些互联网梗，例如“米孝子”“典”“难绷”“急”
+5. 如果情景合适，可以直接使用一些攻击性强的互联网梗，例如“典”“难绷”“急”
 
 请将你的思考过程放在<think></think>标签内，最终的纸条内容放在<content></content>标签内。`;
 }
@@ -322,10 +517,13 @@ async function buildPrompt(params) {
   - 这个时段人们通常在做：${timeContext.activities.join('、')}
   - 这个时段人们通常关心：${timeContext.concerns.join('、')}`;
   
+  // 定义一个变量来保存运势数据，使其在整个函数作用域内可访问
+  let fortune = null;
+  
   // 如果启用了运势功能，获取并添加运势信息
   if (params.enableFortune && params.fortuneAspect) {
     try {
-      const fortune = await getZodiacFortune(params.zodiac, params.fortuneAspect);
+      fortune = await getZodiacFortune(params.zodiac, params.fortuneAspect);
       const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
                           params.fortuneAspect === 'love' ? '爱情' :
                           params.fortuneAspect === 'career' ? '事业' : '财运';
@@ -337,6 +535,13 @@ async function buildPrompt(params) {
   - 详情：${fortune.selected.content}`;
     } catch (error) {
       console.error('获取运势失败，继续执行不含运势的提示词:', error);
+      // 运势获取失败时设置默认值
+      fortune = {
+        selected: {
+          rating: '★★★☆☆',
+          content: '今日运势一般，宜保持平常心。'
+        }
+      };
     }
   }
   
@@ -351,16 +556,16 @@ async function buildPrompt(params) {
   
   ## 写作要求(毒舌模式):
   1. 字数：${params.language === 'en-zh' ? '先输出中文(20-50字)，再输出对应英文翻译' : '20-50字左右'}
-  2. 语气：混迹十年贴吧老哥式的调侃讽刺，巧妙揭露对方性格弱点
+  2. 语气：混迹十年贴吧老哥式的调侃讽刺，揭露对方性格弱点
   3. 核心目标：让对方"破防"，既感到尴尬又忍不住认同
   4. 限制：不直接提及星座或MBTI类型
   5. 形式：直接输出内容，不带引号或标题
-  6. 风格建议：可以使用一些犀利的emoji，如🤡🤣。也可以直接用一些短平快的梗、字和词刺激对方，譬如"典、孝、麻、崩、急..."`;
+  6. 风格建议：可以使用一些犀利的emoji，如🤡🤣。也可以直接用一些短平快的梗、字和词刺激对方"`;
     
     // 如果启用了运势功能，添加运势相关的调侃指导
     if (params.enableFortune && params.fortuneAspect) {
       basePrompt += `
-  7. 运势利用：巧妙利用今日运势来讽刺对方，但不要直接引用原文`;
+  7. 运势利用：先简要概括今天运势，譬如：今天运势良好/不错/糟糕/极品等。然后巧妙利用运势挖苦、讥讽、嘲笑对方。`;
     }
     
     basePrompt += `
@@ -470,8 +675,9 @@ async function buildPrompt(params) {
                           params.fortuneAspect === 'love' ? '爱情' :
                           params.fortuneAspect === 'career' ? '事业' : '财运';
       basePrompt += `
-  7. 运势利用：巧妙融入今日${fortuneType}运势的关键建议，不要直接引用原文，而是化为个性化的关怀`;
-    }
+  7. 运势利用：
+     - 根据今日${zodiacChinese}的${fortuneType}运势评分(${fortune.selected.rating})，判断今天适合的活动和注意事项，给出叮嘱或建议`;
+   }
     
     basePrompt += `
   
@@ -507,8 +713,7 @@ async function buildPrompt(params) {
     basePrompt += `
      - 什么样的关怀或理解对他们最有意义？
   
-  3. 个性化关怀构思：
-     - 如何自然地表达对他们当前处境的理解？`;
+  3. 个性化关怀构思：`;
     
     // 如果启用了运势功能，添加运势相关的关怀构思步骤
     if (params.enableFortune && params.fortuneAspect) {
@@ -517,8 +722,10 @@ async function buildPrompt(params) {
     }
     
     basePrompt += `
+     - 如何自然地表达对他们当前处境的理解？
      - 如何提供符合他们性格的支持或建议？
      - 有什么只有了解他们的人才会注意到的细节可以提及？
+     
   
   4. 具体场景联想（发散思考）：`;
     
@@ -527,29 +734,19 @@ async function buildPrompt(params) {
       const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
                           params.fortuneAspect === 'love' ? '爱情' :
                           params.fortuneAspect === 'career' ? '事业' : '财运';
-      basePrompt += `
-     - 例如：如果是"🌧️"+早上+${fortuneType}运势不佳，可以体贴地说:
-       "${fortuneType === '财运' ? 
-         '雨天记得带伞，别为省那几块钱淋湿自己。今天财务上可能有些小波动，量力而行就好。' : 
-         fortuneType === '事业' ? 
-         '这雨天出门，别忘了带伞。今天工作可能会遇到些小挑战，记得放慢节奏，别给自己太大压力。' : 
-         fortuneType === '爱情' ? 
-         '雨天别急着出门，等一等没准就停了。感情的事也一样，急不来，今天先关注下自己吧。' :
-         '这雨天记得带伞出门。今天可能会遇到些小挫折，但别担心，这只是暂时的阴雨天。'}"
-     - 或者如果是"☀️"+下午+${fortuneType}运势较好，可以说:
-       "${fortuneType === '财运' ? 
-         '阳光正好，适合出门走走。今天似乎有些意外之财的机会，留心身边的小惊喜。' :
-         fortuneType === '事业' ?
-         '阳光这么好，工作也会顺利些。今天可能有个好机会，保持开放的心态去迎接吧。' :
-         fortuneType === '爱情' ?
-         '阳光正好，心情也一定不错吧。今天特别适合约朋友出去走走，说不定会有意外的惊喜遇见呢。' :
-         '这样的好天气，适合出门走走。今天整体运势不错，带着好心情去面对一切吧。'}"`;
-    } else {
-      basePrompt += `
-     - 例如：如果是"🌧️"+早上，可能正在通勤路上被淋湿，那么可以体贴地说:
-       "这雨来得突然，你肯定又顾着思考忘了带伞。记得到了地方擦干头发，别着凉了。"
-     - 或者如果是"☀️"+下午，可能在享受阳光或工作疲惫，那么可以说:
-       "阳光正好，知道你这会儿可能在找个窗边发会儿呆。趁机休息一下，你需要这样的时刻。"`;
+                          basePrompt += `
+    5. 运势整合示例：
+        - 如果是"🌧️"+整体运势${fortune.selected.rating}，可以说："雨天需要额外的关注，${
+          fortune.selected.rating.startsWith('★★★★') ? '今天虽有好运，但也别忘了带伞，小心谨慎才能保持好运。' : 
+          fortune.selected.rating.startsWith('★★★☆') ? '今天运势中规中矩，带把伞备不时之需，保持平常心就好。' : 
+          '今天运势欠佳，多加小心，记得备好雨具，避免不必要的麻烦。'
+        }"
+        
+    6. 确保运势建议是个性化的：
+        - 具体到"以你的${zodiacChinese}性格特点，今天特别适合..."
+        - 或者"你作为${mbtiType}类型，在今天的运势下，应该特别注意..."
+        - 让对方感觉这是专门为他/她的性格和今天的运势量身定制的建议
+        - 运势内容从"${fortune.selected.content}"中提取核心观点，但用自己的话表达`;
     }
     
     basePrompt += `
