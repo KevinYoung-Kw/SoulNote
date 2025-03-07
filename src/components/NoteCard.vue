@@ -243,4 +243,5 @@ watch(() => props.animationDuration, (newDuration) => {
     min-height: 250px; /* 小屏幕上稍微减小最小高度 */
   }
 }
+
 </style>

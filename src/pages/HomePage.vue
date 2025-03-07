@@ -94,6 +94,36 @@
         </div>
       </div>
       
+      <!-- 在心情输入区域下方添加星座运势选择器 -->
+      <div class="fortune-selector" v-if="params.enableFortune">
+        <div class="fortune-options">
+          <div 
+            v-for="aspect in fortuneAspects" 
+            :key="aspect.value"
+            :class="['fortune-option', {active: params.fortuneAspect === aspect.value}]"
+            @click="params.fortuneAspect = aspect.value"
+          >
+            <i :class="aspect.icon"></i>
+            <span>{{ aspect.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 添加运势开关 -->
+      <div class="fortune-toggle">
+        <label class="fortune-toggle-label">
+          <span>今日运势</span>
+          <div class="setting-switch">
+            <input 
+              type="checkbox" 
+              id="fortuneSwitch" 
+              v-model="params.enableFortune"
+            />
+            <label for="fortuneSwitch" class="switch-label"></label>
+          </div>
+        </label>
+      </div>
+
       <!-- 加载指示器 - 移到生成按钮上方 -->
       <NoteCard 
         :content="noteContent" 
@@ -201,8 +231,18 @@ const params = reactive({
   mbti: null,
   mood: '',
   language: 'zh',
-  savageMode: false  // 保留参数，但移除UI控制
+  savageMode: false,
+  enableFortune: false, // 新增：是否启用星座运势
+  fortuneAspect: 'overall' // 新增：运势类型（整体/爱情/事业/财运）
 });
+
+// 运势类型选项
+const fortuneAspects = [
+  { label: '整体运势', value: 'overall', icon: 'fas fa-star' },
+  { label: '爱情运势', value: 'love', icon: 'fas fa-heart' },
+  { label: '事业运势', value: 'career', icon: 'fas fa-briefcase' },
+  { label: '财运运势', value: 'wealth', icon: 'fas fa-coins' }
+];
 
 // 数据源
 const zodiacs = [
@@ -427,9 +467,7 @@ async function generateNote() {
     clearInterval(loadingInterval);
     loadingInterval = null;
     isGenerating.value = false;
-  }
-}
-
+  }}
 
 function regenerateNote() {
   if (!isGenerating.value) {
@@ -546,7 +584,9 @@ async function updateLocalPreferences() {
       ...currentPrefs,
       fontSize: fontSize.value,
       background: currentBackground.value,
-      savageMode: params.savageMode  // 保存毒舌模式状态
+      savageMode: params.savageMode,
+      enableFortune: params.enableFortune,  // 保存运势启用状态
+      fortuneAspect: params.fortuneAspect   // 保存运势类型选择
     });
     
     // 强制NoteCard组件更新
@@ -592,7 +632,10 @@ onMounted(async () => {
       darkMode.value = preferences.theme === 'dark';
       fontSize.value = preferences.fontSize || 24;
       currentBackground.value = preferences.background || 'paper-1';
-      params.savageMode = preferences.savageMode || false;  // 保留，从设置加载
+      params.savageMode = preferences.savageMode || false;
+      // 加载运势偏好
+      params.enableFortune = preferences.enableFortune || false;
+      params.fortuneAspect = preferences.fortuneAspect || 'overall';
     }
   } catch (error) {
     console.error('加载用户偏好设置失败:', error);
@@ -620,6 +663,18 @@ watch(() => params.savageMode, (isSavage) => {
   // 强制重新渲染纸条以应用新样式
   noteCardRef.value?.$forceUpdate();
 }, { immediate: true });
+
+// 监听运势开关变化
+watch(() => params.enableFortune, () => {
+  updateLocalPreferences();
+});
+
+// 监听运势类型变化
+watch(() => params.fortuneAspect, () => {
+  if (params.enableFortune) {
+    updateLocalPreferences();
+  }
+});
 
 </script>
 
@@ -966,5 +1021,79 @@ watch(() => params.savageMode, (isSavage) => {
   min-height: 400px; /* 确保有足够的最小高度 */
 }
 
+/* 运势选择器样式 */
+.fortune-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  margin: var(--spacing-md) 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.fortune-toggle-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+.fortune-selector {
+  margin: var(--spacing-md) 0;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fortune-options {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.fortune-option {
+  flex: 1;
+  min-width: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.fortune-option i {
+  font-size: 18px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.fortune-option span {
+  font-size: 12px;
+  text-align: center;
+}
+
+.fortune-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* 毒舌模式下的运势选择器样式 */
+.savage-mode .fortune-option.active {
+  background-color: var(--savage-primary-color, #ff5252);
+  border-color: var(--savage-primary-color, #ff5252);
+}
 
 </style>

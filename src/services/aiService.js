@@ -92,6 +92,83 @@ function getZodiacTraits(zodiac) {
 }
 
 /**
+ * 获取星座运势信息
+ * @param {string} zodiac 星座索引(0-11)或英文名称
+ * @param {string} aspect 运势方面(overall|love|career|wealth)
+ * @returns {Promise<Object>} 星座运势信息
+ */
+async function getZodiacFortune(zodiacParam, aspect = 'overall') {
+  try {
+    // 如果传入的是星座英文名称，需要转换为索引
+    let zodiacIndex = zodiacParam;
+    if (typeof zodiacParam === 'string' && isNaN(zodiacParam)) {
+      const zodiacNames = Object.keys(zodiacMap);
+      zodiacIndex = zodiacNames.indexOf(zodiacParam.toLowerCase());
+      if (zodiacIndex === -1) zodiacIndex = 0; // 默认为白羊座
+    }
+    
+    // 确保索引在有效范围内(0-11)
+    zodiacIndex = Math.max(0, Math.min(11, parseInt(zodiacIndex)));
+    
+    // 调用API
+    const response = await axios.get(`http://127.0.0.1:5000/api/astro/${zodiacIndex}?convert=true`);
+    
+    if (response.data) {
+      // 解析返回的运势数据
+      const items = response.data.items || [];
+      const fortuneData = {
+        title: response.data.title || `今日${zodiacMap[Object.keys(zodiacMap)[zodiacIndex]]}运势`,
+        overall: { rating: '', content: '' },
+        love: { rating: '', content: '' },
+        career: { rating: '', content: '' },
+        wealth: { rating: '', content: '' }
+      };
+      
+      // 解析运势评分和内容
+      for (let i = 0; i < items.length; i += 2) {
+        if (items[i].includes('整體') || items[i].includes('整体')) {
+          fortuneData.overall.rating = items[i].replace(/.*整[體体]運勢/, '').trim();
+          fortuneData.overall.content = items[i + 1] || '';
+        } else if (items[i].includes('愛情') || items[i].includes('爱情')) {
+          fortuneData.love.rating = items[i].replace(/.*愛?情運勢/, '').trim();
+          fortuneData.love.content = items[i + 1] || '';
+        } else if (items[i].includes('事業') || items[i].includes('事业')) {
+          fortuneData.career.rating = items[i].replace(/.*事[業业]運勢/, '').trim();
+          fortuneData.career.content = items[i + 1] || '';
+        } else if (items[i].includes('財運') || items[i].includes('财运')) {
+          fortuneData.wealth.rating = items[i].replace(/.*財?運運勢/, '').trim();
+          fortuneData.wealth.content = items[i + 1] || '';
+        }
+      }
+      
+      // 返回指定方面的运势或整体运势
+      return {
+        all: fortuneData,
+        selected: aspect === 'overall' ? fortuneData.overall : 
+                  aspect === 'love' ? fortuneData.love :
+                  aspect === 'career' ? fortuneData.career : 
+                  aspect === 'wealth' ? fortuneData.wealth : fortuneData.overall
+      };
+    }
+    
+    throw new Error('运势数据解析失败');
+  } catch (error) {
+    console.error('获取星座运势失败:', error);
+    // 返回默认运势，避免整个流程中断
+    return {
+      all: {
+        title: `今日${zodiacMap[Object.keys(zodiacMap)[typeof zodiacParam === 'string' ? 0 : zodiacParam]]}运势`,
+        overall: { rating: '★★★☆☆', content: '今日运势一般，保持平常心。' },
+        love: { rating: '★★★☆☆', content: '感情上需要多一些理解和包容。' },
+        career: { rating: '★★★☆☆', content: '工作中可能会遇到一些挑战，但总体平稳。' },
+        wealth: { rating: '★★★☆☆', content: '财务状况稳定，避免不必要的支出。' }
+      },
+      selected: { rating: '★★★☆☆', content: '今日运势一般，保持平常心。' }
+    };
+  }
+}
+
+/**
  * 获取MBTI性格特质描述
  * @param {string} mbtiType MBTI类型
  * @returns {string} MBTI特质描述
@@ -127,21 +204,20 @@ function getMbtiTraits(mbtiType) {
 export async function generateNoteContent(params) {
   try {
     // 准备API请求参数
-    const prompt = buildPrompt(params);
+    const prompt = await buildPrompt(params);
     const startTime = Date.now();
     
+    // 系统提示词 - 确保是字符串而不是对象
+    const systemPrompt = params.savageMode ? getSavageModeSystemPrompt() : 
+      "你是一位理解不同性格特质的好友。在回应时，你会以下面方式体现对方的性格特点：对于不同星座，你理解他们核心特质；对于MBTI类型，你会考虑其思考和决策方式。你不会直接提到或标明他们的性格类型，而是自然地将这些特质融入你的回应中。你的语气亲切随性，像长期了解对方的朋友，用语口语化而非正式。请将你的思考过程放在<think></think>标签内，最终的纸条内容放在<content></content>标签内。";
+
     // 调用API
     const response = await axios.post(`${API_URL}/chat/completions`, {
       model: API_MODEL,
       messages: [
         {
           role: "system",
-          content: params.savageMode ? getSavageModeSystemPrompt() : `
-          你是一位理解不同性格特质的好友。在回应时，你会以下面方式体现对方的性格特点：
-          对于不同星座，你理解他们核心特质：
-          对于MBTI类型，你会考虑其思考和决策方式：
-          你不会直接提到或标明他们的性格类型，而是自然地将这些特质融入你的回应中。你的语气亲切随性，像长期了解对方的朋友，用语口语化而非正式。
-          请将你的思考过程放在<think></think>标签内，最终的纸条内容放在<content></content>标签内。`
+          content: systemPrompt  // 确保是字符串
         },
         {
           role: "user",
@@ -209,9 +285,9 @@ function getSavageModeSystemPrompt() {
 /**
  * 构建提示词
  * @param {Object} params 生成参数
- * @returns {string} 完整的提示词
+ * @returns {Promise<string>} 完整的提示词
  */
-function buildPrompt(params) {
+async function buildPrompt(params) {
   // 获取中文星座名称
   const zodiacChinese = zodiacMap[params.zodiac] || '未知星座';
   const mbtiType = params.mbti || 'MBTI类型';
@@ -244,14 +320,34 @@ function buildPrompt(params) {
   ## 当前环境与时间情境（用于情境推测）:
   - 当前时间：${formattedTime}，${timeContext.period}时分
   - 这个时段人们通常在做：${timeContext.activities.join('、')}
-  - 这个时段人们通常关心：${timeContext.concerns.join('、')}
+  - 这个时段人们通常关心：${timeContext.concerns.join('、')}`;
+  
+  // 如果启用了运势功能，获取并添加运势信息
+  if (params.enableFortune && params.fortuneAspect) {
+    try {
+      const fortune = await getZodiacFortune(params.zodiac, params.fortuneAspect);
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      
+      basePrompt += `
+  
+  ## 今日${zodiacChinese}${fortuneType}运势：
+  - 评分：${fortune.selected.rating}
+  - 详情：${fortune.selected.content}`;
+    } catch (error) {
+      console.error('获取运势失败，继续执行不含运势的提示词:', error);
+    }
+  }
+  
+  basePrompt += `
   
   # 思考起点
   首先，我需要通过创造性思考，深入解读用户输入的"${mood}"可能代表的实际情境：`;
   
-    // 根据是否启用毒舌模式添加不同的写作要求
-    if (params.savageMode) {
-      basePrompt += `
+  // 根据是否启用毒舌模式添加不同的写作要求
+  if (params.savageMode) {
+    basePrompt += `
   
   ## 写作要求(毒舌模式):
   1. 字数：${params.language === 'en-zh' ? '先输出中文(20-50字)，再输出对应英文翻译' : '20-50字左右'}
@@ -259,32 +355,103 @@ function buildPrompt(params) {
   3. 核心目标：让对方"破防"，既感到尴尬又忍不住认同
   4. 限制：不直接提及星座或MBTI类型
   5. 形式：直接输出内容，不带引号或标题
-  6. 风格建议：可以使用一些犀利的emoji，如🤡🤣。也可以直接用一些短平快的梗、字和词刺激对方，譬如"典、孝、麻、崩、急..."
+  6. 风格建议：可以使用一些犀利的emoji，如🤡🤣。也可以直接用一些短平快的梗、字和词刺激对方，譬如"典、孝、麻、崩、急..."`;
+    
+    // 如果启用了运势功能，添加运势相关的调侃指导
+    if (params.enableFortune && params.fortuneAspect) {
+      basePrompt += `
+  7. 运势利用：巧妙利用今日运势来讽刺对方，但不要直接引用原文`;
+    }
+    
+    basePrompt += `
   
   ## 思维链（请按照以下步骤进行发散思考）：
   1. 场景解读：
      - 如果是表情符号"${mood}"，它可能实际表示什么？（天气状况？情绪状态？比喻？）
      - 比如🌧️可能表示：实际在下雨/心情低落/处境困难/遇到麻烦
-     - 根据${timeContext.period}时分，用户可能在什么具体场景中？
+     - 根据${timeContext.period}时分，用户可能在什么具体场景中？`;
+    
+    // 如果启用了运势功能，添加运势相关的解读步骤
+    if (params.enableFortune && params.fortuneAspect) {
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      basePrompt += `
+     - 这种场景与今日${fortuneType}运势如何联系？`;
+    }
+    
+    basePrompt += `
   
   2. 性格特点与场景交互：
      - 这种${zodiacChinese}和${mbtiType}类型的人在这种场景下通常会有什么典型反应？
-     - 他们最容易表现出什么"软肋"或弱点？
+     - 他们最容易表现出什么"软肋"或弱点？`;
+    
+    // 如果启用了运势功能，添加运势相关的性格交互步骤
+    if (params.enableFortune && params.fortuneAspect) {
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      basePrompt += `特别是面对今日${fortuneType}运势时？`;
+    }
+    
+    basePrompt += `
      - 这种性格在当前场景中可能会过度关注什么、忽视什么？
   
   3. 个性化调侃构思：
-     - 如何巧妙点明他们在这种场景中可能犯的错或有的弱点？
+     - 如何巧妙点明他们在这种场景中可能犯的错或有的弱点？`;
+    
+    // 如果启用了运势功能，添加运势相关的调侃构思步骤
+    if (params.enableFortune && params.fortuneAspect) {
+      basePrompt += `
+     - 如何将今日运势中的负面暗示放大，用来讽刺他们的处境？`;
+    }
+    
+    basePrompt += `
      - 如何找到那种"一语中的"的调侃、挖苦与讥讽，让他们感觉被看透，很难堪？
   
-  4. 具体场景联想（发散思考）：
+  4. 具体场景联想（发散思考）：`;
+    
+    // 如果启用了运势功能，添加运势相关的场景例子
+    if (params.enableFortune && params.fortuneAspect) {
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      basePrompt += `
+     - 例如：如果是"🌧️"+早上+${fortuneType}运势不佳，可以调侃:
+       "${fortuneType === '财运' ? 
+         '这么大雨天还出门，不怕生病住院花完工资吗？今天财运这么差，别说挣钱了，怕是连伞都要丢😂' : 
+         fortuneType === '事业' ? 
+         '雨天爬起来上班不容易吧？反正今天事业运这么差，去不去都无所谓，迟到了就说车堵了呗🤡' : 
+         fortuneType === '爱情' ? 
+         '雨天出门约会被放鸽子了吧？今天爱情运这么差，对方怕是连你发的消息都懒得看🙄' :
+         '这雨天连出门的勇气都没有吧？看你运势这么差，在家躺平都能砸到头，别出门了🤣'}"
+     - 或者如果是"☀️"+下午+${fortuneType}运势不佳，可以调侃:
+       "${fortuneType === '财运' ? 
+         '晒太阳爽吗？今天财运这么差，别说赚钱了，怕不是钱包都要晒丢了吧？🤣' :
+         fortuneType === '事业' ?
+         '晒太阳爽吗？反正你工作也没啥进展，不如直接躺平算了，看你今天事业运这么差，努力也白费劲🤡' :
+         fortuneType === '爱情' ?
+         '阳光这么好，单身还是自己晒吧。你今天爱情运这么黑，搭讪十个被拒十个，省点力气吧😏' :
+         '阳光明媚，人却灰暗。看看你今天的运势，在家躺着都能被太阳晒黑，别出门现眼了好吗？🙃'}"`;
+    } else {
+      basePrompt += `
      - 例如：如果是"🌧️"+早上，可能正在通勤路上被淋湿，那么可以调侃:
        "又没带伞是吧？活该淋雨。这会儿是不是正想着编理由请假？哈哈，请病假可没工资哦。"
      - 或者如果是"☀️"+下午，可能在发呆晒太阳，那么可以调侃:
-       "我都懒得喷你。活做完了吗？"
+       "我都懒得喷你。活做完了吗？"`;
+    }
+    
+    basePrompt += `
   
   思考完成后，请基于上述分析，创造一条既犀利又有共鸣感的毒舌内容，让对方感觉你真的了解他当下的处境和性格特点。`;
-    } else {
-      basePrompt += `
+    
+    // 如果启用了运势功能，强调运势融合
+    if (params.enableFortune && params.fortuneAspect) {
+      basePrompt += `同时，巧妙利用今日星座运势的信息，增强讽刺效果。`;
+    }
+    
+  } else {
+    basePrompt += `
   
   ## 写作要求(温暖模式):
   1. 字数：${params.language === 'en-zh' ? '先输出中文(20-50字)，再输出对应英文翻译' : '20-50字左右'}
@@ -295,35 +462,109 @@ function buildPrompt(params) {
      - 避免泛泛的励志句式或陈词滥调
      - 不要用"坚持就是胜利"这类空洞套话
   5. 形式：直接输出内容，不带引号或标题
-  6. 风格建议：像熟悉的朋友才会注意到的细节或提供的贴心关怀
+  6. 风格建议：像熟悉的朋友才会注意到的细节或提供的贴心关怀`;
+    
+    // 如果启用了运势功能，添加运势相关的指导
+    if (params.enableFortune && params.fortuneAspect) {
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      basePrompt += `
+  7. 运势利用：巧妙融入今日${fortuneType}运势的关键建议，不要直接引用原文，而是化为个性化的关怀`;
+    }
+    
+    basePrompt += `
   
   ## 思维链（请按照以下步骤进行发散思考）：
   1. 场景解读：
      - 如果是表情符号"${mood}"，它可能实际表示什么？（天气状况？情绪状态？比喻？）
      - 比如🌧️可能表示：实际在下雨/心情低落/处境困难/遇到麻烦
-     - 根据${timeContext.period}时分，用户可能在什么具体场景中？
+     - 根据${timeContext.period}时分，用户可能在什么具体场景中？`;
+    
+    // 如果启用了运势功能，添加运势相关的解读步骤
+    if (params.enableFortune && params.fortuneAspect) {
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      basePrompt += `
+     - 这种场景与今日运势"${fortuneType}"如何联系？`;
+    }
+    
+    basePrompt += `
   
   2. 性格特点与场景交互：
      - 这种${zodiacChinese}和${mbtiType}类型的人在这种场景下通常会有什么需求或感受？
-     - 他们可能会特别在意或关注什么？
+     - 他们可能会特别在意或关注什么？`;
+    
+    // 如果启用了运势功能，添加运势相关的性格交互步骤
+    if (params.enableFortune && params.fortuneAspect) {
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      basePrompt += `尤其是关于${fortuneType}方面？`;
+    }
+    
+    basePrompt += `
      - 什么样的关怀或理解对他们最有意义？
   
   3. 个性化关怀构思：
-     - 如何自然地表达对他们当前处境的理解？
+     - 如何自然地表达对他们当前处境的理解？`;
+    
+    // 如果启用了运势功能，添加运势相关的关怀构思步骤
+    if (params.enableFortune && params.fortuneAspect) {
+      basePrompt += `
+     - 如何将今日运势中的建议或提醒转化为贴心的关怀？`;
+    }
+    
+    basePrompt += `
      - 如何提供符合他们性格的支持或建议？
      - 有什么只有了解他们的人才会注意到的细节可以提及？
   
-  4. 具体场景联想（发散思考）：
+  4. 具体场景联想（发散思考）：`;
+    
+    // 如果启用了运势功能，添加运势相关的场景例子
+    if (params.enableFortune && params.fortuneAspect) {
+      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+                          params.fortuneAspect === 'love' ? '爱情' :
+                          params.fortuneAspect === 'career' ? '事业' : '财运';
+      basePrompt += `
+     - 例如：如果是"🌧️"+早上+${fortuneType}运势不佳，可以体贴地说:
+       "${fortuneType === '财运' ? 
+         '雨天记得带伞，别为省那几块钱淋湿自己。今天财务上可能有些小波动，量力而行就好。' : 
+         fortuneType === '事业' ? 
+         '这雨天出门，别忘了带伞。今天工作可能会遇到些小挑战，记得放慢节奏，别给自己太大压力。' : 
+         fortuneType === '爱情' ? 
+         '雨天别急着出门，等一等没准就停了。感情的事也一样，急不来，今天先关注下自己吧。' :
+         '这雨天记得带伞出门。今天可能会遇到些小挫折，但别担心，这只是暂时的阴雨天。'}"
+     - 或者如果是"☀️"+下午+${fortuneType}运势较好，可以说:
+       "${fortuneType === '财运' ? 
+         '阳光正好，适合出门走走。今天似乎有些意外之财的机会，留心身边的小惊喜。' :
+         fortuneType === '事业' ?
+         '阳光这么好，工作也会顺利些。今天可能有个好机会，保持开放的心态去迎接吧。' :
+         fortuneType === '爱情' ?
+         '阳光正好，心情也一定不错吧。今天特别适合约朋友出去走走，说不定会有意外的惊喜遇见呢。' :
+         '这样的好天气，适合出门走走。今天整体运势不错，带着好心情去面对一切吧。'}"`;
+    } else {
+      basePrompt += `
      - 例如：如果是"🌧️"+早上，可能正在通勤路上被淋湿，那么可以体贴地说:
        "这雨来得突然，你肯定又顾着思考忘了带伞。记得到了地方擦干头发，别着凉了。"
      - 或者如果是"☀️"+下午，可能在享受阳光或工作疲惫，那么可以说:
-       "阳光正好，知道你这会儿可能在找个窗边发会儿呆。趁机休息一下，你需要这样的时刻。"
+       "阳光正好，知道你这会儿可能在找个窗边发会儿呆。趁机休息一下，你需要这样的时刻。"`;
+    }
+    
+    basePrompt += `
   
   思考完成后，请基于上述分析，创造一条温暖而有洞察力的内容，让对方感觉你真的理解他当下的处境和内心需求。`;
+    
+    // 如果启用了运势功能，强调运势融合
+    if (params.enableFortune && params.fortuneAspect) {
+      basePrompt += `同时，巧妙融入今日星座运势的建议。`;
     }
-  
-    return basePrompt;
   }
+  
+  return basePrompt;
+}
+
 /**
  * 获取性格特质的具体表现
  * @param {string} zodiac 星座
