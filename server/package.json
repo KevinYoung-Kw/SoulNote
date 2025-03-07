@@ -1,21 +1,23 @@
 {
-  "name": "soul-note-server",
+  "name": "soulnote-server",
   "version": "1.0.0",
-  "description": "SoulNote后端服务 - 处理邀请码验证和用户统计",
+  "description": "SoulNote 轻量级后端服务",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "express-rate-limit": "^7.1.4"
+    "express-rate-limit": "^6.7.0",
+    "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^2.0.22"
   }
 }

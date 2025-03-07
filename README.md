@@ -36,8 +36,15 @@
 - 一键分享到社交媒体
 - 基于浏览器指纹的无感用户识别，无需登录即可保存个人数据
 
+### 4. 邀请码系统
+- 基于邀请码的访问控制
+- 管理员后台统计和监控
+- 可限制单个邀请码的使用次数
+- 自定义邀请码前缀功能
+
 ## 技术栈
 
+### 前端
 - **前端框架**: Vue.js 3 + Composition API
 - **构建工具**: Vite
 - **动画效果**: GSAP
@@ -48,6 +55,14 @@
 - **状态管理**: Vue Reactivity + LocalStorage
 - **路由管理**: Vue Router
 - **用户识别**: FingerprintJS（浏览器指纹识别）
+
+### 后端
+- **运行环境**: Node.js
+- **服务框架**: Express.js
+- **数据存储**: MongoDB
+- **身份验证**: JWT
+- **API文档**: Swagger
+- **日志管理**: Winston
 
 ## 项目结构
 
@@ -79,6 +94,15 @@
 │   │   └── main.css        # 主样式文件
 │   ├── App.vue             # 应用根组件
 │   └── main.js             # 应用入口
+├── server/                 # 服务器端代码
+│   ├── controllers/        # 控制器
+│   ├── models/             # 数据模型
+│   ├── routes/             # 路由
+│   ├── services/           # 服务
+│   ├── utils/              # 工具函数
+│   ├── .env.example        # 环境变量示例
+│   ├── app.js              # 应用入口
+│   └── server.js           # 服务器入口
 ├── .env.example            # 环境变量示例
 ├── index.html              # HTML入口
 ├── package.json            # 依赖配置
