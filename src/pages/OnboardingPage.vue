@@ -409,7 +409,6 @@ function navigateTo(path) {
 
 <style scoped>
 .onboarding-page {
-  /* 删除min-height: 100vh; 因为fixed-page-layout已设置height: 100vh */
   background-color: var(--bg-color);
 }
 
@@ -417,15 +416,17 @@ function navigateTo(path) {
   height: 4px;
   background-color: var(--border-color);
   width: 100%;
-  /* 保留固定在顶部 */
 }
 
 .onboarding-content {
-  padding: var(--spacing-lg);
+  flex: 1;
   display: flex;
   flex-direction: column;
-  /* 滚动已由scrollable-content类处理 */
+  /* Dynamic justification based on content height */
+  justify-content: center;
+  overflow-y: auto;
 }
+
 
 .onboarding-actions {
   padding: var(--spacing-lg);
@@ -443,31 +444,40 @@ function navigateTo(path) {
 
 .onboarding-content {
   flex: 1;
-  padding: var(--spacing-lg);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start; /* Changed from center to flex-start */
   overflow-y: auto;
 }
 
+/* Add a min-height to the steps to ensure proper centering */
 .onboarding-step {
   max-width: 500px;
   margin: 0 auto;
   text-align: center;
+  /* Add padding at the bottom to ensure there's space before the footer */
+  padding-bottom: var(--spacing-xl);
+  /* Make sure each step has room to be centered properly */
+  min-height: min-content;
+  /* Add auto margin-top to push content down when needed */
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .step-title {
   font-size: 24px;
   margin-bottom: var(--spacing-md);
+  /* Add padding at the top to ensure visibility on scroll */
+  padding-top: var(--spacing-md);
 }
 
 .step-desc {
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg); /* Reduced from xl to lg */
 }
 
 .step-image, .completion-image {
-  margin: var(--spacing-xl) 0;
+  margin: var(--spacing-lg) 0; /* Reduced from xl to lg */
 }
 
 .step-image img, .completion-image img {
@@ -660,6 +670,52 @@ function navigateTo(path) {
   
   .step-title {
     font-size: 20px;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .step-desc {
+    margin-bottom: var(--spacing-md);
+  }
+  
+  /* Adjust padding for smaller screens */
+  .onboarding-content {
+    padding: var(--spacing-md);
+    padding-top: var(--spacing-lg);
+    padding-bottom: calc(var(--spacing-lg) + 60px); /* Extra space for footer */
+  }
+  
+  /* More compact options for small screens */
+  .gender-option {
+    padding: var(--spacing-md);
+  }
+  
+  .gender-option i {
+    font-size: 24px;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  /* For very small screens like iPhone SE */
+  @media (max-height: 667px) {
+    .step-image, .completion-image {
+      margin: var(--spacing-md) 0;
+    }
+    
+    .zodiac-item, .relationship-option, .mbti-button {
+      padding: var(--spacing-sm);
+    }
+    
+    .zodiac-item i, .relationship-option i {
+      font-size: 18px;
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .mbti-buttons {
+      gap: var(--spacing-xs);
+    }
+    
+    .mbti-group {
+      margin-bottom: var(--spacing-md);
+    }
   }
 }
 
