@@ -1,6 +1,6 @@
 <template>
-  <div class="saved-notes-page">
-    <header class="header">
+  <div class="saved-notes-page fixed-page-layout">
+    <header class="header fixed-header">
       <button class="icon-btn" @click="goBack">
         <i class="fas fa-arrow-left"></i>
       </button>
@@ -10,7 +10,7 @@
       </button>
     </header>
     
-    <div class="content-area">
+    <div class="content-area scrollable-content">
       <!-- 没有收藏时显示 -->
       <div class="empty-state" v-if="!savedNotes.length">
         <i class="fas fa-bookmark empty-icon"></i>
@@ -245,7 +245,7 @@ onMounted(() => {
 
 <style scoped>
 .saved-notes-page {
-  min-height: 100vh;
+  /* 删除min-height: 100vh; 因为fixed-page-layout已设置height: 100vh */
   background-color: var(--bg-color);
 }
 

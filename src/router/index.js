@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import { getOnboardingCompleted } from '../services/storageService';
+import PrivacyPolicyPage from '../pages/PrivacyPolicyPage.vue';
+import AboutUsPage from '../pages/AboutUsPage.vue';
 
 const routes = [
   {
@@ -31,6 +33,16 @@ const routes = [
     name: 'Onboarding',
     component: () => import('../pages/OnboardingPage.vue'),
     meta: { requiresOnboarding: false }
+  },
+  {
+    path: '/privacy-policy',
+    name: 'PrivacyPolicy',
+    component: PrivacyPolicyPage
+  },
+  {
+    path: '/about-us',
+    name: 'AboutUs',
+    component: AboutUsPage
   }
 ];
 

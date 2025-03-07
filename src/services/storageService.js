@@ -71,12 +71,16 @@ export async function getUserPreferences() {
  */
 function getDefaultPreferences() {
   return {
+    gender: null,
+    age: null,
+    relationship: null,
     zodiac: null,
     mbti: null,
     language: 'zh',
     theme: 'light',
     fontSize: 24,
-    background: 'paper-1'
+    background: 'paper-1',
+    savageMode: false
   };
 }
 

@@ -1,7 +1,7 @@
 <template>
-  <div class="home-page" :class="{'savage-mode': params.savageMode}">
-    <!-- 顶部栏保持不变 -->
-    <header class="header">
+  <div class="home-page fixed-page-layout" :class="{'savage-mode': params.savageMode}">
+    <!-- 固定在顶部的页眉 -->
+    <header class="header fixed-header">
       <button class="icon-btn" @click="goToSettings">
         <i class="fas fa-cog"></i>
       </button>
@@ -11,62 +11,65 @@
       </button>
     </header>
     
-    <!-- 纸条展示区 -->
-    <div class="note-container" ref="noteContainerRef">
-      <!-- 替换原有的心情输入和运势选择器，使用统一的参数卡片 -->
-      <div class="params-card">
-        <div class="params-preview" @click="openParamsPanel">
-          <!-- 修改这里，动态显示用户选择的表情或默认图标 -->
-          <div class="params-item">
-            <span v-if="params.mood" class="mood-emoji">{{ params.mood }}</span>
-            <i v-else class="fas fa-smile"></i>
-            <span>{{ params.mood ? '' : '添加心情...' }}</span>
+    <!-- 可滚动的主内容区 -->
+    <div class="scrollable-content">
+      <!-- 纸条展示区 -->
+      <div class="note-container" ref="noteContainerRef">
+        <!-- 替换原有的心情输入和运势选择器，使用统一的参数卡片 -->
+        <div class="params-card">
+          <div class="params-preview" @click="openParamsPanel">
+            <!-- 修改这里，动态显示用户选择的表情或默认图标 -->
+            <div class="params-item">
+              <span v-if="params.mood" class="mood-emoji">{{ params.mood }}</span>
+              <i v-else class="fas fa-smile"></i>
+              <span>{{ params.mood ? '' : '添加心情...' }}</span>
+            </div>
+            <div class="params-item" v-if="params.enableFortune">
+              <i :class="fortuneAspects.find(a => a.value === params.fortuneAspect)?.icon || 'fas fa-star'"></i>
+              <span>{{ getFortuneAspectLabel() }}</span>
+            </div>
+            <button class="params-edit-btn">
+              <i class="fas fa-sliders-h"></i>
+              <span>设置</span>
+            </button>
           </div>
-          <div class="params-item" v-if="params.enableFortune">
-            <i :class="fortuneAspects.find(a => a.value === params.fortuneAspect)?.icon || 'fas fa-star'"></i>
-            <span>{{ getFortuneAspectLabel() }}</span>
-          </div>
-          <button class="params-edit-btn">
-            <i class="fas fa-sliders-h"></i>
-            <span>设置</span>
+        </div>
+        
+        <!-- NoteCard 保持不变 -->
+        <NoteCard 
+          :content="noteContent" 
+          :mood="params.mood"
+          :background="currentBackground"
+          :fontSize="fontSize"
+          :animate="isAnimating"
+          :animation-duration="animationDuration"
+          ref="noteCardRef"
+        />
+        
+        <!-- 背景选择器和字号调整保持不变 -->
+        <div class="background-selector">
+          <span 
+            v-for="(bg, index) in backgrounds" 
+            :key="bg.value" 
+            :class="['bg-dot', { active: currentBackground === bg.value }]"
+            @click="currentBackground = bg.value"
+          ></span>
+        </div>
+        
+        <div class="font-size-control">
+          <button class="icon-btn" @click="decreaseFontSize">
+            <i class="fas fa-font"></i>-
+          </button>
+          <span class="font-size-indicator">{{ fontSize }}px</span>
+          <button class="icon-btn" @click="increaseFontSize">
+            <i class="fas fa-font"></i>+
           </button>
         </div>
       </div>
-      
-      <!-- NoteCard 保持不变 -->
-      <NoteCard 
-        :content="noteContent" 
-        :mood="params.mood"
-        :background="currentBackground"
-        :fontSize="fontSize"
-        :animate="isAnimating"
-        :animation-duration="animationDuration"
-        ref="noteCardRef"
-      />
-      
-      <!-- 背景选择器和字号调整保持不变 -->
-      <div class="background-selector">
-        <span 
-          v-for="(bg, index) in backgrounds" 
-          :key="bg.value" 
-          :class="['bg-dot', { active: currentBackground === bg.value }]"
-          @click="currentBackground = bg.value"
-        ></span>
-      </div>
-      
-      <div class="font-size-control">
-        <button class="icon-btn" @click="decreaseFontSize">
-          <i class="fas fa-font"></i>-
-        </button>
-        <span class="font-size-indicator">{{ fontSize }}px</span>
-        <button class="icon-btn" @click="increaseFontSize">
-          <i class="fas fa-font"></i>+
-        </button>
-      </div>
     </div>
     
-    <!-- 控制区域保持不变 -->
-    <div class="control-section">
+    <!-- 固定在底部的控制区域 -->
+    <div class="control-section fixed-footer">
       <LoadingIndicator 
         v-if="isGenerating" 
         :is-loading="isGenerating"
@@ -225,7 +228,11 @@ const params = reactive({
   language: 'zh',
   savageMode: false,
   enableFortune: false, // 新增：是否启用星座运势
-  fortuneAspect: 'overall' // 新增：运势类型（整体/爱情/事业/财运）
+  fortuneAspect: 'overall', // 新增：运势类型（整体/爱情/事业/财运）
+  // 添加新的个人信息字段
+  gender: null,
+  age: null,
+  relationship: null
 });
 
 // 运势类型选项
@@ -659,7 +666,8 @@ async function generateNote() {
     clearInterval(loadingInterval);
     loadingInterval = null;
     isGenerating.value = false;
-  }}
+  }
+}
 
 function regenerateNote() {
   if (!isGenerating.value) {
@@ -828,6 +836,10 @@ onMounted(async () => {
       // 加载运势偏好
       params.enableFortune = preferences.enableFortune || false;
       params.fortuneAspect = preferences.fortuneAspect || 'overall';
+      // 加载新增的个人信息
+      params.gender = preferences.gender;
+      params.age = preferences.age;
+      params.relationship = preferences.relationship;
     }
   } catch (error) {
     console.error('加载用户偏好设置失败:', error);
@@ -906,8 +918,8 @@ function getFortuneAspectLabel() {
 .home-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding-bottom: var(--spacing-lg);
+  padding-bottom: 0; /* 删除底部内边距，因为我们现在有固定的footer */
+  background-color: var(--bg-color);
 }
 
 .header {
@@ -981,10 +993,12 @@ function getFortuneAspectLabel() {
 }
 
 .note-container {
-  margin: 0 var(--spacing-md);
+  margin: var(--spacing-md);
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  overflow-y: visible; /* 允许内容溢出，以支持动态高度的纸条 */
+  min-height: auto; /* 移除最小高度限制，让容器自然扩展 */
 }
 
 .background-selector {
@@ -1022,7 +1036,9 @@ function getFortuneAspectLabel() {
 }
 
 .control-section {
-  margin: var(--spacing-md);
+  margin: 0; /* 移除margin，使其贴合底部 */
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
   position: relative; /* 确保相对定位，为加载指示器提供定位基础 */
 }
 

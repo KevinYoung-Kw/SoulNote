@@ -308,3 +308,39 @@ body.savage-mode {
   --savage-secondary: #ff8a80;
   --savage-accent: #ffcdd2;
 }
+
+/* 添加固定布局辅助类 */
+.fixed-page-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.fixed-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* 提升iOS滚动体验 */
+  padding-bottom: env(safe-area-inset-bottom); /* 兼容全面屏手机 */
+}
+
+.fixed-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm-reverse);
+}
+
+/* 添加底部阴影，用于固定页眉 */
+.shadow-sm-reverse {
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+}

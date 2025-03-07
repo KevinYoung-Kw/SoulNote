@@ -478,6 +478,98 @@ function getSavageModeSystemPrompt() {
 }
 
 /**
+ * 获取性别中文标签
+ * @param {string} gender 性别值
+ * @returns {string} 性别中文标签
+ */
+function getGenderLabel(gender) {
+  const genderMap = {
+    'male': '男性',
+    'female': '女性',
+    'other': '其他'
+  };
+  return genderMap[gender] || '未知';
+}
+
+/**
+ * 获取年龄段标签
+ * @param {string} age 年龄段值
+ * @returns {string} 年龄段标签
+ */
+function getAgeLabel(age) {
+  const ageMap = {
+    'under18': '18岁以下',
+    '18-24': '18-24岁',
+    '25-34': '25-34岁',
+    '35-44': '35-44岁',
+    '45-54': '45-54岁',
+    'above55': '55岁以上'
+  };
+  return ageMap[age] || '未知年龄';
+}
+
+/**
+ * 获取感情状况标签
+ * @param {string} relationship 感情状况值
+ * @returns {string} 感情状况标签
+ */
+function getRelationshipLabel(relationship) {
+  const relationshipMap = {
+    'single': '单身',
+    'crushing': '有心仪对象',
+    'relationship': '恋爱中',
+    'married': '已婚'
+  };
+  return relationshipMap[relationship] || '未知状态';
+}
+
+/**
+ * 获取性别特质描述
+ * @param {string} gender 性别
+ * @returns {string} 性别特质描述
+ */
+function getGenderTraits(gender) {
+  const traits = {
+    'male': '更倾向于直接表达和解决问题，社交中可能更关注信息和观点交流而非情感连接，面对困难时可能更独立，倾向于通过行动和成就获取自我认同',
+    'female': '更倾向于共情和情感表达，社交中注重情感连接和关系维护，面对困难时可能更愿意寻求和提供支持，倾向于通过关系和连接获取自我认同',
+    'other': '拥有更加多元和独特的视角，可能更能理解并跨越传统性别框架的限制，在处理问题时融合多种思考方式，往往拥有更高的自我意识和表达自由度'
+  };
+  return traits[gender] || '独特的个人特质，不受传统性别刻板印象限制';
+}
+
+/**
+ * 获取年龄段特质描述
+ * @param {string} age 年龄段
+ * @returns {string} 年龄段特质描述
+ */
+function getAgeTraits(age) {
+  const traits = {
+    'under18': '处于自我认知和价值观形成期，充满好奇心和创造力，倾向于寻求认同，较为理想化，追求新奇体验，对未来充满可能性',
+    '18-24': '处于探索期，正在形成独立的世界观，面临学业和职业起步的挑战，社交圈广泛，较为开放但可能存在身份认同困惑，开始承担更多责任',
+    '25-34': '处于稳定发展期，职业和关系方向逐渐清晰，面临事业发展和感情稳定的双重压力，开始注重长期规划，考虑工作与生活平衡',
+    '35-44': '处于成熟期，职业和家庭责任加重，经历高峰期的机遇与挑战，开始审视人生方向，注重实际成就和生活品质，可能面临中年转型思考',
+    '45-54': '处于巩固期，职业上趋于稳定，视角更加长远，更重视内在价值和身心健康，开始思考留下的影响和传承，有更丰富的人生体验和智慧',
+    'above55': '处于智慧期，拥有丰富的人生阅历，看待问题更加全面从容，更注重生活质量和心灵满足，重新评估人生优先级，关注健康和意义感'
+  };
+  return traits[age] || '处于人生的特定阶段，拥有相应的经验与视角';
+}
+
+/**
+ * 获取感情状况特质描述
+ * @param {string} relationship 感情状况
+ * @returns {string} 感情状况特质描述
+ */
+function getRelationshipTraits(relationship) {
+  const traits = {
+    'single': '保持较高的个人空间和自由度，决策更独立，时间安排更灵活，可能更专注于个人发展和社交圈扩展，对未来关系持开放态度',
+    'crushing': '处于情感期待和不确定性阶段，情绪波动较大，倾向于理想化对象，投入较多心理能量在感情思考上，对暗示和互动特别敏感',
+    'relationship': '正经历情感连接与磨合，需要平衡个人空间和亲密关系，面临沟通和理解的挑战，学习与伴侣共同成长，建立稳定的情感纽带',
+    'married': '进入更稳定的承诺阶段，需要长期经营关系，决策更需考虑伴侣和家庭因素，面临更多责任分担，在亲密与独立间寻找平衡点'
+  };
+  return traits[relationship] || '拥有自己独特的情感状态和关系处理方式';
+}
+
+/**
  * 构建提示词
  * @param {Object} params 生成参数
  * @returns {Promise<string>} 完整的提示词
@@ -487,6 +579,16 @@ async function buildPrompt(params) {
   const zodiacChinese = zodiacMap[params.zodiac] || '未知星座';
   const mbtiType = params.mbti || 'MBTI类型';
   const mood = params.mood || '平静';
+  
+  // 获取性别、年龄和感情状况标签
+  const genderLabel = getGenderLabel(params.gender);
+  const ageLabel = getAgeLabel(params.age);
+  const relationshipLabel = getRelationshipLabel(params.relationship);
+  
+  // 获取性别、年龄和感情状况特质
+  const genderTraits = getGenderTraits(params.gender);
+  const ageTraits = getAgeTraits(params.age);
+  const relationshipTraits = getRelationshipTraits(params.relationship);
   
   // 获取时间上下文
   const { formattedTime, timeContext } = getTimeContext(params.savageMode);
@@ -505,6 +607,9 @@ async function buildPrompt(params) {
   你需要深入理解用户发送的"${mood}"表达的是什么心情或场景，这是你回应的核心基础。通过创造性连接和发散思考，推测这个人当下可能经历的具体情境，然后结合星座特质和MBTI特点来构建个性化回应。目标是让对方感觉"这个人真的懂我"，仿佛你能看透对方当前的处境和感受。
   
   ## 关于这个朋友的详细信息：
+  - 性别：${genderLabel}，特点：${genderTraits}
+  - 年龄：${ageLabel}，特点：${ageTraits}
+  - 感情状况：${relationshipLabel}，特点：${relationshipTraits}
   - 星座：${zodiacChinese}，核心特质：${zodiacTraits}
   - MBTI：${mbtiType}，关键特点：${mbtiTraits}
   - 当前心情/场景表达：${mood} 
@@ -559,7 +664,7 @@ async function buildPrompt(params) {
   2. 语气：混迹十年贴吧老哥式的调侃讽刺，揭露对方性格弱点
   3. 核心目标：让对方"破防"，既感到尴尬又忍不住认同
   4. 限制：不直接提及星座或MBTI类型
-  5. 形式：直接输出内容，不带引号或标题
+   5. 形式：直接输出内容，不带引号或标题
   6. 风格建议：可以使用一些犀利的emoji，如🤡🤣。也可以直接用一些短平快的梗、字和词刺激对方"`;
     
     // 如果启用了运势功能，添加运势相关的调侃指导

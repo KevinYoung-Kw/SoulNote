@@ -42,7 +42,7 @@ const features = [
   {
     icon: 'fas fa-magic',
     title: '一键生成心灵纸条',
-    description: '根据您的星座与性格特点，智能创作专属的温暖文字'
+    description: '根据您的性别、年龄、感情状况、星座与性格特点，智能创作专属温暖文字'
   },
   {
     icon: 'fas fa-palette',
@@ -53,6 +53,11 @@ const features = [
     icon: 'fas fa-share-alt',
     title: '便捷分享',
     description: '轻松保存并分享给亲友，传递温暖与力量'
+  },
+  {
+    icon: 'fas fa-user-cog',
+    title: '个性化体验',
+    description: '丰富的个人信息设置，让每一条心语都深入触动您的内心'
   }
 ];
 

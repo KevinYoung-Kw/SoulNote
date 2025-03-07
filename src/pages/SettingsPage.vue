@@ -1,6 +1,6 @@
 <template>
-  <div class="settings-page" :class="{'savage-mode': preferences.savageMode}">
-    <header class="header">
+  <div class="settings-page fixed-page-layout" :class="{'savage-mode': preferences.savageMode}">
+    <header class="header fixed-header">
       <button class="icon-btn" @click="goBack">
         <i class="fas fa-arrow-left"></i>
       </button>
@@ -8,9 +8,36 @@
       <div class="placeholder"></div>
     </header>
     
-    <div class="settings-content">
+    <div class="settings-content scrollable-content">
       <section class="settings-section">
         <h2 class="section-title">个人设置</h2>
+        
+        <!-- 添加性别设置 -->
+        <div class="setting-item">
+          <label class="setting-label">性别</label>
+          <div class="setting-value" @click="showGenderSelector = true">
+            {{ getGenderLabel(preferences.gender) }}
+            <i class="fas fa-chevron-right"></i>
+          </div>
+        </div>
+        
+        <!-- 添加年龄设置 -->
+        <div class="setting-item">
+          <label class="setting-label">年龄段</label>
+          <div class="setting-value" @click="showAgeSelector = true">
+            {{ getAgeLabel(preferences.age) }}
+            <i class="fas fa-chevron-right"></i>
+          </div>
+        </div>
+        
+        <!-- 添加感情状况设置 -->
+        <div class="setting-item">
+          <label class="setting-label">感情状况</label>
+          <div class="setting-value" @click="showRelationshipSelector = true">
+            {{ getRelationshipLabel(preferences.relationship) }}
+            <i class="fas fa-chevron-right"></i>
+          </div>
+        </div>
         
         <div class="setting-item">
           <label class="setting-label">星座</label>
@@ -150,6 +177,86 @@
       </section>
     </div>
     
+    <!-- 性别选择弹窗 -->
+    <div class="modal" v-if="showGenderSelector" @click="showGenderSelector = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>选择性别</h3>
+          <button class="icon-btn" @click="showGenderSelector = false">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="gender-options">
+            <div 
+              v-for="gender in genders" 
+              :key="gender.value"
+              class="gender-option"
+              :class="{ active: preferences.gender === gender.value }"
+              @click="selectGender(gender.value)"
+            >
+              <i :class="gender.icon"></i>
+              <span>{{ gender.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 年龄选择弹窗 -->
+    <div class="modal" v-if="showAgeSelector" @click="showAgeSelector = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>选择年龄段</h3>
+          <button class="icon-btn" @click="showAgeSelector = false">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="age-options">
+            <div 
+              v-for="ageGroup in ageGroups" 
+              :key="ageGroup.value"
+              class="age-option"
+              :class="{ active: preferences.age === ageGroup.value }"
+              @click="selectAge(ageGroup.value)"
+            >
+              <span>{{ ageGroup.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 感情状况选择弹窗 -->
+    <div class="modal" v-if="showRelationshipSelector" @click="showRelationshipSelector = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>选择感情状况</h3>
+          <button class="icon-btn" @click="showRelationshipSelector = false">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="relationship-options">
+            <div 
+              v-for="status in relationshipStatuses" 
+              :key="status.value"
+              class="relationship-option"
+              :class="{ active: preferences.relationship === status.value }"
+              @click="selectRelationship(status.value)"
+            >
+              <i :class="status.icon"></i>
+              <span>{{ status.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- 星座选择弹窗 -->
     <div class="modal" v-if="showZodiacSelector" @click="showZodiacSelector = false">
       <div class="modal-content" @click.stop>
@@ -252,6 +359,9 @@ import { getUserPreferences, saveUserPreferences, resetUserData } from '../servi
 const router = useRouter();
 const showZodiacSelector = ref(false);
 const showMbtiSelector = ref(false);
+const showGenderSelector = ref(false); // 添加性别选择器状态
+const showAgeSelector = ref(false); // 添加年龄选择器状态
+const showRelationshipSelector = ref(false); // 添加感情状况选择器状态
 const isDarkMode = ref(false);
 const isSavageMode = ref(false); // 添加毒舌模式状态
 const showResetConfirm = ref(false);
@@ -259,6 +369,9 @@ const isResetting = ref(false);
 
 // 使用reactive创建一个空对象，稍后填充数据
 const preferences = reactive({
+  gender: null,
+  age: null,
+  relationship: null,
   zodiac: null,
   mbti: null,
   language: 'zh',
@@ -267,6 +380,31 @@ const preferences = reactive({
   background: 'paper-1',
   savageMode: false // 添加毒舌模式参数
 });
+
+// 性别数据
+const genders = [
+  { label: '男性', value: 'male', icon: 'fas fa-mars' },
+  { label: '女性', value: 'female', icon: 'fas fa-venus' },
+  { label: '其他', value: 'other', icon: 'fas fa-cat' }
+];
+
+// 年龄段数据
+const ageGroups = [
+  { label: '18岁以下', value: 'under18' },
+  { label: '18-24岁', value: '18-24' },
+  { label: '25-34岁', value: '25-34' },
+  { label: '35-44岁', value: '35-44' },
+  { label: '45-54岁', value: '45-54' },
+  { label: '55岁以上', value: 'above55' }
+];
+
+// 婚恋状况数据
+const relationshipStatuses = [
+  { label: '单身', value: 'single', icon: 'fas fa-user' },
+  { label: '有心仪对象', value: 'crushing', icon: 'fas fa-heart' },
+  { label: '恋爱中', value: 'relationship', icon: 'fas fa-people-arrows' },
+  { label: '已婚', value: 'married', icon: 'fas fa-ring' }
+];
 
 // 星座数据
 const zodiacs = [
@@ -331,6 +469,24 @@ const backgrounds = [
   { value: 'paper-4', label: '淡绿色' }
 ];
 
+function getGenderLabel(value) {
+  if (!value) return '未设置';
+  const gender = genders.find(g => g.value === value);
+  return gender ? gender.label : '未设置';
+}
+
+function getAgeLabel(value) {
+  if (!value) return '未设置';
+  const ageGroup = ageGroups.find(a => a.value === value);
+  return ageGroup ? ageGroup.label : '未设置';
+}
+
+function getRelationshipLabel(value) {
+  if (!value) return '未设置';
+  const status = relationshipStatuses.find(s => s.value === value);
+  return status ? status.label : '未设置';
+}
+
 function getZodiacLabel(value) {
   if (!value) return '未设置';
   const zodiac = zodiacs.find(z => z.value === value);
@@ -346,6 +502,24 @@ function getBgStyle(value) {
   };
   
   return backgroundMap[value] || backgroundMap['paper-1'];
+}
+
+function selectGender(value) {
+  preferences.gender = value;
+  showGenderSelector.value = false;
+  savePreferences();
+}
+
+function selectAge(value) {
+  preferences.age = value;
+  showAgeSelector.value = false;
+  savePreferences();
+}
+
+function selectRelationship(value) {
+  preferences.relationship = value;
+  showRelationshipSelector.value = false;
+  savePreferences();
 }
 
 function selectZodiac(value) {
@@ -413,11 +587,11 @@ function goBack() {
 }
 
 function openPrivacyPolicy() {
-  alert('隐私政策页面暂未实现');
+  router.push('/privacy-policy');
 }
 
 function openAboutUs() {
-  alert('关于我们页面暂未实现');
+  router.push('/about-us');
 }
 
 /**
@@ -490,7 +664,7 @@ watch(preferences, () => {
 
 <style scoped>
 .settings-page {
-  min-height: 100vh;
+  /* 删除min-height: 100vh; 因为fixed-page-layout已设置height: 100vh */
   background-color: var(--bg-color);
 }
 
@@ -920,5 +1094,128 @@ input:checked + .switch-label::after {
 .savage-mode input:checked + .switch-label {
   background-color: var(--primary-color);
   box-shadow: 0 0 5px rgba(255, 82, 82, 0.5);
+}
+
+/* 性别选择样式 */
+.gender-options {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.gender-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-lg);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  width: 100px;
+}
+
+.gender-option i {
+  font-size: 32px;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.gender-option span {
+  font-size: 14px;
+}
+
+.gender-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.gender-option.active i {
+  color: white;
+}
+
+/* 年龄选择样式 */
+.age-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.age-option {
+  padding: var(--spacing-md);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  text-align: center;
+}
+
+.age-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateX(8px);
+  box-shadow: var(--shadow-md);
+}
+
+/* 婚恋状况选择样式 */
+.relationship-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.relationship-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-md);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.relationship-option i {
+  font-size: 24px;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.relationship-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.relationship-option.active i {
+  color: white;
+}
+
+@media (max-width: 480px) {
+  .zodiac-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .mbti-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .relationship-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .gender-options {
+    flex-direction: column;
+    align-items: center;
+  }
 }
 </style>
