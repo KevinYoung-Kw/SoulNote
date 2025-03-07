@@ -2,7 +2,7 @@
   <div 
     class="note-card" 
     ref="noteCardRef" 
-    :class="{'savage-note': isSavageMode}"
+    :class="{'savage-note': isSavageMode, 'font-loaded': fontLoaded}"
     :style="cardStyle"
   >
     <div class="note-mood" v-if="props.mood" :style="moodStyle">{{ props.mood }}</div>
@@ -47,6 +47,7 @@ const props = defineProps({
 
 const noteCardRef = ref(null);
 const { noteRef, isAnimating, playGenerateAnimation } = useNoteAnimation(props.animationDuration);
+const fontLoaded = ref(false); // 跟踪字体是否已加载
 
 // 检测当前是否为深色模式和毒舌模式
 const isDarkMode = computed(() => document.body.classList.contains('dark-mode'));
@@ -99,7 +100,7 @@ const contentStyle = computed(() => {
   console.log("应用字体大小:", props.fontSize);
   return {
     fontSize: `${props.fontSize}px`,
-    fontFamily: 'var(--font-decorative)',
+    fontFamily: 'var(--font-note)', // 确保使用正确的字体变量
     lineHeight: 1.6
   };
 });
@@ -120,6 +121,21 @@ onMounted(() => {
   noteRef.value = noteCardRef.value;
   if (props.animate) {
     playGenerateAnimation();
+  }
+  
+  // 检查字体加载状况
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      // 字体加载完成后设置标志
+      fontLoaded.value = true;
+      console.log('Fonts have been loaded');
+    });
+  } else {
+    // 如果浏览器不支持 document.fonts API，设置一个超时作为替代
+    setTimeout(() => {
+      fontLoaded.value = true;
+      console.log('Assuming fonts loaded after timeout');
+    }, 1000);
   }
 });
 
@@ -167,7 +183,7 @@ watch(() => props.animationDuration, (newDuration) => {
 }
 
 .note-content {
-  font-family: var(--font-decorative);
+  font-family: var(--font-note); /* 使用 --font-note 变量而不是装饰字体 */
   line-height: 1.6;
   text-align: center;
   z-index: 2;
@@ -175,10 +191,15 @@ watch(() => props.animationDuration, (newDuration) => {
   overflow-y: auto; /* 允许长内容滚动 */
   max-height: 100%; /* 防止内容超出卡片 */
   width: 100%; /* 确保宽度充满容器 */
-  /* 重要：不要在这里设置固定的字体大小，应该使用内联样式 */
   /* 隐藏滚动条但保留功能 */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* 字体加载完成后应用的样式 */
+.font-loaded .note-content {
+  /* 可以添加平滑过渡效果 */
+  transition: opacity 0.3s ease;
 }
 
 /* 隐藏Webkit浏览器的滚动条 */

@@ -11,11 +11,11 @@
   --error-color: #E88C8C;
   --warning-color: #FFD166;
   
-  /* 字体系统 - 修改添加楷体选项 */
+  /* 字体系统 - 修改添加楷体选项，使用本地加载的Web字体 */
   --font-decorative: 'Dancing Script', cursive; /* 英文装饰字体保持不变 */
-  --font-body: 'Noto Sans SC', 'Kaiti', '楷体', 'STKaiti', '华文楷体', Arial, 'PingFang SC', '微软雅黑', sans-serif;
-  /* 添加特定的楷体字体变量，方便在纸条内容中使用 */
-  --font-note: 'Kaiti', '楷体', 'STKaiti', '华文楷体', var(--font-body);
+  --font-body: 'Noto Sans SC', 'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体', Arial, 'PingFang SC', '微软雅黑', sans-serif;
+  /* 使用本地加载的楷体字体为首选字体 */
+  --font-note: 'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体', var(--font-body);
   
   /* 间距 */
   --spacing-xs: 4px;
@@ -213,11 +213,15 @@ body {
   text-align: center;
 }
 
+/* 替换当前的字体预加载部分 */
 /* 添加字体预加载指令，提高字体加载优先级 */
 @font-face {
-  font-family: 'Kaiti';
-  src: local('Kaiti'), local('楷体'), local('STKaiti'), local('华文楷体');
-  font-display: swap;
+  font-family: 'KaitiLocal';
+  src: url('../assets/fonts/kaiti.woff2') format('woff2'),
+       url('../assets/fonts/kaiti.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;  /* 使用swap策略平衡加载性能和显示效果 */
 }
 
 /* 添加一个类，在纸条渲染之前可以应用，确保字体已加载 */

@@ -1,5 +1,8 @@
 <template>
   <div class="onboarding-page fixed-page-layout">
+    <!-- 字体预加载元素 -->
+    <div class="font-preload">楷体预加载</div>
+    
     <div class="progress-bar fixed-header">
       <div class="progress" :style="{ width: `${(currentStep / totalSteps) * 100}%` }"></div>
     </div>
@@ -47,7 +50,7 @@
       </div>    
 
       <!-- 步骤2: 性别选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 2">
+      <div class="onboarding-step" v-else-if="currentStep === 3">
         <h1 class="step-title">您的性别是？</h1>
         <p class="step-desc">让我们更好地了解您</p>
         
@@ -80,7 +83,7 @@
       </div>
       
       <!-- 步骤3: 年龄选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 3">
+      <div class="onboarding-step" v-else-if="currentStep === 4">
         <h1 class="step-title">您的年龄段是？</h1>
         <p class="step-desc">我们将根据年龄特点提供更贴切的内容</p>
         
@@ -98,7 +101,7 @@
       </div>
       
       <!-- 步骤4: 婚恋状况 -->
-      <div class="onboarding-step" v-else-if="currentStep === 4">
+      <div class="onboarding-step" v-else-if="currentStep === 5">
         <h1 class="step-title">您的感情状况？</h1>
         <p class="step-desc">了解您的情感状态有助于我们创作更贴合您内心的文字</p>
         
@@ -117,7 +120,7 @@
       </div>
       
       <!-- 步骤5: 星座选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 5">
+      <div class="onboarding-step" v-else-if="currentStep === 6">
         <h1 class="step-title">您的星座是？</h1>
         <p class="step-desc">我们将根据星座特质为您提供更契合的内容</p>
         
@@ -136,7 +139,7 @@
       </div>
       
       <!-- 步骤6: MBTI选择 -->
-      <div class="onboarding-step" v-else-if="currentStep === 6">
+      <div class="onboarding-step" v-else-if="currentStep === 7">
         <h1 class="step-title">您的MBTI人格类型？</h1>
         <p class="step-desc">了解您的思考与决策方式有助于我们创作更贴合您内心的文字</p>
         
@@ -164,7 +167,7 @@
       </div>
       
       <!-- 步骤7: 语言偏好 -->
-      <div class="onboarding-step" v-else-if="currentStep === 7">
+      <div class="onboarding-step" v-else-if="currentStep === 8">
         <h1 class="step-title">语言偏好</h1>
         <p class="step-desc">选择您希望生成的心语纸条的语言类型</p>
         
@@ -196,7 +199,7 @@
       </div>
       
       <!-- 步骤8: 完成设置 -->
-      <div class="onboarding-step" v-else-if="currentStep === 8">
+      <div class="onboarding-step" v-else-if="currentStep === 9">
         <h1 class="step-title">设置完成！</h1>
         <p class="step-desc">现在开始享受您的专属心灵纸条吧</p>
         
@@ -229,11 +232,34 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { saveUserPreferences, setOnboardingCompleted } from '../services/storageService';
 import welcomeSvg from '../assets/onboarding-welcome.svg';
 import completeSvg from '../assets/onboarding-complete.svg';
+
+// 预加载字体
+const fontPreloaded = ref(false);
+
+onMounted(() => {
+  // 尝试预加载字体
+  if ('fonts' in document) {
+    Promise.all([
+      document.fonts.load('1em KaitiLocal'),
+      document.fonts.load('1em var(--font-note)')
+    ]).then(() => {
+      console.log('字体已预加载');
+      fontPreloaded.value = true;
+    }).catch(err => {
+      console.warn('字体预加载失败', err);
+      // 失败后仍设置为true，不阻止应用继续
+      fontPreloaded.value = true;
+    });
+  } else {
+    console.warn('浏览器不支持字体API，跳过字体预加载');
+    fontPreloaded.value = true;
+  }
+});
 
 const router = useRouter();
 const currentStep = ref(1);
@@ -363,27 +389,27 @@ function prevStep() {
 function nextStep() {
   if (currentStep.value < totalSteps) {
     // 验证当前步骤是否已完成
-    if (currentStep.value === 2 && !userPreferences.gender) {
+    if (currentStep.value === 3 && !userPreferences.gender) {
       alert('请选择您的性别');
       return;
     }
     
-    if (currentStep.value === 3 && !userPreferences.age) {
+    if (currentStep.value === 4 && !userPreferences.age) {
       alert('请选择您的年龄段');
       return;
     }
     
-    if (currentStep.value === 4 && !userPreferences.relationship) {
+    if (currentStep.value === 5 && !userPreferences.relationship) {
       alert('请选择您的感情状况');
       return;
     }
     
-    if (currentStep.value === 5 && !userPreferences.zodiac) {
+    if (currentStep.value === 6 && !userPreferences.zodiac) {
       alert('请选择一个星座');
       return;
     }
     
-    if (currentStep.value === 6 && !userPreferences.mbti) {
+    if (currentStep.value === 7 && !userPreferences.mbti) {
       alert('请选择一个MBTI人格类型');
       return;
     }
@@ -931,6 +957,16 @@ function navigateTo(path) {
 .highlight-success {
   color: #27ae60; /* 绿色成功色 */
   font-weight: 600;
+}
+
+/* 添加字体预加载样式 */
+.font-preload {
+  position: absolute;
+  visibility: hidden;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  font-family: var(--font-note);
 }
 
 </style>
