@@ -11,9 +11,11 @@
   --error-color: #E88C8C;
   --warning-color: #FFD166;
   
-  /* 字体系统 */
-  --font-decorative: 'Dancing Script', cursive;
-  --font-body: 'Noto Sans SC', Arial, 'PingFang SC', '微软雅黑', sans-serif;
+  /* 字体系统 - 修改添加楷体选项 */
+  --font-decorative: 'Dancing Script', cursive; /* 英文装饰字体保持不变 */
+  --font-body: 'Noto Sans SC', 'Kaiti', '楷体', 'STKaiti', '华文楷体', Arial, 'PingFang SC', '微软雅黑', sans-serif;
+  /* 添加特定的楷体字体变量，方便在纸条内容中使用 */
+  --font-note: 'Kaiti', '楷体', 'STKaiti', '华文楷体', var(--font-body);
   
   /* 间距 */
   --spacing-xs: 4px;
@@ -203,11 +205,26 @@ body {
 }
 
 .note-content {
-  font-family: var(--font-decorative);
+  /* 修改这里，使用新定义的楷体专用变量 */
+  font-family: var(--font-note);
   font-size: 24px;
   line-height: 1.6;
   color: var(--text-color);
   text-align: center;
+}
+
+/* 添加字体预加载指令，提高字体加载优先级 */
+@font-face {
+  font-family: 'Kaiti';
+  src: local('Kaiti'), local('楷体'), local('STKaiti'), local('华文楷体');
+  font-display: swap;
+}
+
+/* 添加一个类，在纸条渲染之前可以应用，确保字体已加载 */
+.font-preload {
+  position: absolute;
+  visibility: hidden;
+  font-family: var(--font-note);
 }
 
 .note-glow {

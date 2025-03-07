@@ -1,6 +1,6 @@
 <template>
   <div class="home-page" :class="{'savage-mode': params.savageMode}">
-    <!-- 顶部栏 - 修改设置图标行为 -->
+    <!-- 顶部栏保持不变 -->
     <header class="header">
       <button class="icon-btn" @click="goToSettings">
         <i class="fas fa-cog"></i>
@@ -11,120 +11,29 @@
       </button>
     </header>
     
-    <!-- 参数区域 -->
-    <!--
-    <div class="params-section" :class="{ 'expanded': showParams }">
-      <div class="params-toggle" @click="showParams = !showParams">
-        <span>参数设置</span>
-        <i :class="['fas', showParams ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
-      </div>
-      
-      <div class="params-content" v-show="showParams">
-        <div class="param-item">
-          <label>星座</label>
-          <select v-model="params.zodiac" class="param-selector">
-            <option v-for="zodiac in zodiacs" :key="zodiac.value" :value="zodiac.value">
-              {{ zodiac.label }}
-            </option>
-          </select>
-        </div>
-        
-        <div class="param-item">
-          <label>MBTI性格</label>
-          <select v-model="params.mbti" class="param-selector">
-            <option v-for="mbti in mbtiTypes" :key="mbti.value" :value="mbti.value">
-              {{ mbti.label }}
-            </option>
-          </select>
-        </div>
-        
-        <div class="param-item">
-          <label>语言</label>
-          <div class="toggle-switch">
-            <span :class="{ active: params.language === 'zh' }" @click="params.language = 'zh'">中文</span>
-            <span :class="{ active: params.language === 'en-zh' }" @click="params.language = 'en-zh'">中英双语</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    -->
-    
     <!-- 纸条展示区 -->
     <div class="note-container" ref="noteContainerRef">
-      <!-- 添加心情/场景输入 -->
-      <div class="mood-input-container">
-        <div class="mood-toggle" @click="showEmojiPicker = !showEmojiPicker">
-          <span class="mood-label">心情 / 场景:</span>
-          <span class="mood-value">{{ params.mood || '点击添加' }}</span>
-          <i class="fas fa-chevron-down"></i>
-        </div>
-        
-        <!-- Emoji类别选择器 -->
-        <div class="emoji-picker" v-if="showEmojiPicker" @click.stop>
-          <div class="emoji-tabs">
-            <div 
-              v-for="(category, idx) in emojiCategories" 
-              :key="idx" 
-              :class="['emoji-tab', {active: currentEmojiCategory === idx}]"
-              @click="currentEmojiCategory = idx"
-            >
-              <i :class="category.icon"></i>
-            </div>
+      <!-- 替换原有的心情输入和运势选择器，使用统一的参数卡片 -->
+      <div class="params-card">
+        <div class="params-preview" @click="openParamsPanel">
+          <!-- 修改这里，动态显示用户选择的表情或默认图标 -->
+          <div class="params-item">
+            <span v-if="params.mood" class="mood-emoji">{{ params.mood }}</span>
+            <i v-else class="fas fa-smile"></i>
+            <span>{{ params.mood ? '' : '添加心情...' }}</span>
           </div>
-          <div class="emoji-list">
-            <div 
-              v-for="emoji in emojiCategories[currentEmojiCategory].emojis" 
-              :key="emoji.symbol"
-              class="emoji-item"
-              @click="selectEmoji(emoji.symbol)"
-            >
-              {{ emoji.symbol }}
-            </div>
+          <div class="params-item" v-if="params.enableFortune">
+            <i :class="fortuneAspects.find(a => a.value === params.fortuneAspect)?.icon || 'fas fa-star'"></i>
+            <span>{{ getFortuneAspectLabel() }}</span>
           </div>
-          <div class="emoji-custom">
-            <input 
-              type="text" 
-              v-model="params.mood" 
-              class="mood-input"
-              placeholder="自定义内容..."
-              @keyup.enter="showEmojiPicker = false"
-            />
-            <button class="btn-small" @click="showEmojiPicker = false">确定</button>
-          </div>
+          <button class="params-edit-btn">
+            <i class="fas fa-sliders-h"></i>
+            <span>设置</span>
+          </button>
         </div>
       </div>
       
-      <!-- 在心情输入区域下方添加星座运势选择器 -->
-      <div class="fortune-selector" v-if="params.enableFortune">
-        <div class="fortune-options">
-          <div 
-            v-for="aspect in fortuneAspects" 
-            :key="aspect.value"
-            :class="['fortune-option', {active: params.fortuneAspect === aspect.value}]"
-            @click="params.fortuneAspect = aspect.value"
-          >
-            <i :class="aspect.icon"></i>
-            <span>{{ aspect.label }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 添加运势开关 -->
-      <div class="fortune-toggle">
-        <label class="fortune-toggle-label">
-          <span>今日运势</span>
-          <div class="setting-switch">
-            <input 
-              type="checkbox" 
-              id="fortuneSwitch" 
-              v-model="params.enableFortune"
-            />
-            <label for="fortuneSwitch" class="switch-label"></label>
-          </div>
-        </label>
-      </div>
-
-      <!-- 加载指示器 - 移到生成按钮上方 -->
+      <!-- NoteCard 保持不变 -->
       <NoteCard 
         :content="noteContent" 
         :mood="params.mood"
@@ -135,7 +44,7 @@
         ref="noteCardRef"
       />
       
-      <!-- 背景选择器 -->
+      <!-- 背景选择器和字号调整保持不变 -->
       <div class="background-selector">
         <span 
           v-for="(bg, index) in backgrounds" 
@@ -145,7 +54,6 @@
         ></span>
       </div>
       
-      <!-- 字号调整 -->
       <div class="font-size-control">
         <button class="icon-btn" @click="decreaseFontSize">
           <i class="fas fa-font"></i>-
@@ -157,9 +65,8 @@
       </div>
     </div>
     
-    <!-- 控制区域 -->
+    <!-- 控制区域保持不变 -->
     <div class="control-section">
-      <!-- 加载指示器放在这里，按钮上方 -->
       <LoadingIndicator 
         v-if="isGenerating" 
         :is-loading="isGenerating"
@@ -192,8 +99,93 @@
       </div>
     </div>
     
-    <!-- 点击外部关闭emoji选择器 -->
-    <div class="overlay" v-if="showEmojiPicker" @click="showEmojiPicker = false"></div>
+    <!-- 参数设置面板 (模态弹窗) -->
+    <div class="modal-overlay" v-if="showParamsPanel" @click="closeParamsPanel"></div>
+    <transition name="slide-up">
+      <div class="params-panel" v-if="showParamsPanel">
+        <div class="params-panel-header">
+          <h2>心语参数设置</h2>
+          <button class="icon-btn close-btn" @click="closeParamsPanel">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="params-panel-content">
+          <!-- 心情/场景选择器 -->
+          <div class="panel-section">
+            <h3>心情 / 场景</h3>
+            <div class="emoji-tabs">
+              <div 
+                v-for="(category, idx) in emojiCategories" 
+                :key="idx" 
+                :class="['emoji-tab', {active: currentEmojiCategory === idx}]"
+                @click="currentEmojiCategory = idx"
+              >
+                <i :class="category.icon"></i>
+                <small>{{ category.name }}</small>
+              </div>
+            </div>
+            
+            <div class="emoji-list">
+              <div 
+                v-for="emoji in emojiCategories[currentEmojiCategory].emojis" 
+                :key="emoji.symbol"
+                :class="['emoji-item', { active: params.mood === emoji.symbol }]"
+                @click="selectEmoji(emoji.symbol)"
+                :title="emoji.name"
+              >
+                {{ emoji.symbol }}
+              </div>
+            </div>
+            
+            <div class="emoji-custom">
+              <input 
+                type="text" 
+                v-model="params.mood" 
+                class="mood-input"
+                placeholder="自定义内容..."
+              />
+            </div>
+          </div>
+          
+          <!-- 运势设置 -->
+            <div class="panel-section">
+            <div class="section-header">
+              <h3>今日运势</h3>
+              <div class="toggle-switch-container">
+              <input 
+                type="checkbox" 
+                id="fortuneSwitchPanel" 
+                v-model="params.enableFortune"
+                class="toggle-checkbox"
+              />
+              <label for="fortuneSwitchPanel" class="toggle-label">
+                <span class="toggle-inner"></span>
+                <span class="toggle-switch"></span>
+              </label>
+              </div>
+            </div>
+            
+            <div class="fortune-options" v-if="params.enableFortune">
+              <div 
+                v-for="aspect in fortuneAspects" 
+                :key="aspect.value"
+                :class="['fortune-option', {active: params.fortuneAspect === aspect.value}]"
+                @click="params.fortuneAspect = aspect.value"
+              >
+                <i :class="aspect.icon"></i>
+                <span>{{ aspect.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="params-panel-footer">
+          <button class="btn btn-secondary" @click="closeParamsPanel">取消</button>
+          <button class="btn btn-primary" @click="saveAndClosePanel">确定</button>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -286,7 +278,7 @@ const backgrounds = [
   { value: 'paper-4', label: '淡绿色' }
 ];
 
-// Emoji分类数据
+// 大幅扩充Emoji分类数据
 const emojiCategories = [
   {
     name: '心情',
@@ -294,14 +286,54 @@ const emojiCategories = [
     emojis: [
       { symbol: '😊', name: '开心' },
       { symbol: '😄', name: '笑' },
+      { symbol: '😁', name: '大笑' },
       { symbol: '🥰', name: '爱' },
+      { symbol: '😍', name: '喜欢' },
+      { symbol: '🤗', name: '拥抱' },
       { symbol: '😌', name: '放松' },
+      { symbol: '😏', name: '得意' },
+      { symbol: '😇', name: '天使' },
+      { symbol: '🙂', name: '微笑' },
       { symbol: '🤔', name: '思考' },
+      { symbol: '🧐', name: '疑惑' },
+      { symbol: '🤨', name: '怀疑' },
+      { symbol: '😮', name: '惊讶' },
+      { symbol: '😲', name: '震惊' },
+      { symbol: '😳', name: '羞涩' },
       { symbol: '😢', name: '伤心' },
+      { symbol: '😭', name: '大哭' },
+      { symbol: '😞', name: '失望' },
+      { symbol: '😔', name: '郁闷' },
+      { symbol: '😟', name: '担忧' },
+      { symbol: '😤', name: '坚定' },
+      { symbol: '😠', name: '生气' },
+      { symbol: '😡', name: '愤怒' },
+      { symbol: '😱', name: '害怕' },
       { symbol: '😴', name: '疲倦' },
+      { symbol: '😪', name: '困倦' },
+      { symbol: '🤢', name: '恶心' },
+      { symbol: '🤒', name: '生病' },
+      { symbol: '😵', name: '晕' },
+      { symbol: '🥴', name: '迷糊' },
       { symbol: '😎', name: '酷' },
       { symbol: '🤩', name: '激动' },
-      { symbol: '😤', name: '坚定' }
+      { symbol: '🥳', name: '庆祝' },
+      { symbol: '😘', name: '飞吻' },
+      { symbol: '🥺', name: '请求' },
+      { symbol: '🙄', name: '无语' },
+      { symbol: '😬', name: '尴尬' },
+      { symbol: '😑', name: '无表情' },
+      { symbol: '😶', name: '沉默' },
+      { symbol: '🤐', name: '闭嘴' },
+      { symbol: '🤫', name: '嘘' },
+      { symbol: '🤭', name: '偷笑' },
+      { symbol: '😷', name: '口罩' },
+      { symbol: '🤕', name: '受伤' },
+      { symbol: '😈', name: '恶魔' },
+      { symbol: '🤯', name: '爆炸' },
+      { symbol: '🥵', name: '热' },
+      { symbol: '🥶', name: '冷' },
+      { symbol: '🤮', name: '呕吐' }
     ]
   },
   {
@@ -309,15 +341,55 @@ const emojiCategories = [
     icon: 'fas fa-map-marker-alt',
     emojis: [
       { symbol: '🏠', name: '家' },
-      { symbol: '🏢', name: '工作' },
+      { symbol: '🏡', name: '别墅' },
+      { symbol: '🏢', name: '办公楼' },
+      { symbol: '🏬', name: '商场' },
       { symbol: '🏫', name: '学校' },
-      { symbol: '☕', name: '咖啡厅' },
-      { symbol: '🏞️', name: '户外' },
+      { symbol: '🏛️', name: '古建筑' },
+      { symbol: '⛪', name: '教堂' },
+      { symbol: '🕌', name: '清真寺' },
+      { symbol: '🏥', name: '医院' },
+      { symbol: '🏨', name: '酒店' },
+      { symbol: '🏭', name: '工厂' },
+      { symbol: '🏚️', name: '老房子' },
       { symbol: '🏙️', name: '城市' },
-      { symbol: '🌊', name: '海边' },
-      { symbol: '🏔️', name: '山' },
+      { symbol: '🌆', name: '黄昏城市' },
+      { symbol: '🌃', name: '夜晚城市' },
+      { symbol: '🌉', name: '夜桥' },
+      { symbol: '🎭', name: '剧院' },
+      { symbol: '🎪', name: '马戏团' },
+      { symbol: '🎡', name: '摩天轮' },
+      { symbol: '🎢', name: '过山车' },
+      { symbol: '🏟️', name: '体育场' },
+      { symbol: '🏝️', name: '孤岛' },
+      { symbol: '🏖️', name: '海滩' },
+      { symbol: '⛱️', name: '沙滩伞' },
+      { symbol: '🏞️', name: '户外' },
+      { symbol: '🗻', name: '富士山' },
+      { symbol: '🌋', name: '火山' },
+      { symbol: '⛰️', name: '山' },
+      { symbol: '🏔️', name: '雪山' },
+      { symbol: '🌄', name: '日出山' },
+      { symbol: '🌅', name: '日出海' },
+      { symbol: '🌇', name: '日落' },
+      { symbol: '🌊', name: '海浪' },
+      { symbol: '🏜️', name: '沙漠' },
+      { symbol: '🏕️', name: '野营' },
+      { symbol: '☕', name: '咖啡厅' },
+      { symbol: '🍽️', name: '餐厅' },
+      { symbol: '🍷', name: '酒吧' },
+      { symbol: '🌁', name: '雾城' },
+      { symbol: '🌌', name: '银河' },
       { symbol: '🚗', name: '路上' },
-      { symbol: '✈️', name: '旅行' }
+      { symbol: '🚅', name: '高铁' },
+      { symbol: '✈️', name: '旅行' },
+      { symbol: '🏦', name: '银行' },
+      { symbol: '🛒', name: '购物' },
+      { symbol: '🎮', name: '游戏厅' },
+      { symbol: '📱', name: '网上' },
+      { symbol: '🛋️', name: '客厅' },
+      { symbol: '🛌', name: '卧室' },
+      { symbol: '🚿', name: '浴室' }
     ]
   },
   {
@@ -325,15 +397,55 @@ const emojiCategories = [
     icon: 'fas fa-running',
     emojis: [
       { symbol: '📚', name: '阅读' },
+      { symbol: '✍️', name: '写作' },
       { symbol: '🎮', name: '游戏' },
+      { symbol: '🎯', name: '目标' },
+      { symbol: '🎨', name: '绘画' },
+      { symbol: '🎭', name: '表演' },
+      { symbol: '🎬', name: '拍摄' },
+      { symbol: '🎤', name: '唱歌' },
+      { symbol: '🎧', name: '听音乐' },
       { symbol: '🎵', name: '音乐' },
-      { symbol: '🎬', name: '电影' },
-      { symbol: '🍽️', name: '用餐' },
+      { symbol: '🎹', name: '弹琴' },
+      { symbol: '🎸', name: '吉他' },
+      { symbol: '🥁', name: '打鼓' },
+      { symbol: '🎻', name: '小提琴' },
+      { symbol: '💃', name: '跳舞' },
+      { symbol: '🕺', name: '跳舞' },
+      { symbol: '🏃', name: '跑步' },
+      { symbol: '🚶', name: '散步' },
       { symbol: '🧘', name: '冥想' },
-      { symbol: '🏃', name: '运动' },
+      { symbol: '🧗', name: '攀岩' },
+      { symbol: '🏊', name: '游泳' },
+      { symbol: '🚴', name: '骑车' },
+      { symbol: '⛹️', name: '打球' },
+      { symbol: '🏋️', name: '健身' },
+      { symbol: '🤸', name: '体操' },
+      { symbol: '🏄', name: '冲浪' },
+      { symbol: '🏂', name: '滑雪' },
+      { symbol: '🧠', name: '思考' },
+      { symbol: '🍳', name: '烹饪' },
+      { symbol: '🍽️', name: '用餐' },
+      { symbol: '🍻', name: '聚会' },
+      { symbol: '🎂', name: '庆生' },
+      { symbol: '🎁', name: '送礼' },
+      { symbol: '📱', name: '刷手机' },
       { symbol: '💻', name: '工作' },
       { symbol: '🛌', name: '休息' },
-      { symbol: '🎨', name: '创作' }
+      { symbol: '💤', name: '睡觉' },
+      { symbol: '🛀', name: '泡澡' },
+      { symbol: '🚿', name: '淋浴' },
+      { symbol: '🧹', name: '打扫' },
+      { symbol: '🛒', name: '购物' },
+      { symbol: '💼', name: '上班' },
+      { symbol: '🧳', name: '旅行' },
+      { symbol: '🌱', name: '种植' },
+      { symbol: '🐕', name: '遛狗' },
+      { symbol: '📸', name: '拍照' },
+      { symbol: '🎣', name: '钓鱼' },
+      { symbol: '🧩', name: '拼图' },
+      { symbol: '🎲', name: '桌游' },
+      { symbol: '🎰', name: '赌博' }
     ]
   },
   {
@@ -342,30 +454,110 @@ const emojiCategories = [
     emojis: [
       { symbol: '☀️', name: '晴天' },
       { symbol: '🌤️', name: '多云' },
+      { symbol: '⛅', name: '晴间多云' },
+      { symbol: '🌥️', name: '大部多云' },
       { symbol: '☁️', name: '阴天' },
+      { symbol: '🌦️', name: '阵雨' },
       { symbol: '🌧️', name: '下雨' },
       { symbol: '⛈️', name: '雷雨' },
-      { symbol: '❄️', name: '雪' },
+      { symbol: '🌩️', name: '雷电' },
+      { symbol: '🌨️', name: '雪' },
+      { symbol: '❄️', name: '雪花' },
+      { symbol: '☃️', name: '雪人' },
+      { symbol: '⛄', name: '雪人' },
+      { symbol: '🌬️', name: '吹风' },
+      { symbol: '💨', name: '大风' },
+      { symbol: '🌪️', name: '龙卷风' },
+      { symbol: '🌫️', name: '雾' },
       { symbol: '🌈', name: '彩虹' },
-      { symbol: '🌙', name: '夜晚' },
-      { symbol: '🌅', name: '日出' },
-      { symbol: '🌇', name: '日落' }
+      { symbol: '☔', name: '雨伞' },
+      { symbol: '⚡', name: '高压电' },
+      { symbol: '❄️', name: '冰冻' },
+      { symbol: '🔥', name: '火' },
+      { symbol: '💧', name: '水滴' },
+      { symbol: '🌊', name: '海浪' },
+      { symbol: '🌀', name: '台风' },
+      { symbol: '🌞', name: '热太阳' },
+      { symbol: '🌝', name: '满月' },
+      { symbol: '🌚', name: '新月' },
+      { symbol: '🌑', name: '新月' },
+      { symbol: '🌒', name: '眉月' },
+      { symbol: '🌓', name: '上弦月' },
+      { symbol: '🌔', name: '盈凸月' },
+      { symbol: '🌕', name: '满月' },
+      { symbol: '🌖', name: '亏凸月' },
+      { symbol: '🌗', name: '下弦月' },
+      { symbol: '🌘', name: '残月' },
+      { symbol: '🌙', name: '弯月' },
+      { symbol: '🌛', name: '月亮脸' },
+      { symbol: '🌜', name: '睡月' },
+      { symbol: '☄️', name: '彗星' },
+      { symbol: '✨', name: '闪烁' },
+      { symbol: '⚡', name: '闪电' },
+      { symbol: '💦', name: '水滴' },
+      { symbol: '🧊', name: '冰块' },
+      { symbol: '🌡️', name: '温度计' },
+      { symbol: '🌠', name: '流星' },
+      { symbol: '🔭', name: '观星' },
+      { symbol: '⏱️', name: '计时' },
+      { symbol: '🌃', name: '夜晚' },
+      { symbol: '🌄', name: '日出' }
     ]
   },
   {
     name: '季节',
     icon: 'fas fa-leaf',
     emojis: [
-      { symbol: '🌸', name: '春天' },
-      { symbol: '🌻', name: '夏天' },
-      { symbol: '🍂', name: '秋天' },
-      { symbol: '❄️', name: '冬天' },
       { symbol: '🌱', name: '发芽' },
-      { symbol: '🌿', name: '成长' },
-      { symbol: '🍁', name: '收获' },
-      { symbol: '🎄', name: '节日' },
-      { symbol: '🎋', name: '许愿' },
-      { symbol: '🎑', name: '赏月' }
+      { symbol: '🌿', name: '草药' },
+      { symbol: '☘️', name: '三叶草' },
+      { symbol: '🍀', name: '四叶草' },
+      { symbol: '🌸', name: '樱花' },
+      { symbol: '💮', name: '白花' },
+      { symbol: '🏵️', name: '玫瑰花' },
+      { symbol: '🌹', name: '玫瑰' },
+      { symbol: '🌺', name: '芙蓉' },
+      { symbol: '🌻', name: '向日葵' },
+      { symbol: '🌼', name: '花' },
+      { symbol: '🌷', name: '郁金香' },
+      { symbol: '🍃', name: '风中树叶' },
+      { symbol: '🌳', name: '落叶树' },
+      { symbol: '🌲', name: '常青树' },
+      { symbol: '🌴', name: '棕榈树' },
+      { symbol: '🌵', name: '仙人掌' },
+      { symbol: '🍂', name: '落叶' },
+      { symbol: '🍁', name: '枫叶' },
+      { symbol: '🍄', name: '蘑菇' },
+      { symbol: '🌾', name: '稻穗' },
+      { symbol: '🥀', name: '枯萎的花' },
+      { symbol: '🪴', name: '盆栽' },
+      { symbol: '🌰', name: '栗子' },
+      { symbol: '🍇', name: '葡萄' },
+      { symbol: '🍓', name: '草莓' },
+      { symbol: '🍉', name: '西瓜' },
+      { symbol: '🍊', name: '橘子' },
+      { symbol: '🍎', name: '红苹果' },
+      { symbol: '🍏', name: '青苹果' },
+      { symbol: '🍐', name: '梨' },
+      { symbol: '🍑', name: '桃子' },
+      { symbol: '🌽', name: '玉米' },
+      { symbol: '🥕', name: '胡萝卜' },
+      { symbol: '🍅', name: '西红柿' },
+      { symbol: '❄️', name: '雪花' },
+      { symbol: '☃️', name: '雪人' },
+      { symbol: '🧣', name: '围巾' },
+      { symbol: '🧤', name: '手套' },
+      { symbol: '🧥', name: '大衣' },
+      { symbol: '☀️', name: '夏日' },
+      { symbol: '🍦', name: '冰淇淋' },
+      { symbol: '🏄', name: '冲浪' },
+      { symbol: '🏝️', name: '沙滩岛' },
+      { symbol: '👓', name: '眼镜' },
+      { symbol: '👒', name: '夏帽' },
+      { symbol: '🎑', name: '赏月' },
+      { symbol: '🎍', name: '新年竹' },
+      { symbol: '🎋', name: '许愿树' },
+      { symbol: '🎄', name: '圣诞树' }
     ]
   }
 ];
@@ -676,6 +868,38 @@ watch(() => params.fortuneAspect, () => {
   }
 });
 
+// 新增参数面板状态管理
+const showParamsPanel = ref(false);
+const tempParams = reactive({});
+
+// 打开参数面板
+function openParamsPanel() {
+  // 复制当前参数到临时参数，以便用户取消时可以恢复
+  Object.assign(tempParams, params);
+  showParamsPanel.value = true;
+}
+
+// 关闭参数面板不保存
+function closeParamsPanel() {
+  // 恢复参数到打开前的状态
+  Object.assign(params, tempParams);
+  showParamsPanel.value = false;
+}
+
+// 保存并关闭面板
+function saveAndClosePanel() {
+  // 已经修改了params，不需要重新赋值
+  showParamsPanel.value = false;
+  // 保存到本地存储
+  updateLocalPreferences();
+}
+
+// 获取当前运势类型的显示文本
+function getFortuneAspectLabel() {
+  const aspect = fortuneAspects.find(a => a.value === params.fortuneAspect);
+  return aspect ? aspect.label : '整体运势';
+}
+
 </script>
 
 <style scoped>
@@ -896,6 +1120,7 @@ watch(() => params.fortuneAspect, () => {
 
 .emoji-tabs {
   display: flex;
+  justify-content: center;
   padding: var(--spacing-xs);
   border-bottom: 1px solid var(--border-color);
 }
@@ -923,16 +1148,6 @@ watch(() => params.fortuneAspect, () => {
   overflow-y: auto;
 }
 
-.emoji-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
 
 .emoji-item:hover {
   background-color: rgba(0, 0, 0, 0.05);
@@ -1096,4 +1311,282 @@ watch(() => params.fortuneAspect, () => {
   border-color: var(--savage-primary-color, #ff5252);
 }
 
+/* 参数卡片样式 */
+.params-card {
+  background-color: var(--card-bg);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-md) 0;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+/* 修改参数预览容器，优化布局 */
+.params-preview {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md); /* 调整内边距 */
+  cursor: pointer;
+  position: relative;
+  flex-wrap: wrap; /* 允许在窄屏下换行 */
+  gap: var(--spacing-sm); /* 添加间隙使元素之间有空间 */
+}
+
+/* 为表情添加样式，调整大小使其与运势文本协调 */
+.mood-emoji {
+  font-size: 16px; /* 减小字体大小，与运势图标保持一致 */
+  line-height: 1;
+  margin-right: var(--spacing-xs);
+  display: inline-flex; /* 改为inline-flex以更好地对齐 */
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle; /* 确保垂直对齐 */
+}
+
+/* 调整参数项样式，保持一致性 */
+.params-item {
+  display: flex;
+  align-items: center;
+  margin-right: var(--spacing-md);
+  color: var(--text-color);
+  background-color: rgba(123, 158, 137, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: 14px; /* 统一字体大小 */
+}
+
+.params-item i {
+  margin-right: var(--spacing-xs);
+  color: var(--primary-color);
+  font-size: 14px; /* 确保图标大小与文字一致 */
+}
+
+.params-edit-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.params-edit-btn i {
+  margin-right: var(--spacing-xs);
+}
+
+/* 模态弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.params-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 101;
+  background-color: var(--card-bg);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.params-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background-color: var(--card-bg);
+  z-index: 2;
+}
+
+.params-panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.close-btn {
+  font-size: 20px;
+}
+
+.params-panel-content {
+  padding: var(--spacing-md);
+}
+
+.panel-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.panel-section h3 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+.params-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  position: sticky;
+  bottom: 0;
+  background-color: var(--card-bg);
+  gap: var(--spacing-md);
+}
+
+/* Emoji选择器样式修改 */
+.emoji-tabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: var(--spacing-xs);
+}
+
+.emoji-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.emoji-tabs::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 4px;
+}
+
+.emoji-tab {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-color);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  min-width: 60px;  /* 确保标签有足够的宽度 */
+}
+
+.emoji-tab i {
+  font-size: 22px;  /* 增大图标尺寸 */
+  margin-bottom: var(--spacing-xs);
+}
+
+.emoji-tab small {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.emoji-tab.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: scale(1.05);
+}
+
+.emoji-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  max-height: 120px;  /* 限制高度，启用滚动 */
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.emoji-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.emoji-list::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+
+.emoji-list::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.emoji-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;  /* 大幅增大表情尺寸 */
+  height: 64px;      /* 增加高度与宽度匹配 */
+  border-radius: var(--radius-md);
+  background-color: var(--bg-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-xs);
+}
+
+.emoji-item:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-md);
+  z-index: 1;
+}
+
+.emoji-item.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: var(--shadow-md);
+  z-index: 2;
+}
+
+/* ...existing code... */
+
+/* 媒体查询优化 */
+@media (max-width: 480px) {
+  .emoji-list {
+    grid-template-columns: repeat(4, 1fr);  /* 移动设备减少列数 */
+    gap: var(--spacing-sm);
+  }
+  
+  .emoji-item {
+    font-size: 22px;  /* 移动设备稍微减小字体 */
+    height: 36px;
+  }
+}
+
+@media (min-width: 768px) {
+  .params-panel {
+    max-width: 600px;  /* 增加面板宽度以适应更大的emoji */
+    /* ...existing code... */
+  }
+  
+  .emoji-list {
+    grid-template-columns: repeat(6, 1fr);
+    max-height: 350px;  /* 桌面版增加高度 */
+  }
+}
+
+/* ...existing code... */
 </style>
