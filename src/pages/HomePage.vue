@@ -1093,6 +1093,36 @@ function getFortuneAspectLabel() {
   }
 }
 
+/* 参数面板媒体查询优化 */
+@media (min-width: 768px) {
+  .params-panel {
+    max-width: 600px;
+    width: 80%;
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: var(--radius-lg);
+    top: 10%;
+    bottom: auto;
+    max-height: 80vh;
+  }
+  
+  .emoji-list {
+    grid-template-columns: repeat(6, 1fr);
+    max-height: 350px;
+  }
+}
+
+/* 大屏幕进一步优化 */
+@media (min-width: 1200px) {
+  .params-panel {
+    max-width: 700px;
+    width: 60%;
+    top: 15%;
+  }
+}
+
 /* 心情输入样式 */
 .mood-input-container {
   position: relative;

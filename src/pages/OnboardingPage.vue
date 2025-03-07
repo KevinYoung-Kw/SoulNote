@@ -206,7 +206,7 @@
         <div class="completion-image">
           <img :src="completeSvg" alt="Complete" />
           <div class="sample-note">
-            <p>{{ sampleNote }}</p>
+            <p>{{ sanitizedSampleNote }}</p>
           </div>
         </div>
       </div>
@@ -235,6 +235,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { saveUserPreferences, setOnboardingCompleted } from '../services/storageService';
+import { sanitizeContent } from '../utils/contentUtils'; // 引入新的工具函数
 import welcomeSvg from '../assets/onboarding-welcome.svg';
 import completeSvg from '../assets/onboarding-complete.svg';
 
@@ -375,6 +376,9 @@ const sampleNote = computed(() => {
   
   return `亲爱的${zodiacLabel}${mbtiLabel}${genderLabel}，你内心的宁静是最强大的力量源泉。今天，尝试放下担忧，拥抱自己的独特，你将发现生命中最美好的可能性。`;
 });
+
+// 添加经过清理的示例笔记内容
+const sanitizedSampleNote = computed(() => sanitizeContent(sampleNote.value));
 
 function selectZodiac(value) {
   userPreferences.zodiac = value;

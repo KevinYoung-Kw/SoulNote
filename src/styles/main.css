@@ -17,6 +17,18 @@
   /* 使用本地加载的楷体字体为首选字体 */
   --font-note: 'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体', var(--font-body);
   
+  /* 响应式断点 - 添加尺寸变量方便统一管理 */
+  --breakpoint-xs: 375px;   /* iPhone SE */
+  --breakpoint-sm: 430px;   /* iPhone 14 Pro Max */
+  --breakpoint-md: 768px;   /* iPad Mini */
+  --breakpoint-lg: 1024px;  /* iPad Pro */
+  --breakpoint-xl: 1366px;  /* 大尺寸设备 */
+  
+  /* 内容最大宽度 - 用于在大屏幕上限制内容区域宽度 */
+  --content-max-width-sm: 450px;   /* 手机尺寸 */
+  --content-max-width-md: 600px;   /* 平板尺寸 */
+  --content-max-width-lg: 900px;   /* 大尺寸平板 */
+  
   /* 间距 */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -135,9 +147,20 @@ body {
 
 /* 容器样式 */
 .container {
-  max-width: 450px;
+  width: 100%;
+  max-width: var(--content-max-width-sm);
   margin: 0 auto;
   padding: var(--spacing-md);
+}
+
+/* 页面容器 - 为不同设备优化宽度和边距 */
+.page-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 /* 按钮基础样式 */
@@ -194,14 +217,17 @@ body {
 .note-card {
   position: relative;
   width: 100%;
+  max-width: 100%;
   padding: var(--spacing-xl);
-  margin: var(--spacing-lg) 0;
+  margin: var(--spacing-lg) auto;
   background-color: white;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   transform-style: preserve-3d;
   transition: transform var(--transition-normal);
+  /* 添加最大宽度限制，以确保在大屏幕上的美观性 */
+  max-height: 600px;
 }
 
 .note-content {
@@ -211,6 +237,7 @@ body {
   line-height: 1.6;
   color: var(--text-color);
   text-align: center;
+  white-space: pre-line; /* 保留内容中的换行 */
 }
 
 /* 替换当前的字体预加载部分 */
@@ -304,6 +331,114 @@ body {
   .note-content {
     font-size: 20px;
   }
+  
+  .btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 15px;
+  }
+  
+  /* 调整移动设备上的表单元素尺寸 */
+  .form-input {
+    font-size: 15px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+/* iPhone SE 特殊优化 */
+@media (max-width: 375px) {
+  .note-content {
+    font-size: 18px; /* 在最小尺寸屏幕上减小字号 */
+  }
+  
+  .container {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  /* 减少最小屏幕上的间距 */
+  .card {
+    padding: var(--spacing-md);
+  }
+}
+
+/* 适配平板和桌面设备 - 让页面在大屏幕上保持合适的宽度 */
+@media (min-width: 768px) {
+  .fixed-page-layout {
+    max-width: var(--content-max-width-md);
+    margin: 0 auto;
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
+    height: 100vh;
+  }
+  
+  .container {
+    padding: var(--spacing-lg);
+  }
+  
+  .note-card {
+    max-width: var(--content-max-width-sm);
+    /* 调整纸条卡片最大高度以保持比例 */
+    max-height: 700px;
+    aspect-ratio: 3/4; /* 保持纸条长宽比例 */
+  }
+  
+  .note-content {
+    font-size: 26px; /* 大屏幕上稍微增加字体大小 */
+  }
+  
+  /* 调整固定页眉和页脚的宽度 */
+  .fixed-header,
+  .fixed-footer {
+    width: 100%;
+    max-width: var(--content-max-width-md);
+    margin: 0 auto;
+  }
+}
+
+/* 大型平板设备 (例如 iPad Pro) */
+@media (min-width: 1024px) {
+  .fixed-page-layout {
+    max-width: var(--content-max-width-lg);
+  }
+  
+  .container {
+    max-width: var(--content-max-width-md);
+  }
+  
+  /* 调整固定页眉和页脚的宽度 */
+  .fixed-header,
+  .fixed-footer {
+    max-width: var(--content-max-width-lg);
+  }
+  
+  /* 增强页面元素的间距，使界面更加舒适 */
+  .card {
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+  }
+}
+
+/* 大尺寸显示器 */
+@media (min-width: 1366px) {
+  .fixed-page-layout {
+    /* 添加最大宽度和边框，模拟手机app的外观 */
+    border-radius: var(--radius-lg);
+    margin: var(--spacing-lg) auto;
+    height: calc(100vh - var(--spacing-lg) * 2);
+  }
+  
+  /* 让整个页面有个背景色，和应用区分 */
+  body {
+    background-color: #f0f0f0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  body.dark-mode {
+    background-color: #121212;
+  }
 }
 
 /* 在主CSS文件 (例如 app.css 或 main.css) 中 */
@@ -319,6 +454,7 @@ body.savage-mode {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  width: 100%;
 }
 
 .fixed-header {
@@ -342,9 +478,15 @@ body.savage-mode {
   z-index: 10;
   background-color: var(--card-bg);
   box-shadow: var(--shadow-sm-reverse);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 /* 添加底部阴影，用于固定页眉 */
 .shadow-sm-reverse {
   box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 添加对content标签的处理 */
+content, .content {
+  display: inline;
 }

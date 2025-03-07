@@ -6,10 +6,10 @@
     :style="cardStyle"
   >
     <div class="note-mood" v-if="props.mood" :style="moodStyle">{{ props.mood }}</div>
-    <div class="note-content" :style="contentStyle">{{ props.content }}</div>
+    <div class="note-content" :style="contentStyle">{{ sanitizedContent }}</div>
     <div class="note-glow"></div>
     <div class="note-watermark">
-      <span>星语心笺</span>
+      <span>@星语心笺</span>
     </div>
   </div>
 </template>
@@ -43,6 +43,22 @@ const props = defineProps({
     type: Number,
     default: 2.0 // 默认动画时长2秒
   }
+});
+
+// 验证和清理内容，确保没有未关闭的标签
+const sanitizedContent = computed(() => {
+  let content = props.content;
+  
+  // 如果以 <content> 开头，但没有结束标签，添加结束标签
+  if (content.includes('<content>') && !content.includes('</content>')) {
+    content = content.replace('<content>', '').trim();
+    console.log('已修复缺少的结束标签');
+  }
+  
+  // 移除所有content标签，只显示实际内容
+  content = content.replace(/<\/?content>/g, '').trim();
+  
+  return content;
 });
 
 const noteCardRef = ref(null);
@@ -171,7 +187,7 @@ watch(() => props.animationDuration, (newDuration) => {
   width: 100%;
   aspect-ratio: 4 / 5; /* 默认比例，可以被内联样式覆盖 */
   padding: var(--spacing-xl);
-  margin: var(--spacing-lg) 0;
+  margin: var(--spacing-lg) auto; /* 改为auto使其居中 */
   border-radius: var(--radius-md);
   overflow: hidden;
   display: flex;
@@ -265,4 +281,22 @@ watch(() => props.animationDuration, (newDuration) => {
   }
 }
 
+/* 添加平板和桌面设备的居中样式 */
+@media (min-width: 768px) {
+  .note-card {
+    width: 85%; /* 在大屏设备上减小宽度以实现更好的可读性 */
+    max-width: 500px; /* 限制最大宽度 */
+    margin: var(--spacing-xl) auto; /* 增加上下间距并保持水平居中 */
+    box-shadow: var(--shadow-lg); /* 增强阴影效果 */
+  }
+}
+
+/* 针对更大屏幕的优化 */
+@media (min-width: 1024px) {
+  .note-card {
+    width: 70%; /* 在更大的屏幕上进一步减小宽度比例 */
+    max-width: 550px; /* 增加最大宽度但仍保持限制 */
+    transform: translateY(-10px); /* 轻微上移，增强视觉效果 */
+  }
+}
 </style>

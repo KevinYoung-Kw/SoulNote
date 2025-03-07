@@ -392,7 +392,7 @@ export async function generateNoteContent(params) {
           content: prompt
         }
       ],
-      max_tokens: 1000,
+      max_tokens: 1500,
       temperature: 1.5,
       stream: false
     };
