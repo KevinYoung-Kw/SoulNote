@@ -718,7 +718,7 @@ async function buildPrompt(params) {
     // 如果启用了运势功能，添加运势相关的关怀构思步骤
     if (params.enableFortune && params.fortuneAspect) {
       basePrompt += `
-     - 如何将今日运势中的建议或提醒转化为贴心的关怀？`;
+     - 先简要概括今天的运势并告知给用户，但是如何将今日运势中的建议或提醒转化为贴心的关怀？`;
     }
     
     basePrompt += `
@@ -743,6 +743,7 @@ async function buildPrompt(params) {
         }"
         
     6. 确保运势建议是个性化的：
+        - 要先简要概括今天的运势并告知给用户，然后根据对方的性格特点和当前心情，给出个性化的建议
         - 具体到"以你的${zodiacChinese}性格特点，今天特别适合..."
         - 或者"你作为${mbtiType}类型，在今天的运势下，应该特别注意..."
         - 让对方感觉这是专门为他/她的性格和今天的运势量身定制的建议
