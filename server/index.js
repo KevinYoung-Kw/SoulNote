@@ -420,6 +420,92 @@ app.post('/api/generate-invite-code', async (req, res) => {
   }
 });
 
+// 路由：删除邀请码 (需要管理员密钥)
+app.post('/api/delete-invite-code', async (req, res) => {
+  try {
+    const { adminKey, code } = req.body;
+    
+    // 验证管理员密钥
+    if (adminKey !== process.env.ADMIN_KEY) {
+      return res.status(401).json({ error: '未授权操作' });
+    }
+    
+    if (!code) {
+      return res.status(400).json({ error: '请提供要删除的邀请码' });
+    }
+    
+    // 读取现有邀请码
+    const inviteCodesData = await getInviteCodes();
+    
+    // 查找要删除的邀请码索引
+    const codeIndex = inviteCodesData.codes.findIndex(c => c.code === code);
+    
+    if (codeIndex === -1) {
+      return res.status(404).json({ error: '邀请码不存在' });
+    }
+    
+    // 从数组中删除该邀请码
+    inviteCodesData.codes.splice(codeIndex, 1);
+    
+    // 保存更新后的邀请码数据
+    await saveInviteCodes(inviteCodesData);
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: '邀请码删除成功'
+    });
+  } catch (error) {
+    console.error('删除邀请码时出错:', error);
+    return res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 路由：编辑邀请码 (需要管理员密钥)
+app.post('/api/edit-invite-code', async (req, res) => {
+  try {
+    const { adminKey, code, newMaxUses } = req.body;
+    
+    // 验证管理员密钥
+    if (adminKey !== process.env.ADMIN_KEY) {
+      return res.status(401).json({ error: '未授权操作' });
+    }
+    
+    if (!code) {
+      return res.status(400).json({ error: '请提供要编辑的邀请码' });
+    }
+    
+    if (newMaxUses === undefined || newMaxUses < 0) {
+      return res.status(400).json({ error: '请提供有效的使用次数' });
+    }
+    
+    // 读取现有邀请码
+    const inviteCodesData = await getInviteCodes();
+    
+    // 查找要编辑的邀请码
+    const inviteCode = inviteCodesData.codes.find(c => c.code === code);
+    
+    if (!inviteCode) {
+      return res.status(404).json({ error: '邀请码不存在' });
+    }
+    
+    // 更新邀请码信息
+    inviteCode.maxUses = newMaxUses;
+    inviteCode.updatedAt = new Date().toISOString();
+    
+    // 保存更新后的邀请码数据
+    await saveInviteCodes(inviteCodesData);
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: '邀请码更新成功',
+      updatedCode: inviteCode
+    });
+  } catch (error) {
+    console.error('编辑邀请码时出错:', error);
+    return res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
 // 启动服务器前初始化数据
 (async function initialize() {
   await ensureDataDir();

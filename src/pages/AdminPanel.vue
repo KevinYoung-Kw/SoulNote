@@ -95,6 +95,7 @@
                   <th>使用IP数</th>
                   <th>创建时间</th>
                   <th>最后使用</th>
+                  <th class="actions-header">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,6 +115,22 @@
                   <td>{{ code.uniqueIPs }}</td>
                   <td>{{ formatDate(code.createdAt) }}</td>
                   <td>{{ code.lastUsed ? formatDate(code.lastUsed) : '未使用' }}</td>
+                  <td class="actions-cell">
+                    <button 
+                      class="btn-icon action-btn edit-btn" 
+                      title="编辑邀请码"
+                      @click="openEditModal(code)"
+                    >
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button 
+                      class="btn-icon action-btn delete-btn" 
+                      title="删除邀请码"
+                      @click="confirmDeleteCode(code)"
+                    >
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -176,6 +193,81 @@
       </div>
     </div>
     
+    <!-- 编辑邀请码的模态窗口 -->
+    <div v-if="showEditCodeModal" class="modal-overlay" @click.self="showEditCodeModal = false">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3>编辑邀请码</h3>
+          <button class="close-btn" @click="showEditCodeModal = false">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="code-display">
+            <label>邀请码</label>
+            <div class="display-value">{{ editingCode.code }}</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="editMaxUses">使用次数上限</label>
+            <input type="number" id="editMaxUses" v-model="editingCode.newMaxUses" min="0" />
+            <p class="form-help">
+              当前已使用: {{ editingCode.usedCount || 0 }} 次
+              <br>
+              设置为0表示无限制
+            </p>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="showEditCodeModal = false">取消</button>
+          <button 
+            class="btn btn-primary"
+            :class="{ 'btn-disabled': isEditing }"
+            :disabled="isEditing"
+            @click="updateInviteCode"
+          >
+            <span v-if="!isEditing">保存修改</span>
+            <span v-else><i class="fas fa-spinner fa-spin"></i> 保存中</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 删除确认对话框 -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
+      <div class="modal-container confirm-modal">
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="close-btn" @click="showDeleteConfirm = false">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="confirm-message">
+            <i class="fas fa-exclamation-triangle warning-icon"></i>
+            <p>确定要删除邀请码 <strong>{{ deletingCode.code }}</strong> 吗？</p>
+            <p class="warning-text">此操作无法撤销，该邀请码将无法继续使用。</p>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="showDeleteConfirm = false">取消</button>
+          <button 
+            class="btn btn-danger"
+            :class="{ 'btn-disabled': isDeleting }"
+            :disabled="isDeleting"
+            @click="deleteInviteCode"
+          >
+            <span v-if="!isDeleting">确认删除</span>
+            <span v-else><i class="fas fa-spinner fa-spin"></i> 删除中</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    
     <!-- 成功提示 -->
     <div v-if="successMessage" class="toast-container">
       <div class="toast toast-success">
@@ -215,6 +307,23 @@ const showCreateCodeModal = ref(false);
 const newCodePrefix = ref('');
 const newCodeMaxUses = ref(100);
 const isGenerating = ref(false);
+
+// 编辑邀请码相关状态
+const showEditCodeModal = ref(false);
+const editingCode = reactive({
+  code: '',
+  usedCount: 0,
+  maxUses: 0,
+  newMaxUses: 0
+});
+const isEditing = ref(false);
+
+// 删除邀请码相关状态
+const showDeleteConfirm = ref(false);
+const deletingCode = reactive({
+  code: ''
+});
+const isDeleting = ref(false);
 
 // 提示消息状态
 const successMessage = ref('');
@@ -362,6 +471,87 @@ async function generateInviteCode() {
     console.error('生成邀请码失败:', error);
   } finally {
     isGenerating.value = false;
+  }
+}
+
+// 打开编辑模态框
+function openEditModal(code) {
+  editingCode.code = code.code;
+  editingCode.usedCount = code.usedCount;
+  editingCode.maxUses = code.maxUses;
+  editingCode.newMaxUses = code.maxUses;
+  
+  showEditCodeModal.value = true;
+}
+
+// 更新邀请码
+async function updateInviteCode() {
+  if (isEditing.value || !adminKey.value) return;
+  
+  try {
+    isEditing.value = true;
+    
+    const response = await axios.post(`${API_BASE_URL}/api/edit-invite-code`, {
+      adminKey: adminKey.value,
+      code: editingCode.code,
+      newMaxUses: editingCode.newMaxUses
+    });
+    
+    if (response.data && response.data.success) {
+      // 编辑成功，关闭模态框并刷新数据
+      showEditCodeModal.value = false;
+      
+      // 显示成功消息
+      successMessage.value = `邀请码 ${editingCode.code} 更新成功`;
+      setTimeout(() => {
+        successMessage.value = '';
+      }, 3000);
+      
+      // 刷新数据
+      await fetchData();
+    }
+  } catch (error) {
+    console.error('更新邀请码失败:', error);
+  } finally {
+    isEditing.value = false;
+  }
+}
+
+// 确认删除邀请码
+function confirmDeleteCode(code) {
+  deletingCode.code = code.code;
+  showDeleteConfirm.value = true;
+}
+
+// 删除邀请码
+async function deleteInviteCode() {
+  if (isDeleting.value || !adminKey.value) return;
+  
+  try {
+    isDeleting.value = true;
+    
+    const response = await axios.post(`${API_BASE_URL}/api/delete-invite-code`, {
+      adminKey: adminKey.value,
+      code: deletingCode.code
+    });
+    
+    if (response.data && response.data.success) {
+      // 删除成功，关闭模态框并刷新数据
+      showDeleteConfirm.value = false;
+      
+      // 显示成功消息
+      successMessage.value = `邀请码 ${deletingCode.code} 已删除`;
+      setTimeout(() => {
+        successMessage.value = '';
+      }, 3000);
+      
+      // 刷新数据
+      await fetchData();
+    }
+  } catch (error) {
+    console.error('删除邀请码失败:', error);
+  } finally {
+    isDeleting.value = false;
   }
 }
 
@@ -801,5 +991,79 @@ function copyCode(code) {
   .data-table td {
     padding: var(--spacing-sm);
   }
+}
+
+/* 表格操作按钮样式 */
+.actions-header {
+  width: 100px;
+  text-align: center;
+}
+
+.actions-cell {
+  white-space: nowrap;
+  text-align: center;
+}
+
+.action-btn {
+  margin: 0 2px;
+  padding: 6px 8px;
+}
+
+.edit-btn:hover {
+  color: var(--primary-color);
+}
+
+.delete-btn:hover {
+  color: var(--error-color);
+}
+
+/* 编辑邀请码显示框 */
+.code-display {
+  margin-bottom: var(--spacing-lg);
+}
+
+.code-display label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+}
+
+.code-display .display-value {
+  padding: var(--spacing-md);
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-md);
+  font-family: monospace;
+  font-weight: 600;
+}
+
+/* 确认删除对话框 */
+.confirm-modal {
+  max-width: 450px;
+}
+
+.confirm-message {
+  text-align: center;
+  padding: var(--spacing-md) 0;
+}
+
+.warning-icon {
+  font-size: 32px;
+  color: var(--warning-color, #f39c12);
+  margin-bottom: var(--spacing-md);
+}
+
+.warning-text {
+  color: var(--error-color);
+  font-size: 14px;
+  margin-top: var(--spacing-md);
+}
+
+.btn-danger {
+  background-color: var(--error-color);
+  color: white;
+}
+
+.btn-danger:hover:not(.btn-disabled) {
+  background-color: var(--error-color-dark, #c0392b);
 }
 </style>
