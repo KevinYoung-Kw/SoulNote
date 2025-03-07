@@ -146,7 +146,7 @@
         </div>
         
         <div class="setting-item">
-          <label class="setting-label">关于我们</label>
+          <label class="setting-label">关于我们（赞助/社群）</label>
           <div class="setting-value" @click="openAboutUs">
             <i class="fas fa-chevron-right"></i>
           </div>

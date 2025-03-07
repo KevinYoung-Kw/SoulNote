@@ -16,6 +16,22 @@
         <h2 class="app-name">星语心笺</h2>
         <p class="app-slogan">心笺一瞬，暖意自生</p>
         <p class="app-version">版本: 1.1.0</p>
+        
+        <!-- 新增支持卡片部分 -->
+        <div class="support-card">
+          <h3 class="support-title">支持我们</h3>
+          <div class="qr-container">
+            <div class="qr-item">
+              <img src="../assets/donate-qr.png" alt="请作者喝杯咖啡" class="qr-code" />
+              <p class="qr-label">请作者喝杯咖啡</p>
+            </div>
+            <div class="qr-item">
+              <img src="../assets/group-qr.png" alt="加入体验群" class="qr-code" />
+              <p class="qr-label">扫码加入产品体验群</p>
+            </div>
+          </div>
+          <p class="support-note">感谢您的支持，您的鼓励是我们前进的动力！</p>
+        </div>
       </div>
       
       <div class="about-section description">
@@ -24,6 +40,7 @@
         <p>用户可观赏精美的生成动画，并能自由调整样式、保存和分享结果。我们希望通过这款应用，为您的日常带来一抹温暖与灵感。</p>
       </div>
       
+      <!-- 其它部分保持原样 -->
       <div class="about-section contact">
         <h3>联系方式</h3>
         <div class="contact-item">
@@ -32,7 +49,7 @@
         </div>
         <div class="contact-item">
           <i class="fab fa-github"></i>
-          <span>GitHub: <a href="https://github.com/yourusername/SoulNote" target="_blank">github.com/yourusername/SoulNote</a></span>
+          <span>个人简历: <a href="No Found" target="_blank">简历维护中，Wx: HNKevin2004</a></span>
         </div>
       </div>
       
@@ -167,5 +184,89 @@ function goBack() {
 
 .credits p:last-child {
   margin-bottom: 0;
+}
+
+/* 支持卡片样式优化 */
+.support-card {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background-color: rgba(123, 158, 137, 0.1);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--primary-color);
+}
+
+.support-title {
+  font-size: 18px;
+  color: var(--primary-color);
+  margin-top: 0;
+  margin-bottom: var(--spacing-lg);
+  font-weight: 600;
+  text-align: center;
+  position: relative;
+}
+
+.support-title::before,
+.support-title::after {
+  content: '♥';
+  color: var(--primary-color);
+  font-size: 14px;
+  padding: 0 var(--spacing-sm);
+}
+
+.qr-container {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.qr-item {
+  text-align: center;
+  width: 130px; /* 固定宽度 */
+}
+
+.qr-code {
+  width: 120px;
+  height: 120px;
+  object-fit: contain; /* 保持图片比例 */
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  padding: 4px;
+  background-color: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qr-code:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.qr-label {
+  margin-top: var(--spacing-sm);
+  font-size: 14px;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+.support-note {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: var(--spacing-md);
+  font-style: italic;
+}
+
+/* 移动端响应式调整 */
+@media (max-width: 480px) {
+  .qr-container {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-lg);
+  }
+  
+  .qr-item {
+    width: 130px;
+  }
 }
 </style>
