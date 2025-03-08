@@ -991,9 +991,12 @@ function getTimeContext(savageMode = false) {
   // 获取节气 - 修复方法
   // 检查当天是否为节气
   const jieQi = lunar.getJieQi();
+  // 定义term变量存储节气信息
+  let term = jieQi || null;
   if (jieQi) {
     festivals.push(`${jieQi}节气`);
   }
+
 
   // 判断是否为法定假日
   const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay());
