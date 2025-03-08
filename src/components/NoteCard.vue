@@ -5,7 +5,17 @@
     :class="{'savage-note': isSavageMode, 'font-loaded': fontLoaded}"
     :style="cardStyle"
   >
-    <div class="note-mood" v-if="props.mood" :style="moodStyle">{{ props.mood }}</div>
+    <!-- 修改mood展示区域，创建水平排列的表情容器 -->
+    <div class="note-mood-container" v-if="moodsArray.length > 0" :style="moodContainerStyle">
+      <div 
+        v-for="(emoji, index) in moodsArray" 
+        :key="`mood-${index}`" 
+        class="note-mood-item" 
+        :style="moodStyle"
+      >
+        {{ emoji }}
+      </div>
+    </div>
     <div class="note-content" :style="contentStyle">{{ sanitizedContent }}</div>
     <div class="note-glow"></div>
     <div class="note-watermark">
@@ -43,6 +53,41 @@ const props = defineProps({
     type: Number,
     default: 2.0 // 默认动画时长2秒
   }
+});
+
+// 将传入的mood字符串转换为数组以便遍历渲染
+const moodsArray = computed(() => {
+  if (!props.mood) return [];
+  
+  // 使用扩展运算符将字符串分解为单个字符数组
+  // 但需要处理emoji（可能由多个UTF-16代码单元组成）
+  return Array.from(props.mood);
+});
+
+// 根据表情数量计算容器样式
+const moodContainerStyle = computed(() => {
+  // 基础样式
+  const style = {
+    display: 'flex',
+    flexWrap: 'wrap', // 允许换行
+    gap: '4px', // 表情之间的间距
+    maxWidth: '70%', // 限制容器宽度，防止占用太多空间
+    zIndex: 3 // 确保在内容上方
+  };
+  
+  // 如果只有一个表情，可以使用原来的位置
+  if (moodsArray.value.length === 1) {
+    style.top = 'var(--spacing-md)';
+    style.left = 'var(--spacing-md)';
+  } else {
+    // 多表情时，位置调整为顶部居中
+    style.top = 'var(--spacing-md)';
+    style.left = '50%';
+    style.transform = 'translateX(-50%)'; // 水平居中
+    style.justifyContent = 'center'; // 内部元素居中
+  }
+  
+  return style;
 });
 
 // 验证和清理内容，确保没有未关闭的标签
@@ -117,20 +162,25 @@ const contentStyle = computed(() => {
   return {
     fontSize: `${props.fontSize}px`,
     fontFamily: 'var(--font-note)', // 确保使用正确的字体变量
-    lineHeight: 1.6
+    lineHeight: 1.6,
+    // 添加上边距，为多个emoji腾出空间
+    paddingTop: moodsArray.value.length > 1 ? 'calc(var(--spacing-xl) + 8px)' : 'var(--spacing-md)'
   };
 });
 
 // 表情符号样式
 const moodStyle = computed(() => {
-  if (isSavageMode.value) {
-    return {
-      color: isDarkMode.value ? 'var(--savage-text)' : '#333333'
-    };
-  }
-  return {
-    color: 'inherit'
+  const style = {
+    fontSize: moodsArray.value.length > 3 ? '18px' : '24px' // 根据表情数量调整大小
   };
+  
+  if (isSavageMode.value) {
+    style.color = isDarkMode.value ? 'var(--savage-text)' : '#333333';
+  } else {
+    style.color = 'inherit';
+  }
+  
+  return style;
 });
 
 onMounted(() => {
@@ -198,6 +248,50 @@ watch(() => props.animationDuration, (newDuration) => {
   max-height: 800px; /* 设置最大高度防止过长内容导致卡片过大 */
 }
 
+/* 替换原有的note-mood样式为新的容器样式 */
+.note-mood-container {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.7); /* 半透明背景 */
+  backdrop-filter: blur(2px); /* 轻微模糊效果 */
+  box-shadow: var(--shadow-xs);
+  transition: all 0.3s ease;
+  z-index: 10; /* 确保高于其他元素 */
+  /* 位置由计算属性控制 */
+}
+
+/* 暗黑模式下容器背景调整 */
+:global(.dark-mode) .note-mood-container {
+  background-color: rgba(40, 40, 40, 0.7);
+}
+
+/* 毒舌模式下容器样式 */
+.savage-note .note-mood-container {
+  background-color: rgba(255, 235, 235, 0.7);
+}
+
+:global(.dark-mode) .savage-note .note-mood-container {
+  background-color: rgba(80, 20, 20, 0.7);
+}
+
+/* 单个表情样式 */
+.note-mood-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.note-mood-item:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
 .note-content {
   font-family: var(--font-note); /* 使用 --font-note 变量而不是装饰字体 */
   line-height: 1.6;
@@ -221,16 +315,6 @@ watch(() => props.animationDuration, (newDuration) => {
 /* 隐藏Webkit浏览器的滚动条 */
 .note-content::-webkit-scrollbar {
   display: none;
-}
-
-/* 添加心情/场景样式 */
-.note-mood {
-  position: absolute;
-  top: var(--spacing-md);
-  left: var(--spacing-md);
-  font-size: 24px;
-  z-index: 2;
-  opacity: 0.85;
 }
 
 .note-glow {
@@ -278,6 +362,15 @@ watch(() => props.animationDuration, (newDuration) => {
   .note-card {
     padding: var(--spacing-lg) var(--spacing-md);
     min-height: 250px; /* 小屏幕上稍微减小最小高度 */
+  }
+  
+  .note-mood-container {
+    padding: 3px 6px; /* 小屏幕上减少内边距 */
+    gap: 4px; /* 减少表情间距 */
+  }
+  
+  .note-mood-item {
+    font-size: 18px !important; /* 在小屏幕上统一字体大小 */
   }
 }
 
