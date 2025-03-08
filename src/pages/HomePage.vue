@@ -1280,11 +1280,14 @@ function getFortuneAspectLabel() {
   gap: var(--spacing-xs);
   max-height: 180px;
   overflow-y: auto;
+  position: relative; /* 添加相对定位 */
+  isolation: isolate; /* 创建新的层叠上下文，确保z-index在容器内部生效 */
 }
 
 
 .emoji-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+  box-shadow: var(--shadow-md);
 }
 
 .emoji-custom {
@@ -1653,6 +1656,8 @@ function getFortuneAspectLabel() {
   padding: var(--spacing-sm);
   border-radius: var(--radius-md);
   background-color: rgba(0, 0, 0, 0.02);
+  position: relative; /* 添加相对定位 */
+  isolation: isolate; /* 创建新的层叠上下文，确保z-index在容器内部生效 */
 }
 
 .emoji-list::-webkit-scrollbar {
@@ -1679,12 +1684,13 @@ function getFortuneAspectLabel() {
   cursor: pointer;
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-xs);
+  /* 不主动设置z-index，让元素按照DOM顺序自然排列 */
 }
 
 .emoji-item:hover {
   transform: scale(1.1);
   box-shadow: var(--shadow-md);
-  z-index: 1;
+  /* 删除hover状态的z-index */
 }
 
 .emoji-item.active {
@@ -1692,7 +1698,7 @@ function getFortuneAspectLabel() {
   color: white;
   transform: scale(1.1);
   box-shadow: var(--shadow-md);
-  z-index: 2;
+  /* 删除active状态的z-index */
 }
 
 /* ...existing code... */
