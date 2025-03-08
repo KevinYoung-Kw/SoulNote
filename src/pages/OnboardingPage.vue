@@ -8,17 +8,38 @@
     </div>
     
     <div class="onboarding-content scrollable-content">
-      <!-- 步骤1: 欢迎 -->
+      <!-- 步骤1: 使用须知 (原步骤3) -->
       <div class="onboarding-step" v-if="currentStep === 1">
-        <h1 class="step-title">欢迎使用星语心笺</h1>
-        <p class="step-desc">让我们完成简单设置，为您提供更个性化的体验</p>
+        <h1 class="step-title">使用须知</h1>
+        <p class="step-desc">开始使用前，请了解以下重要信息</p>
         
-        <div class="step-image">
-          <img :src="welcomeSvg" alt="Welcome" />
+        <div class="announcement-section">
+          <div class="announcement-box">
+            <div class="announcement-content">
+              <p><i class="fas fa-random announcement-icon"></i> 大模型生成的内容就像"抽卡"一样随机，每次体验会有不同惊喜。如对内容不满意，请多尝试几次！</p>
+              <p><i class="fas fa-star announcement-icon"></i> 本应用的星座运势信息来源于台湾权威星座网站，仅供参考娱乐。</p>
+              <p>
+                <i class="fas fa-lock announcement-icon"></i> 
+                <span class="announcement-text">
+                  <span class="highlight-primary">关于数据</span>：所有数据都缓存在浏览器中，不会上传至服务器。
+                  为确保<span class="highlight-primary">更好的用户体验</span>，请使用<span class="highlight-primary">浏览器</span>操作，详见隐私政策。
+                </span>
+              </p>
+              <p><i class="fas fa-heart announcement-icon"></i> 如果想要加入产品体验群或者请作者喝杯咖啡，请点击"关于我们"。</p>
+            </div>
+            <div class="announcement-links">
+              <button class="link-button" @click="navigateTo('/about-us')">
+                <i class="fas fa-users"></i> 关于我们
+              </button>
+              <button class="link-button" @click="navigateTo('/privacy-policy')">
+                <i class="fas fa-shield-alt"></i> 隐私政策
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 新增: 邀请码验证 -->
+      <!-- 步骤2: 邀请码验证 (原步骤2) -->
       <div class="onboarding-step" v-else-if="currentStep === 2">
         <h1 class="step-title">欢迎内测</h1>
         <p class="step-desc">请输入您的邀请码继续使用</p>
@@ -47,43 +68,22 @@
         <div class="invite-code-info">
           <p>
             <i class="fas fa-info-circle"></i> 
-            内测期间需要邀请码才能使用本应用。如需获取邀请码，请关注我们的社交媒体账号或联系管理员。
+            内测期间需要邀请码才能使用本应用。如需获取邀请码，请点赞我们的社交媒体账号：小红书@水的离子积（AIGC产品），点赞并收藏第一条内容，私信获得邀请码～
           </p>
         </div>
       </div>
 
-      <!-- 步骤2: 使用须知 (现在是步骤3) -->
+      <!-- 步骤3: 欢迎 (原步骤1) -->
       <div class="onboarding-step" v-else-if="currentStep === 3">
-        <h1 class="step-title">使用须知</h1>
-        <p class="step-desc">开始使用前，请了解以下重要信息</p>
+        <h1 class="step-title">欢迎使用星语心笺</h1>
+        <p class="step-desc">让我们完成简单设置，为您提供更个性化的体验</p>
         
-        <div class="announcement-section">
-          <div class="announcement-box">
-            <div class="announcement-content">
-              <p><i class="fas fa-random announcement-icon"></i> 大模型生成的内容就像"抽卡"一样随机，每次体验会有不同惊喜。如对内容不满意，请多尝试几次！</p>
-              <p><i class="fas fa-star announcement-icon"></i> 本应用的星座运势信息来源于台湾权威星座网站，仅供参考娱乐。</p>
-              <p>
-                <i class="fas fa-lock announcement-icon"></i> 
-                <span class="announcement-text">
-                  <span class="highlight-primary">关于数据</span>：所有数据都缓存在浏览器中，不会上传至服务器。
-                  为确保<span class="highlight-primary">更好的用户体验</span>，请使用<span class="highlight-primary">浏览器</span>操作，详见隐私政策。
-                </span>
-              </p>
-              <p><i class="fas fa-heart announcement-icon"></i> 如果想要加入产品体验群或者请作者喝杯咖啡，请点击"关于我们"。</p>
-            </div>
-            <div class="announcement-links">
-              <button class="link-button" @click="navigateTo('/about-us')">
-                <i class="fas fa-users"></i> 关于我们
-              </button>
-              <button class="link-button" @click="navigateTo('/privacy-policy')">
-                <i class="fas fa-shield-alt"></i> 隐私政策
-              </button>
-            </div>
-          </div>
+        <div class="step-image">
+          <img :src="welcomeSvg" alt="Welcome" />
         </div>
-      </div>    
+      </div>
 
-      <!-- 步骤3: 性别选择 (现在是步骤4) -->
+      <!-- 步骤4: 性别选择 (原步骤4) -->
       <div class="onboarding-step" v-else-if="currentStep === 4">
         <h1 class="step-title">您的性别是？</h1>
         <p class="step-desc">让我们更好地了解您</p>
@@ -299,7 +299,6 @@ onMounted(() => {
       fontPreloaded.value = true;
     }).catch(err => {
       console.warn('字体预加载失败', err);
-      // 失败后仍设置为true，不阻止应用继续
       fontPreloaded.value = true;
     });
   } else {
@@ -312,8 +311,8 @@ onMounted(() => {
 });
 
 const router = useRouter();
-const currentStep = ref(1);
-const totalSteps = 10; // 增加总步骤数
+const currentStep = ref(1); // 保持初始步骤为1
+const totalSteps = 10; // 保持总步骤数
 
 const userPreferences = reactive({
   gender: null,
@@ -443,6 +442,7 @@ function nextStep() {
   if (currentStep.value < totalSteps) {
     // 如果是邀请码验证步骤，验证邀请码
     if (currentStep.value === 2) {
+      // 如果没有验证过邀请码，则先验证
       if (!inviteCodeVerified.value) {
         verifyInviteCode();
         return;
@@ -481,7 +481,6 @@ function nextStep() {
   }
 }
 
-// 验证邀请码
 async function verifyInviteCode() {
   if (!inviteCode.value || isVerifying.value) return;
   
@@ -524,7 +523,7 @@ async function verifyInviteCode() {
   }
 }
 
-// 检查是否已验证过邀请码
+// 检查是否已验证过邀请码 - 修改函数以适应新的步骤顺序
 function checkExistingInviteCode() {
   const storedCode = localStorage.getItem('soul-note-invite-code');
   const verified = localStorage.getItem('soul-note-invite-verified') === 'true';
@@ -532,10 +531,6 @@ function checkExistingInviteCode() {
   if (storedCode && verified) {
     inviteCode.value = storedCode;
     inviteCodeVerified.value = true;
-    // 如果已验证，可以跳过验证步骤
-    if (currentStep.value === 2) {
-      currentStep.value++;
-    }
   }
 }
 
