@@ -18,11 +18,17 @@
         <!-- 替换原有的心情输入和运势选择器，使用统一的参数卡片 -->
         <div class="params-card">
           <div class="params-preview" @click="openParamsPanel">
-            <!-- 修改这里，动态显示用户选择的表情或默认图标 -->
-            <div class="params-item">
-              <span v-if="params.mood" class="mood-emoji">{{ params.mood }}</span>
-              <i v-else class="fas fa-smile"></i>
-              <span>{{ params.mood ? '' : '添加心情...' }}</span>
+            <!-- 修改心情参数预览，只显示第一个心情 -->
+            <div class="params-item mood-container">
+              <template v-if="params.moods && params.moods.length > 0">
+                <!-- 只显示第一个emoji，但在后面添加提示点表示还有更多 -->
+                <span class="mood-emoji">{{ params.moods[0] }}</span>
+                <span v-if="params.moods.length > 1" class="mood-counter-preview">+{{ params.moods.length - 1 }}</span>
+              </template>
+              <template v-else>
+                <i class="fas fa-smile"></i>
+                <span>添加心情...</span>
+              </template>
             </div>
             <div class="params-item" v-if="params.enableFortune">
               <i :class="fortuneAspects.find(a => a.value === params.fortuneAspect)?.icon || 'fas fa-star'"></i>
@@ -35,10 +41,10 @@
           </div>
         </div>
         
-        <!-- NoteCard 保持不变 -->
+        <!-- NoteCard 修改传入的mood参数 -->
         <NoteCard 
           :content="noteContent" 
-          :mood="params.mood"
+          :mood="params.moods && params.moods.length > 0 ? params.moods.join('') : ''"
           :background="currentBackground"
           :fontSize="fontSize"
           :animate="isAnimating"
@@ -112,11 +118,36 @@
             <i class="fas fa-times"></i>
           </button>
         </div>
-        
+
         <div class="params-panel-content">
           <!-- 心情/场景选择器 -->
           <div class="panel-section">
-            <h3>心情 / 场景</h3>
+            <div class="section-header">
+              <h3>心情 / 场景</h3>
+              <div class="mood-counter">
+                <span>{{ params.moods.length }}/5</span>
+                <button v-if="params.moods.length > 0" 
+                        class="icon-btn clear-btn" 
+                        @click="clearMoods">
+                  <i class="fas fa-times-circle"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- 显示已选择的表情 -->
+            <div class="selected-emojis" v-if="params.moods.length > 0">
+              <div class="selected-emojis-wrapper">
+                <div v-for="(emoji, index) in params.moods" 
+                    :key="`selected-${index}`" 
+                    class="selected-emoji-item">
+                  {{ emoji }}
+                  <button class="remove-emoji-btn" @click="removeEmoji(index)">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div class="emoji-tabs">
               <div 
                 v-for="(category, idx) in emojiCategories" 
@@ -128,13 +159,13 @@
                 <small>{{ category.name }}</small>
               </div>
             </div>
-            
+
             <div class="emoji-list">
               <div 
                 v-for="emoji in emojiCategories[currentEmojiCategory].emojis" 
                 :key="emoji.symbol"
-                :class="['emoji-item', { active: params.mood === emoji.symbol }]"
-                @click="selectEmoji(emoji.symbol)"
+                :class="['emoji-item', { active: params.moods.includes(emoji.symbol) }]"
+                @click="toggleEmoji(emoji.symbol)"
                 :title="emoji.name"
               >
                 {{ emoji.symbol }}
@@ -144,13 +175,17 @@
             <div class="emoji-custom">
               <input 
                 type="text" 
-                v-model="params.mood" 
+                v-model="customMood" 
                 class="mood-input"
                 placeholder="自定义内容..."
+                maxlength="5"
               />
+              <button class="btn btn-small" @click="addCustomEmoji" :disabled="!customMood.trim()">
+                添加
+              </button>
             </div>
-          </div>
-          
+          </div><!-- 添加这个闭合标签 -->
+
           <!-- 运势设置 -->
             <div class="panel-section">
             <div class="section-header">
@@ -224,16 +259,18 @@ const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
 const params = reactive({
   zodiac: null,
   mbti: null,
-  mood: '',
+  moods: [], // 修改为数组，存储多个表情
   language: 'zh',
   savageMode: false,
-  enableFortune: false, // 新增：是否启用星座运势
-  fortuneAspect: 'overall', // 新增：运势类型（整体/爱情/事业/财运）
-  // 添加新的个人信息字段
+  enableFortune: false,
+  fortuneAspect: 'overall',
   gender: null,
   age: null,
   relationship: null
 });
+
+// 用于自定义表情输入
+const customMood = ref('');
 
 // 运势类型选项
 const fortuneAspects = [
@@ -820,6 +857,48 @@ function selectEmoji(symbol) {
   showEmojiPicker.value = false;
 }
 
+// 切换表情选择
+function toggleEmoji(symbol) {
+  const index = params.moods.indexOf(symbol);
+  
+  // 如果已经选择了这个表情，则移除它
+  if (index !== -1) {
+    params.moods.splice(index, 1);
+  } 
+  // 如果未选择并且未达到上限，则添加
+  else if (params.moods.length < 5) {
+    params.moods.push(symbol);
+  } else {
+    // 已达到上限，可以显示提示
+    alert('最多只能选择5个表情');
+  }
+}
+
+// 添加自定义表情
+function addCustomEmoji() {
+  if (!customMood.value.trim()) return;
+  
+  // 如果已达到上限，则提示用户
+  if (params.moods.length >= 5) {
+    alert('最多只能选择5个表情');
+    return;
+  }
+  
+  // 添加自定义表情并清空输入
+  params.moods.push(customMood.value.trim());
+  customMood.value = '';
+}
+
+// 移除特定位置的表情
+function removeEmoji(index) {
+  params.moods.splice(index, 1);
+}
+
+// 清空所有表情
+function clearMoods() {
+  params.moods = [];
+}
+
 // 生命周期
 onMounted(async () => {
   // 加载用户偏好设置
@@ -834,6 +913,11 @@ onMounted(async () => {
       currentBackground.value = preferences.background || 'paper-1';
       params.savageMode = preferences.savageMode || false;
       // 加载运势偏好
+      if (preferences.mood) {
+        params.moods = [preferences.mood];
+      } else if (preferences.moods && Array.isArray(preferences.moods)) {
+        params.moods = preferences.moods;
+      }
       params.enableFortune = preferences.enableFortune || false;
       params.fortuneAspect = preferences.fortuneAspect || 'overall';
       // 加载新增的个人信息
@@ -888,6 +972,8 @@ const tempParams = reactive({});
 function openParamsPanel() {
   // 复制当前参数到临时参数，以便用户取消时可以恢复
   Object.assign(tempParams, params);
+  // 对于数组，需要深度复制
+  tempParams.moods = [...params.moods];
   showParamsPanel.value = true;
 }
 
@@ -895,6 +981,8 @@ function openParamsPanel() {
 function closeParamsPanel() {
   // 恢复参数到打开前的状态
   Object.assign(params, tempParams);
+  // 对于数组，需要深度复制
+  params.moods = [...tempParams.moods];
   showParamsPanel.value = false;
 }
 
@@ -1631,6 +1719,117 @@ function getFortuneAspectLabel() {
   .emoji-list {
     grid-template-columns: repeat(6, 1fr);
     max-height: 350px;  /* 桌面版增加高度 */
+  }
+}
+
+.mood-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mood-emoji-group {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.mood-emoji {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.mood-counter {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.clear-btn {
+  color: var(--text-secondary);
+  font-size: 16px;
+  padding: 0;
+}
+
+.clear-btn:hover {
+  color: var(--primary-color);
+}
+
+/* 修改已选表情布局，使其以横排方式显示 */
+.selected-emojis {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background-color: rgba(123, 158, 137, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.selected-emojis-wrapper {
+  display: flex;
+  flex-direction: row; /* 明确指定为行方向 */
+  flex-wrap: wrap; /* 允许在需要时换行 */
+  justify-content: center;
+  align-items: center;
+  gap: 12px; /* 增加表情之间的间距 */
+  padding: 8px;
+}
+
+/* 调整表情项样式，确保有足够的空间且不会挤在一起 */
+.selected-emoji-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin: 4px; /* 添加外边距，确保项目之间有空间 */
+  transition: transform 0.2s ease;
+}
+
+/* 改进删除按钮样式，确保其完全可见 */
+.remove-emoji-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+  color: var(--card-bg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: all var(--transition-fast);
+  z-index: 2; /* 确保按钮在上层 */
+}
+
+.remove-emoji-btn:hover {
+  opacity: 1;
+  background-color: var(--primary-color);
+}
+
+/* 响应式处理 */
+@media (max-width: 480px) {
+  .selected-emoji-item {
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
   }
 }
 

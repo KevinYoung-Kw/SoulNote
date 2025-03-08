@@ -579,7 +579,17 @@ async function buildPrompt(params) {
   // 获取中文星座名称
   const zodiacChinese = zodiacMap[params.zodiac] || '未知星座';
   const mbtiType = params.mbti || 'MBTI类型';
-  const mood = params.mood || '平静';
+  
+  // 处理表情输入 - 支持多个表情
+  let moodInput = '';
+  if (params.moods && params.moods.length > 0) {
+    moodInput = params.moods.join('');
+  } else if (params.mood) {
+    // 兼容旧版单个表情
+    moodInput = params.mood;
+  } else {
+    moodInput = '平静';
+  }
   
   // 获取性别、年龄和感情状况标签
   const genderLabel = getGenderLabel(params.gender);
@@ -605,15 +615,30 @@ async function buildPrompt(params) {
   let basePrompt = `我需要你为一个${params.savageMode ? '关系亲密的死党' : '真实的朋友'}写一条简短的${params.language === 'en-zh' ? '中英双语' : ''}心灵纸条。
   
   # 核心指导
-  你需要深入理解用户发送的"${mood}"表达的是什么心情或场景，这是你回应的核心基础。通过创造性连接和发散思考，推测这个人当下可能经历的具体情境，然后结合星座特质和MBTI特点来构建个性化回应。目标是让对方感觉"这个人真的懂我"，仿佛你能看透对方当前的处境和感受。
+  你需要深入理解用户发送的表情组合"${moodInput}"表达的是什么心情或场景，这是你回应的核心基础。通过创造性连接和发散思考，推测这个人当下可能经历的具体情境，然后结合星座特质和MBTI特点来构建个性化回应。目标是让对方感觉"这个人真的懂我"，仿佛你能看透对方当前的处境和感受。`;
   
+  // 添加多表情解读指南
+  if ((params.moods && params.moods.length > 1) || (moodInput.length > 2)) {
+    basePrompt += `
+    
+  ## 多表情组合解读指南
+  用户输入了多个表情："${moodInput}"，这可能表达了一个复杂场景或情绪状态。例如：
+  - "🌧️😭" 可能表示"雨天心情低落"或"遭遇失败挫折"
+  - "🎉🍻🎂" 可能表示"生日聚会"或"庆祝活动"
+  - "💼💻😫" 可能表示"工作压力大"或"职场疲惫"
+  - "✈️🏝️😎" 可能表示"度假心情"或"旅行放松"
+  
+  请先分析这组表情可能共同表达的场景或心情，再结合用户的性格特点给予回应。`;
+  }
+
+  basePrompt += `
   ## 关于这个朋友的详细信息：
   - 性别：${genderLabel}，特点：${genderTraits}
   - 年龄：${ageLabel}，特点：${ageTraits}
   - 感情状况：${relationshipLabel}，特点：${relationshipTraits}
   - 星座：${zodiacChinese}，核心特质：${zodiacTraits}
   - MBTI：${mbtiType}，关键特点：${mbtiTraits}
-  - 当前心情/场景表达：${mood} 
+  - 当前心情/场景表达：${moodInput} 
   
   ## 这个人的性格行为表现:
   ${personalityInsights}
@@ -656,7 +681,7 @@ async function buildPrompt(params) {
   basePrompt += `
   
   # 思考起点
-  首先，我需要通过创造性思考，深入解读用户输入的"${mood}"可能代表的实际情境：`;
+  首先，我需要通过创造性思考，深入解读用户输入的"${moodInput}"可能代表的实际情境：`;
   
   // 根据是否启用毒舌模式添加不同的写作要求
   if (params.savageMode) {
@@ -680,8 +705,8 @@ async function buildPrompt(params) {
   
   ## 思维链（请按照以下步骤进行发散思考）：
   1. 场景解读：
-     - 如果是表情符号"${mood}"，它可能实际表示什么？（天气状况？情绪状态？比喻？）
-     - 比如🌧️可能表示：实际在下雨/心情低落/处境困难/遇到麻烦
+     - 如果是多个表情组合"${moodInput}"，它们一起可能表示什么场景或情绪？
+     - 例如"🌧️😭"可能表示雨天哭泣、心情低落、遭遇失败挫折等
      - 根据${timeContext.period}时分，用户可能在什么具体场景中？`;
     
     // 如果启用了运势功能，添加运势相关的解读步骤
@@ -724,12 +749,20 @@ async function buildPrompt(params) {
   
   4. 具体场景联想（发散思考）：`;
     
-    // 如果启用了运势功能，添加运势相关的场景例子
-    if (params.enableFortune && params.fortuneAspect) {
-      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+    // 如果是多表情输入，提供特殊的多表情例子
+    if ((params.moods && params.moods.length > 1) || (moodInput.length > 2)) {
+      basePrompt += `
+     - 例如：如果是"😷🏥"(生病住院) + ${timeContext.period}，可以调侃:
+       "又住院啊？这次是真病还是又在偷懒？你这一年三百天往医院跑，医生都认你当亲戚了吧？😏"
+     - 或者如果是"💼💻😫"(工作疲惫) + ${timeContext.period}，可以调侃:
+       "看看谁又在装加班狗了，明明是自己效率低还得埋怨工作多。这么能耐怎么还没升职啊？🤡"`;
+    } else {
+      // 如果启用了运势功能，添加运势相关的场景例子
+      if (params.enableFortune && params.fortuneAspect) {
+        const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
                           params.fortuneAspect === 'love' ? '爱情' :
                           params.fortuneAspect === 'career' ? '事业' : '财运';
-      basePrompt += `
+        basePrompt += `
      - 例如：如果是"🌧️"+早上+${fortuneType}运势不佳，可以调侃:
        "${fortuneType === '财运' ? 
          '这么大雨天还出门，不怕生病住院花完工资吗？今天财运这么差，别说挣钱了，怕是连伞都要丢😂' : 
@@ -746,12 +779,13 @@ async function buildPrompt(params) {
          fortuneType === '爱情' ?
          '阳光这么好，单身还是自己晒吧。你今天爱情运这么黑，搭讪十个被拒十个，省点力气吧😏' :
          '阳光明媚，人却灰暗。看看你今天的运势，在家躺着都能被太阳晒黑，别出门现眼了好吗？🙃'}"`;
-    } else {
-      basePrompt += `
+      } else {
+        basePrompt += `
      - 例如：如果是"🌧️"+早上，可能正在通勤路上被淋湿，那么可以调侃:
        "又没带伞是吧？活该淋雨。这会儿是不是正想着编理由请假？哈哈，请病假可没工资哦。"
      - 或者如果是"☀️"+下午，可能在发呆晒太阳，那么可以调侃:
        "我都懒得喷你。活做完了吗？"`;
+      }
     }
     
     basePrompt += `
@@ -791,8 +825,8 @@ async function buildPrompt(params) {
   
   ## 思维链（请按照以下步骤进行发散思考）：
   1. 场景解读：
-     - 如果是表情符号"${mood}"，它可能实际表示什么？（天气状况？情绪状态？比喻？）
-     - 比如🌧️可能表示：实际在下雨/心情低落/处境困难/遇到麻烦
+     - 如果是多个表情组合"${moodInput}"，它们一起可能表示什么场景或情绪？
+     - 例如"🌧️😭"可能表示雨天哭泣、心情低落、遭遇失败挫折等
      - 根据${timeContext.period}时分，用户可能在什么具体场景中？`;
     
     // 如果启用了运势功能，添加运势相关的解读步骤
@@ -837,9 +871,17 @@ async function buildPrompt(params) {
   
   4. 具体场景联想（发散思考）：`;
     
-    // 如果启用了运势功能，添加运势相关的场景例子
-    if (params.enableFortune && params.fortuneAspect) {
-      const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
+    // 如果是多表情输入，提供特殊的多表情例子
+    if ((params.moods && params.moods.length > 1) || (moodInput.length > 2)) {
+      basePrompt += `
+    - 例如：如果是"😷🏥"(生病住院) + ${timeContext.period}，可以回应:
+      "住院的日子确实不好过，但记得让自己轻松些。你总是很坚强，这次也一样，好好恢复，别急着回去工作。"
+    - 或者如果是"💼💻😫"(工作疲惫) + ${timeContext.period}，可以回应:
+      "看你又在熬夜工作了，记得喝点水休息一下。你的认真总是让人放心，但也要照顾好自己啊。"`;
+    } else {
+      // 如果启用了运势功能，添加运势相关的场景例子
+      if (params.enableFortune && params.fortuneAspect) {
+        const fortuneType = params.fortuneAspect === 'overall' ? '整体' : 
                           params.fortuneAspect === 'love' ? '爱情' :
                           params.fortuneAspect === 'career' ? '事业' : '财运';
                           basePrompt += `
@@ -856,6 +898,7 @@ async function buildPrompt(params) {
         - 或者"你作为${mbtiType}类型，在今天的运势下，应该特别注意..."
         - 让对方感觉这是专门为他/她的性格和今天的运势量身定制的建议
         - 运势内容从"${fortune.selected.content}"中提取核心观点，但用自己的话表达`;
+      }
     }
     
     basePrompt += `
@@ -1354,7 +1397,18 @@ export function generateLocalContent(params) {
   
   // 根据性格类型和时间创建定制化的模板
   const templates = [];
-  
+
+  // 处理表情输入 - 支持多个表情
+  let moodInput = '';
+  if (params.moods && params.moods.length > 0) {
+    moodInput = params.moods.join('');
+  } else if (params.mood) {
+    // 兼容旧版单个表情
+    moodInput = params.mood;
+  } else {
+    moodInput = '平静';
+  }
+
   // 如果启用了毒舌模式，使用毒舌模板
   if (params.savageMode) {
     // 添加毒舌模板
@@ -1558,9 +1612,13 @@ export function generateLocalContent(params) {
       templates.push(`脚踏实地的态度很难得，你总能把事情做得实实在在。${timeContext.concerns[0] || '别忘了细节'}`);
     }
     
-    // 添加心情相关模板
-    if (params.mood) {
-      templates.push(`${params.mood}的时候，最需要的是什么？对你来说可能是${mbtiType.includes('I') ? '片刻安静' : '朋友陪伴'}。`);
+    if (moodInput) {
+      // 根据表情数量创建不同的回复
+      if (moodInput.length > 2) {
+        templates.push(`这组表情组合"${moodInput}"看起来很有趣，你是不是正在经历什么特别的事情？以你的性格，一定会有独特的处理方式。`);
+      } else {
+        templates.push(`${moodInput}的时候，最需要的是什么？对你来说可能是${mbtiType.includes('I') ? '片刻安静' : '朋友陪伴'}。`);
+      }
     }
     
     // 添加通用模板作为后备
