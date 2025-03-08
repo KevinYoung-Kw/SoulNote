@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Lunar, Solar, HolidayUtil } from 'lunar-javascript';
 
 // 从环境变量获取API配置
 const API_URL = import.meta.env.VITE_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -619,9 +620,11 @@ async function buildPrompt(params) {
   
   ## 当前环境与时间情境（用于情境推测）:
   - 当前时间：${formattedTime}，${timeContext.period}时分
+  - 当前日期：星期${timeContext.dateInfo.weekDay}，${timeContext.dateInfo.dayType}
+  - 农历日期：${timeContext.dateInfo.lunarDate}，${timeContext.dateInfo.animal}年
+  - 今日节日/节气：${timeContext.dateInfo.festivals.join('、')}
   - 这个时段人们通常在做：${timeContext.activities.join('、')}
   - 这个时段人们通常关心：${timeContext.concerns.join('、')}`;
-  
   // 定义一个变量来保存运势数据，使其在整个函数作用域内可访问
   let fortune = null;
   
@@ -966,12 +969,73 @@ function getTimeContext(savageMode = false) {
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const formattedTime = `${year}-${month}-${date} ${hours}:${minutes}`;
   
+  // 获取农历信息
+  const solar = Solar.fromDate(now);
+  const lunar = solar.getLunar();
+  
+  // 获取节日信息
+  const festivals = [];
+  
+  // 获取公历节日
+  const solarFestivals = solar.getFestivals();
+  if (solarFestivals.length > 0) {
+    festivals.push(...solarFestivals);
+  }
+
+  // 获取农历节日
+  const lunarFestivals = lunar.getFestivals();
+  if (lunarFestivals.length > 0) {
+    festivals.push(...lunarFestivals);
+  }
+
+  // 获取节气 - 修复方法
+  // 检查当天是否为节气
+  const jieQi = lunar.getJieQi();
+  if (jieQi) {
+    festivals.push(`${jieQi}节气`);
+  }
+
+  // 判断是否为法定假日
+  const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay());
+  const isHoliday = holiday !== null;
+  const holidayName = holiday ? holiday.getName() : '';
+  
+  // 判断周末
+  const dayOfWeek = now.getDay();
+  const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6) && !isHoliday;
+  
+  // 工作日/休息日状态
+  let dayType = '';
+  if (isHoliday) {
+    dayType = `法定假日${holidayName ? '(' + holidayName + ')' : ''}`;
+  } else if (isWeekend) {
+    dayType = '周末';
+  } else {
+    dayType = '工作日';
+  }
+  
+  // 农历日期
+  const lunarDate = `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
+  const animal = lunar.getYearShengXiao();
+  
+  // 星座
+  const astro = solar.getXingZuo();
+  
   // 定义不同时间段的上下文
   let timeContext = {
     period: '',
     suggestions: [],
     activities: [],
-    concerns: []
+    concerns: [],
+    // 添加更丰富的时间信息
+    dateInfo: {
+      lunarDate,
+      animal,
+      festivals: festivals.length > 0 ? festivals : ['无特殊节日'],
+      weekDay: ['日', '一', '二', '三', '四', '五', '六'][dayOfWeek],
+      dayType,
+      astro
+    }
   };
   
   // 根据时间划分时段并设置相应上下文
@@ -983,11 +1047,45 @@ function getTimeContext(savageMode = false) {
       timeContext.suggestions = ['勉强从床上爬起来', '装作精神焕发的样子', '假装自己是个早起的人'];
       timeContext.activities = ['挣扎着睁开眼', '对着镜子掩饰黑眼圈', '喝咖啡假装自己清醒'];
       timeContext.concerns = ['迟到还找借口', '又在做白日梦', '熬夜后的后悔时刻'];
+      
+      // 节假日特定内容
+      if (isHoliday || festivals.length > 0) {
+        timeContext.suggestions.push(`假期还起这么早，真是个假期废物`);
+        timeContext.concerns.push(`节日焦虑症又犯了吧，假期也不会放过自己`);
+      }
     } else {
       // 正常模式时间上下文
-      timeContext.suggestions = ['吃顿丰盛的早餐', '享受一天中最清新的时光', '早起是个好习惯'];
-      timeContext.activities = ['晨跑', '冥想', '规划今天'];
-      timeContext.concerns = ['不要匆忙赶路', '给自己足够准备时间', '照顾好自己的胃'];
+      const baseSuggestions = ['吃顿丰盛的早餐', '享受一天中最清新的时光', '早起是个好习惯'];
+      const baseActivities = ['晨跑', '冥想', '规划今天'];
+      const baseConcerns = ['不要匆忙赶路', '给自己足够准备时间', '照顾好自己的胃'];
+      
+      // 根据日期类型调整建议
+      if (isHoliday) {
+        baseSuggestions.push('享受假日的悠闲早晨', `${holidayName}假期愉快`);
+        baseActivities.push('准备节日活动', '与家人共度时光');
+        baseConcerns.push('别错过节日特别活动');
+      } else if (isWeekend) {
+        baseSuggestions.push('周末早晨可以稍微放松一下', '规划一个愉快的周末');
+        baseActivities.push('周末休闲活动', '补充睡眠');
+      } else {
+        baseSuggestions.push('为一天的工作做好准备', '早起赢得效率');
+        baseConcerns.push('避免早高峰拥堵');
+      }
+      
+      // 农历节日特定内容
+      if (lunarFestivals.length > 0) {
+        baseSuggestions.push(`今天是${lunarFestivals.join('/')}，记得传统习俗`);
+        baseActivities.push('参与传统节日活动');
+      }
+      
+      // 节气相关
+      if (term) {
+        baseSuggestions.push(`${term}节气到了，注意季节变化`);
+      }
+      
+      timeContext.suggestions = baseSuggestions;
+      timeContext.activities = baseActivities;
+      timeContext.concerns = baseConcerns;
     }
   } else if (hour >= 9 && hour < 12) {
     timeContext.period = '上午';
@@ -996,10 +1094,38 @@ function getTimeContext(savageMode = false) {
       timeContext.suggestions = ['装作在工作的样子', '对着电脑发呆', '用开会逃避责任'];
       timeContext.activities = ['摸鱼', '刷社交媒体', '走神'];
       timeContext.concerns = ['被老板抓包', '工作进度落后', '午饭前的无限等待'];
+      
+      // 节假日特定内容
+      if (isHoliday || festivals.length > 0) {
+        timeContext.suggestions.push(`难得假期还想着工作，真是没救了`);
+        timeContext.concerns.push(`假期焦虑症又犯了是吧`);
+      } else if (isWeekend) {
+        timeContext.suggestions.push(`周末上午还在想工作，真是个工作狂魔`);
+      }
     } else {
-      timeContext.suggestions = ['专注工作', '处理最重要的任务', '喝杯咖啡或茶提神'];
-      timeContext.activities = ['高效工作', '头脑风暴', '重要会议'];
-      timeContext.concerns = ['记得给眼睛休息', '保持水分', '别被琐事分散注意力'];
+      const baseSuggestions = ['专注工作', '处理最重要的任务', '喝杯咖啡或茶提神'];
+      const baseActivities = ['高效工作', '头脑风暴', '重要会议'];
+      const baseConcerns = ['记得给眼睛休息', '保持水分', '别被琐事分散注意力'];
+      
+      if (isHoliday) {
+        baseSuggestions.push(`享受${holidayName}假期`, '放下工作压力');
+        baseActivities.push('节日活动', '休闲娱乐');
+        baseConcerns.push('不要让工作影响假期心情');
+      } else if (isWeekend) {
+        baseSuggestions.push('周末上午可以悠闲一些', '做些平时没时间做的事');
+        baseActivities.push('休闲娱乐', '购物', '户外活动');
+      }
+      
+      // 农历特定内容
+      if (lunar.getDayInChinese() === '初一') {
+        baseSuggestions.push('农历月初，适合规划新目标');
+      } else if (lunar.getDayInChinese() === '十五') {
+        baseSuggestions.push('农历月中，检视月初计划进展');
+      }
+      
+      timeContext.suggestions = baseSuggestions;
+      timeContext.activities = baseActivities;
+      timeContext.concerns = baseConcerns;
     }
   } else if (hour >= 12 && hour < 14) {
     timeContext.period = '中午';
@@ -1008,10 +1134,25 @@ function getTimeContext(savageMode = false) {
       timeContext.suggestions = ['暴饮暴食后装清醒', '找借口午休多睡一会', '吃完就犯困'];
       timeContext.activities = ['偷偷加餐', '办公桌前闭眼装思考', '午休时间刷剧'];
       timeContext.concerns = ['被同事发现打瞌睡', '饭后的无限困意', '下午还有一堆活没做'];
+      
+      if (festivals.length > 0) {
+        timeContext.suggestions.push(`节日吃成猪了吧，还能不能动`);
+      }
     } else {
-      timeContext.suggestions = ['吃顿营养午餐', '短暂午休', '放松紧张的思维'];
-      timeContext.activities = ['与朋友共进午餐', '休息和恢复', '短距离散步'];
-      timeContext.concerns = ['别错过吃饭', '避免工作占用休息时间', '给自己充电的机会'];
+      const baseSuggestions = ['吃顿营养午餐', '短暂午休', '放松紧张的思维'];
+      const baseActivities = ['与朋友共进午餐', '休息和恢复', '短距离散步'];
+      const baseConcerns = ['别错过吃饭', '避免工作占用休息时间', '给自己充电的机会'];
+      
+      if (isHoliday) {
+        baseSuggestions.push('享用节日特色美食');
+        baseActivities.push('与亲友共进午餐');
+      } else if (festivals.length > 0) {
+        baseSuggestions.push(`今天是${festivals.join('/')}，可以品尝应景美食`);
+      }
+      
+      timeContext.suggestions = baseSuggestions;
+      timeContext.activities = baseActivities;
+      timeContext.concerns = baseConcerns;
     }
   } else if (hour >= 14 && hour < 18) {
     timeContext.period = '下午';
@@ -1020,10 +1161,37 @@ function getTimeContext(savageMode = false) {
       timeContext.suggestions = ['假装清醒', '用咖啡因掩盖疲惫', '拖延到下班'];
       timeContext.activities = ['看着时钟等下班', '编造明天要做的理由', '假装在思考'];
       timeContext.concerns = ['被发现工作没完成', '无限漫长的下午', '犯困被抓包'];
+      
+      if (isHoliday || isWeekend) {
+        timeContext.suggestions.push('周末/假日下午都无聊成这样，生活真无趣');
+      }
     } else {
-      timeContext.suggestions = ['克服疲惫感', '适当补充能量', '重新聚焦目标'];
-      timeContext.activities = ['处理积压工作', '创意思考', '计划明天'];
-      timeContext.concerns = ['避免过度咖啡因', '调整坐姿', '注意下午的低谷期'];
+      const baseSuggestions = ['克服疲惫感', '适当补充能量', '重新聚焦目标'];
+      const baseActivities = ['处理积压工作', '创意思考', '计划明天'];
+      const baseConcerns = ['避免过度咖啡因', '调整坐姿', '注意下午的低谷期'];
+      
+      if (isHoliday || festivals.length > 0) {
+        baseSuggestions.push('继续享受节日时光');
+        baseActivities.push('节日下午活动', '与亲友共度时光');
+      } else if (isWeekend) {
+        baseSuggestions.push('周末下午可以更放松', '做些有趣的活动');
+        baseActivities.push('休闲娱乐', '户外活动', '社交聚会');
+      } else {
+        baseSuggestions.push('为今日工作收尾', '评估完成情况');
+        baseActivities.push('总结今日工作', '准备下班');
+      }
+      
+      // 二十四节气相关
+      if (term) {
+        const seasonalActivities = getSeasonalActivities(term);
+        if (seasonalActivities) {
+          baseActivities.push(seasonalActivities);
+        }
+      }
+      
+      timeContext.suggestions = baseSuggestions;
+      timeContext.activities = baseActivities;
+      timeContext.concerns = baseConcerns;
     }
   } else if (hour >= 18 && hour < 21) {
     timeContext.period = '傍晚';
@@ -1032,10 +1200,31 @@ function getTimeContext(savageMode = false) {
       timeContext.suggestions = ['装作有社交生活', '点外卖还假装是自己做的', '在社媒晒虚假的精彩生活'];
       timeContext.activities = ['刷剧', '刷手机', '对着冰箱发呆'];
       timeContext.concerns = ['假装自己很忙', '不敢面对明天的工作', '内心空虚但还要装充实'];
+      
+      if (isHoliday) {
+        timeContext.concerns.push(`${holidayName}假期就要结束了，焦虑了吧`);
+      }
     } else {
-      timeContext.suggestions = ['放下工作', '享受晚餐', '与家人相处'];
-      timeContext.activities = ['运动', '放松身心', '个人爱好'];
-      timeContext.concerns = ['不要把工作带回家', '放慢脚步', '享受这段宝贵时光'];
+      const baseSuggestions = ['放下工作', '享受晚餐', '与家人相处'];
+      const baseActivities = ['运动', '放松身心', '个人爱好'];
+      const baseConcerns = ['不要把工作带回家', '放慢脚步', '享受这段宝贵时光'];
+      
+      if (isHoliday) {
+        baseSuggestions.push(`${holidayName}假期夜晚，享受美好时光`);
+        baseActivities.push('参与节日晚间活动');
+      } else if (isWeekend) {
+        baseSuggestions.push('享受周末夜生活');
+        baseActivities.push('外出用餐', '观影', '社交聚会');
+      }
+      
+      // 农历特殊日期
+      if (lunar.getDayInChinese() === '三十' || lunar.getDayInChinese() === '廿九' && lunar.getNextDay().getDayInChinese() === '初一') {
+        baseSuggestions.push('月末了，准备迎接新的月份');
+      }
+      
+      timeContext.suggestions = baseSuggestions;
+      timeContext.activities = baseActivities;
+      timeContext.concerns = baseConcerns;
     }
   } else if (hour >= 21 && hour < 24) {
     timeContext.period = '晚上';
@@ -1044,10 +1233,44 @@ function getTimeContext(savageMode = false) {
       timeContext.suggestions = ['假装自己会早睡', '熬夜还说明天早起', '拖延睡觉时间'];
       timeContext.activities = ['沉迷刷手机', '边看剧边说就一集', '睡前焦虑明天的工作'];
       timeContext.concerns = ['又要黑眼圈了', '明天起不来怎么办', '明明困却舍不得睡'];
+      
+      // 假日前一天特别内容
+      const tomorrowDate = new Date(now);
+      tomorrowDate.setDate(now.getDate() + 1);
+      const tomorrowSolar = Solar.fromDate(tomorrowDate);
+      const tomorrowHoliday = HolidayUtil.getHoliday(tomorrowSolar.getYear(), tomorrowSolar.getMonth(), tomorrowSolar.getDay());
+      
+      if (tomorrowHoliday) {
+        timeContext.suggestions.push(`明天${tomorrowHoliday.getName()}假期还熬夜，真会浪费假期时间`);
+      }
     } else {
-      timeContext.suggestions = ['为明天做准备', '放松心情', '回顾今天的收获'];
-      timeContext.activities = ['阅读', '洗个舒服的热水澡', '记录日记'];
-      timeContext.concerns = ['避免太晚接触电子屏幕', '保持舒适睡眠环境', '设定明确的睡眠时间'];
+      const baseSuggestions = ['为明天做准备', '放松心情', '回顾今天的收获'];
+      const baseActivities = ['阅读', '洗个舒服的热水澡', '记录日记'];
+      const baseConcerns = ['避免太晚接触电子屏幕', '保持舒适睡眠环境', '设定明确的睡眠时间'];
+      
+      // 检查明天是否是节假日
+      const tomorrowDate = new Date(now);
+      tomorrowDate.setDate(now.getDate() + 1);
+      const tomorrowSolar = Solar.fromDate(tomorrowDate);
+      const tomorrowHoliday = HolidayUtil.getHoliday(tomorrowSolar.getYear(), tomorrowSolar.getMonth(), tomorrowSolar.getDay());
+      
+      if (tomorrowHoliday) {
+        baseSuggestions.push(`准备迎接明天的${tomorrowHoliday.getName()}假期`);
+        baseConcerns.push('为假期做好准备');
+      } else if (tomorrowDate.getDay() === 6 || tomorrowDate.getDay() === 0) {
+        baseSuggestions.push('为周末做准备');
+      }
+      
+      if (isWeekend || isHoliday) {
+        baseSuggestions.push('不必担心明早起床', '可以稍微放松作息');
+      } else {
+        baseSuggestions.push('确保充足睡眠', '为明天工作做好准备');
+        baseConcerns.push('尽早休息，保证明天的状态');
+      }
+      
+      timeContext.suggestions = baseSuggestions;
+      timeContext.activities = baseActivities;
+      timeContext.concerns = baseConcerns;
     }
   } else {
     timeContext.period = '深夜';
@@ -1057,9 +1280,19 @@ function getTimeContext(savageMode = false) {
       timeContext.activities = ['无意义的刷剧', '为熬夜找借口', '自我欺骗式的"最后一把"'];
       timeContext.concerns = ['明天起床又要痛苦', '又要靠咖啡因续命', '生物钟混乱还不自知'];
     } else {
-      timeContext.suggestions = ['尽快休息', '关心自己的睡眠', '放下手机'];
-      timeContext.activities = ['进入睡眠', '冥想', '深呼吸放松'];
-      timeContext.concerns = ['熬夜对身体不好', '睡眠质量影响明天', '照顾好自己比什么都重要'];
+      const baseSuggestions = ['尽快休息', '关心自己的睡眠', '放下手机'];
+      const baseActivities = ['进入睡眠', '冥想', '深呼吸放松'];
+      const baseConcerns = ['熬夜对身体不好', '睡眠质量影响明天', '照顾好自己比什么都重要'];
+      
+      if (isWeekend || isHoliday) {
+        baseConcerns.push('即使是休息日也要注意作息规律');
+      } else {
+        baseConcerns.push('明天还要工作，尽快休息');
+      }
+      
+      timeContext.suggestions = baseSuggestions;
+      timeContext.activities = baseActivities;
+      timeContext.concerns = baseConcerns;
     }
   }
   
@@ -1067,6 +1300,43 @@ function getTimeContext(savageMode = false) {
     formattedTime,
     timeContext
   };
+}
+
+
+/**
+ * 根据节气获取季节性活动建议
+ * @param {string} term 节气名称
+ * @returns {string} 季节性活动建议
+ */
+function getSeasonalActivities(term) {
+  const termActivities = {
+    '立春': '感受春天的气息，可以踏青',
+    '雨水': '雨季将至，记得携带雨具',
+    '惊蛰': '春雷始鸣，万物复苏',
+    '春分': '昼夜平分，适合户外活动',
+    '清明': '祭祖扫墓，踏青郊游',
+    '谷雨': '雨量增多，春耕开始',
+    '立夏': '夏季开始，防暑降温',
+    '小满': '夏熟作物籽粒开始饱满',
+    '芒种': '农忙时节，播种移苗',
+    '夏至': '一年中昼最长，注意防暑',
+    '小暑': '热浪来袭，注意防晒',
+    '大暑': '一年中最热，注意避暑',
+    '立秋': '秋季开始，天气转凉',
+    '处暑': '暑气渐消，秋高气爽',
+    '白露': '夜晚露水增多，天气转凉',
+    '秋分': '昼夜平分，秋季中点',
+    '寒露': '气温骤降，注意保暖',
+    '霜降': '开始结霜，冬天临近',
+    '立冬': '冬季开始，注意保暖',
+    '小雪': '开始降雪，天气寒冷',
+    '大雪': '雪量增大，严寒将至',
+    '冬至': '一年中昼最短，注意保暖',
+    '小寒': '寒冷加剧，注意防寒',
+    '大寒': '一年中最冷，注意保暖'
+  };
+  
+  return termActivities[term] || '适应季节变化';
 }
 
 /**

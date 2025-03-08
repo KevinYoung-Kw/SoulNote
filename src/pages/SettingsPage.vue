@@ -153,7 +153,7 @@
         </div>
         
         <div class="app-version">
-          版本: 1.0.0
+          版本: 1.1.0
         </div>
       </section>
       

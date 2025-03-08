@@ -286,7 +286,7 @@ const inviteCodeError = ref(false);
 const inviteCodeErrorMessage = ref('');
 
 // 后端API URL - 应该从环境变量获取
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
 onMounted(() => {
   // 尝试预加载字体
