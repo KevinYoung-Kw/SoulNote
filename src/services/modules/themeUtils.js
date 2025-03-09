@@ -110,7 +110,7 @@ export function getThemePrompt(theme, savageMode = false) {
       ];
       basePrompt.limits = [
         '避免过于晦涩难懂',
-        '保持诗意的同时确保可理解性'
+        '保持诗意的同时确保可理解性',
       ];
     }
   } else if (themeKey === THEMES.HAIKU) {
@@ -118,12 +118,12 @@ export function getThemePrompt(theme, savageMode = false) {
     if (savageMode) {
       basePrompt.requirements = [
         '遵循简短精练的俳句结构',
-        '使用自然意象包含讽刺',
-        '简约中带有锋芒'
+        '简约中带有锋芒',
+        '严格遵循5-7-5音节结构，共17字'
       ];
       basePrompt.examples = [
-        '高树空影下\n自诩智者迷途\n蚂蚁嗤笑',
-        '墙上的倒影\n自以为是的灵魂\n不过幻象'
+        '古木蝉声寂\n独行诩智徘徊深\n蚁嗤月朦胧',
+        '秋月浸墙影\n自以为是的灵魂\n露碎幻一声'
       ];
       basePrompt.limits = [
         '保持俳句的简约和自然',
@@ -132,16 +132,16 @@ export function getThemePrompt(theme, savageMode = false) {
     } else {
       basePrompt.requirements = [
         '简短精练，捕捉瞬间',
-        '使用自然意象',
-        '传达季节感或情感'
+        '强调意象的留白与意境的延展性'
       ];
       basePrompt.examples = [
-        '清晨露珠上\n蜻蜓短暂停留\n夏日微光',
-        '落叶随风舞\n往事如烟飘散\n安心前行'
+        '雪落无声处\n炭火映经卷半卷\n梅香破寒来',
+        '蝉鸣穿夏夜\n银河倒泻入萤流\n竹影摇碎月'
       ];
       basePrompt.limits = [
         '遵循俳句的简约美学',
-        '避免过度修饰和复杂表达'
+        '避免过度修饰和复杂表达',
+        '严格遵循5-7-5音节结构，共17字'
       ];
     }
   }

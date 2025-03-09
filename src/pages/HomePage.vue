@@ -6,9 +6,15 @@
         <i class="fas fa-cog"></i>
       </button>
       <h1 class="app-title">星语心笺</h1>
-      <button class="icon-btn" @click="goToSavedNotes">
-        <i class="fas fa-bookmark"></i>
-      </button>
+      <div class="header-right">
+        <!-- 添加清除按钮 -->
+        <button class="icon-btn" @click="clearGeneratedContent" v-if="hasGeneratedContent">
+          <i class="fas fa-times"></i>
+        </button>
+        <button class="icon-btn" @click="goToSavedNotes">
+          <i class="fas fa-bookmark"></i>
+        </button>
+      </div>
     </header>
     
     <!-- 可滚动的主内容区 -->
@@ -318,6 +324,7 @@ const currentBackground = ref('paper-1');
 const fontSize = ref(24);
 const darkMode = ref(false);
 const loadingMessage = ref(''); 
+const hasGeneratedContent = ref(false); // 添加判断是否已生成内容的状态
 
 // 导出功能
 const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
@@ -732,6 +739,36 @@ function toggleSection(section) {
   collapsedSections[section] = !collapsedSections[section];
 }
 
+// 添加一个方法来缓存生成的内容
+async function cacheGeneratedContent() {
+  if (!noteContent.value || noteContent.value === '点击下方"生成心语"按钮，开始您的心灵之旅...') return;
+  
+  try {
+    // 获取当前偏好
+    const currentPrefs = await getUserPreferences();
+    
+    // 构建缓存数据
+    const cachedContent = {
+      content: noteContent.value,
+      moods: params.moods,
+      background: currentBackground.value,
+      fontSize: fontSize.value,
+      timestamp: new Date().toISOString()
+    };
+    
+    // 更新本地保存的设置，添加缓存的内容
+    await saveUserPreferences({
+      ...currentPrefs,
+      cachedContent
+    });
+    
+    hasGeneratedContent.value = true;
+    console.log('已缓存生成的内容:', cachedContent);
+  } catch (error) {
+    console.error('缓存生成内容失败:', error);
+  }
+}
+
 // 修改生成笔记函数，允许更长的内容
 async function generateNote() {
   if (isGenerating.value) return;
@@ -771,6 +808,9 @@ async function generateNote() {
     setTimeout(() => {
       isAnimating.value = true;
       isGenerating.value = false;
+      
+      // 缓存生成的内容
+      cacheGeneratedContent();
     }, 300); // 短暂延迟，让加载条完成到100%
     
     // 内容生成完成后，根据内容长度确保纸条可见
@@ -989,6 +1029,67 @@ function clearMoods() {
   params.moods = [];
 }
 
+// 添加清除内容方法
+function clearGeneratedContent() {
+  if (confirm('确定要清除当前内容吗？')) {
+    noteContent.value = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+    params.moods = [];
+    hasGeneratedContent.value = false;
+    
+    // 清除缓存
+    clearContentCache();
+  }
+}
+
+// 清除内容缓存
+async function clearContentCache() {
+  try {
+    const currentPrefs = await getUserPreferences();
+    if (currentPrefs.cachedContent) {
+      delete currentPrefs.cachedContent;
+      await saveUserPreferences(currentPrefs);
+      console.log('已清除缓存内容');
+    }
+  } catch (error) {
+    console.error('清除缓存失败:', error);
+  }
+}
+
+// 从缓存恢复内容
+async function restoreFromCache() {
+  try {
+    const preferences = await getUserPreferences();
+    if (preferences && preferences.cachedContent) {
+      const { content, moods, background, fontSize: cachedFontSize } = preferences.cachedContent;
+      
+      // 恢复内容
+      if (content && content !== '点击下方"生成心语"按钮，开始您的心灵之旅...') {
+        noteContent.value = content;
+        hasGeneratedContent.value = true;
+      }
+      
+      // 恢复表情
+      if (moods && Array.isArray(moods)) {
+        params.moods = [...moods];
+      }
+      
+      // 恢复背景
+      if (background) {
+        currentBackground.value = background;
+      }
+      
+      // 恢复字体大小
+      if (cachedFontSize) {
+        fontSize.value = cachedFontSize;
+      }
+      
+      console.log('从缓存恢复内容成功');
+    }
+  } catch (error) {
+    console.error('恢复缓存内容失败:', error);
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   // 加载用户偏好设置
@@ -1023,6 +1124,9 @@ onMounted(async () => {
       params.gender = preferences.gender;
       params.age = preferences.age;
       params.relationship = preferences.relationship;
+      
+      // 从缓存恢复生成的内容
+      await restoreFromCache();
     }
   } catch (error) {
     console.error('加载用户偏好设置失败:', error);
@@ -1068,6 +1172,13 @@ watch(() => params.theme, (newTheme) => {
   console.log('主题已更改为:', newTheme);
   updateLocalPreferences();
 });
+
+// 监听内容、表情、背景和字体大小的变化，更新缓存
+watch([noteContent, () => params.moods, currentBackground, fontSize], () => {
+  if (noteContent.value && noteContent.value !== '点击下方"生成心语"按钮，开始您的心灵之旅...') {
+    cacheGeneratedContent();
+  }
+}, { deep: true });
 
 // 新增参数面板状态管理
 const showParamsPanel = ref(false);
@@ -1122,6 +1233,13 @@ function getFortuneAspectLabel() {
   padding: var(--spacing-md) var(--spacing-lg);
   background-color: var(--card-bg);
   box-shadow: var(--shadow-sm);
+}
+
+/* 添加右侧按钮组样式 */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .app-title {

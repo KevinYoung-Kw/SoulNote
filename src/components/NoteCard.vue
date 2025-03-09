@@ -59,9 +59,11 @@ const props = defineProps({
 const moodsArray = computed(() => {
   if (!props.mood) return [];
   
-  // 使用扩展运算符将字符串分解为单个字符数组
-  // 但需要处理emoji（可能由多个UTF-16代码单元组成）
-  return Array.from(props.mood);
+  // 改进表情解析处理，处理Unicode表情符号
+  // 使用Array.from确保正确处理包括emoji在内的所有Unicode字符
+  const emojiRegex = /\p{Emoji}/gu;
+  const emojis = props.mood.match(emojiRegex);
+  return emojis || Array.from(props.mood);
 });
 
 // 根据表情数量计算容器样式

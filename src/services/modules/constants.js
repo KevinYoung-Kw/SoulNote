@@ -60,8 +60,8 @@ export const themeConfigs = {
   [THEMES.HAIKU]: {
     title: '俳句',
     description: '简短精炼的日式诗歌',
-    wordLimitZh: '10-20字',
-    wordLimitEn: '15-30 words',
+    wordLimitZh: '严格遵循5-7-5音节结构，共17字',
+    wordLimitEn: 'Follows the 5-7-5 syllable structure, total 17 words',
     style: '简约自然，季节意象，瞬间感受',
     keywords: ['简约', '自然', '季节', '瞬间'],
   }
