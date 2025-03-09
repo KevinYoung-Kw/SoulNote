@@ -30,6 +30,11 @@
                 <span>添加心情...</span>
               </template>
             </div>
+            <!-- 添加主题参数显示 -->
+            <div class="params-item">
+              <i :class="themeOptions.find(t => t.value === params.theme)?.icon || 'fas fa-comment-dots'"></i>
+              <span>{{ themeOptions.find(t => t.value === params.theme)?.label || '聊天' }}</span>
+            </div>
             <div class="params-item" v-if="params.enableFortune">
               <i :class="fortuneAspects.find(a => a.value === params.fortuneAspect)?.icon || 'fas fa-star'"></i>
               <span>{{ getFortuneAspectLabel() }}</span>
@@ -186,6 +191,49 @@
             </div>
           </div><!-- 添加这个闭合标签 -->
 
+          <!-- 新增主题选择 -->
+          <div class="panel-section">
+            <div class="section-header">
+              <h3>内容主题</h3>
+            </div>
+            <div class="theme-options">
+              <div 
+                v-for="theme in themeOptions" 
+                :key="theme.value"
+                :class="['theme-option', {active: params.theme === theme.value}]"
+                @click="params.theme = theme.value"
+              >
+                <i :class="theme.icon"></i>
+                <span>{{ theme.label }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 情感风格选择 -->
+          <div class="panel-section">
+            <div class="section-header">
+              <h3>情感风格</h3>
+            </div>
+            <div class="style-toggle">
+              <div 
+                class="style-option"
+                :class="{active: !params.savageMode}"
+                @click="params.savageMode = false"
+              >
+                <i class="fas fa-smile"></i>
+                <span>暖心</span>
+              </div>
+              <div 
+                class="style-option"
+                :class="{active: params.savageMode}"
+                @click="params.savageMode = true"
+              >
+                <i class="fas fa-fire"></i>
+                <span>毒舌</span>
+              </div>
+            </div>
+          </div>
+
           <!-- 运势设置 -->
             <div class="panel-section">
             <div class="section-header">
@@ -232,7 +280,8 @@ import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick } 
 import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
 import LoadingIndicator from '../components/LoadingIndicator.vue';
-import { generateNoteContent, generateLocalContent, getEstimatedResponseTime } from '../services/aiService';
+// 修改回原来的导入方式，确保代码可以正常运行
+import { generateNoteContent, getEstimatedResponseTime } from '../services/aiService';
 import { saveUserPreferences, getUserPreferences, saveNote as saveNoteToStorage } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
 
@@ -259,15 +308,24 @@ const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
 const params = reactive({
   zodiac: null,
   mbti: null,
-  moods: [], // 修改为数组，存储多个表情
+  moods: [], 
   language: 'zh',
   savageMode: false,
   enableFortune: false,
   fortuneAspect: 'overall',
   gender: null,
   age: null,
-  relationship: null
+  relationship: null,
+  theme: 'chat' // 新增主题参数，默认为聊天
 });
+
+// 主题选项
+const themeOptions = [
+  { label: '聊天', value: 'chat', icon: 'fas fa-comment-dots' },
+  { label: '箴言', value: 'aphorism', icon: 'fas fa-book-open' },
+  { label: '诗歌', value: 'poetry', icon: 'fas fa-feather-alt' },
+  { label: '俳句', value: 'haiku', icon: 'fas fa-leaf' }
+];
 
 // 用于自定义表情输入
 const customMood = ref('');
@@ -822,8 +880,11 @@ async function updateLocalPreferences() {
       fontSize: fontSize.value,
       background: currentBackground.value,
       savageMode: params.savageMode,
-      enableFortune: params.enableFortune,  // 保存运势启用状态
-      fortuneAspect: params.fortuneAspect   // 保存运势类型选择
+      theme: params.theme,           // 正确保存主题参数
+      darkMode: darkMode.value,      // 单独保存暗黑模式设置
+      enableFortune: params.enableFortune,
+      fortuneAspect: params.fortuneAspect,
+      moods: params.moods            // 确保保存表情数组
     });
     
     // 强制NoteCard组件更新
@@ -908,10 +969,18 @@ onMounted(async () => {
       params.zodiac = preferences.zodiac;
       params.mbti = preferences.mbti;
       params.language = preferences.language || 'zh';
-      darkMode.value = preferences.theme === 'dark';
+      
+      // 修复：分开处理 darkMode 和 theme 参数
+      // darkMode 是控制界面暗色模式的
+      darkMode.value = preferences.darkMode === true;
+      
+      // 而 theme 是控制内容生成主题的，默认为 'chat'
+      params.theme = preferences.theme || 'chat';
+      
       fontSize.value = preferences.fontSize || 24;
       currentBackground.value = preferences.background || 'paper-1';
       params.savageMode = preferences.savageMode || false;
+      
       // 加载运势偏好
       if (preferences.mood) {
         params.moods = [preferences.mood];
@@ -920,6 +989,7 @@ onMounted(async () => {
       }
       params.enableFortune = preferences.enableFortune || false;
       params.fortuneAspect = preferences.fortuneAspect || 'overall';
+      
       // 加载新增的个人信息
       params.gender = preferences.gender;
       params.age = preferences.age;
@@ -962,6 +1032,12 @@ watch(() => params.fortuneAspect, () => {
   if (params.enableFortune) {
     updateLocalPreferences();
   }
+});
+
+// 修改主题监听器，确保主题改变时保存设置
+watch(() => params.theme, (newTheme) => {
+  console.log('主题已更改为:', newTheme);
+  updateLocalPreferences();
 });
 
 // 新增参数面板状态管理
@@ -1280,14 +1356,11 @@ function getFortuneAspectLabel() {
   gap: var(--spacing-xs);
   max-height: 180px;
   overflow-y: auto;
-  position: relative; /* 添加相对定位 */
-  isolation: isolate; /* 创建新的层叠上下文，确保z-index在容器内部生效 */
 }
 
 
 .emoji-item:hover {
-  transform: scale(1.1);
-  box-shadow: var(--shadow-md);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .emoji-custom {
@@ -1656,8 +1729,6 @@ function getFortuneAspectLabel() {
   padding: var(--spacing-sm);
   border-radius: var(--radius-md);
   background-color: rgba(0, 0, 0, 0.02);
-  position: relative; /* 添加相对定位 */
-  isolation: isolate; /* 创建新的层叠上下文，确保z-index在容器内部生效 */
 }
 
 .emoji-list::-webkit-scrollbar {
@@ -1684,13 +1755,12 @@ function getFortuneAspectLabel() {
   cursor: pointer;
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-xs);
-  /* 不主动设置z-index，让元素按照DOM顺序自然排列 */
 }
 
 .emoji-item:hover {
   transform: scale(1.1);
   box-shadow: var(--shadow-md);
-  /* 删除hover状态的z-index */
+  z-index: 1;
 }
 
 .emoji-item.active {
@@ -1698,7 +1768,7 @@ function getFortuneAspectLabel() {
   color: white;
   transform: scale(1.1);
   box-shadow: var(--shadow-md);
-  /* 删除active状态的z-index */
+  z-index: 2;
 }
 
 /* ...existing code... */
@@ -1836,6 +1906,106 @@ function getFortuneAspectLabel() {
     font-size: 20px;
     width: 40px;
     height: 40px;
+  }
+}
+
+/* 主题选项样式 */
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background-color: var(--bg-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 1px solid var(--border-color);
+  height: 80px;
+}
+
+.theme-option i {
+  font-size: 24px;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.theme-option span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.theme-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-option.active i {
+  color: white;
+}
+
+/* 情感风格选择器样式 */
+.style-toggle {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.style-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background-color: var(--bg-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 1px solid var(--border-color);
+  height: 80px;
+}
+
+.style-option i {
+  font-size: 24px;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.style-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.style-option:last-child.active {
+  background-color: var(--savage-primary-color, #ff5252);
+}
+
+.style-option.active i {
+  color: white;
+}
+
+/* 媒体查询，适配移动设备 */
+@media (max-width: 480px) {
+  .theme-options {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+  
+  .theme-option, .style-option {
+    height: 60px;
+    padding: var(--spacing-sm);
   }
 }
 
