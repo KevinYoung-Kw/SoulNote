@@ -113,154 +113,172 @@
       </div>
     </div>
     
-    <!-- 参数设置面板 (模态弹窗) -->
-    <div class="modal-overlay" v-if="showParamsPanel" @click="closeParamsPanel"></div>
-    <transition name="slide-up">
-      <div class="params-panel" v-if="showParamsPanel">
-        <div class="params-panel-header">
-          <h2>心语参数设置</h2>
-          <button class="icon-btn close-btn" @click="closeParamsPanel">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
+  <!-- 参数设置面板 (模态弹窗) -->
+  <div class="modal-overlay" v-if="showParamsPanel" @click="closeParamsPanel"></div>
+  <transition name="slide-up">
+    <div class="params-panel" v-if="showParamsPanel">
+      <div class="params-panel-header">
+        <h2>心语参数设置</h2>
+        <button class="icon-btn close-btn" @click="closeParamsPanel">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
 
         <div class="params-panel-content">
-          <!-- 心情/场景选择器 -->
+          <!-- 心情/场景选择器 - 添加折叠功能 -->
           <div class="panel-section">
-            <div class="section-header">
+            <div class="section-header collapsible" @click="toggleSection('moods')">
               <h3>心情 / 场景</h3>
-              <div class="mood-counter">
-                <span>{{ params.moods.length }}/5</span>
-                <button v-if="params.moods.length > 0" 
-                        class="icon-btn clear-btn" 
-                        @click="clearMoods">
-                  <i class="fas fa-times-circle"></i>
+              <div class="section-controls">
+                <div class="mood-counter" v-if="!collapsedSections.moods">
+                  <span>{{ params.moods.length }}/5</span>
+                  <button v-if="params.moods.length > 0" 
+                          class="icon-btn clear-btn" 
+                          @click.stop="clearMoods">
+                    <i class="fas fa-times-circle"></i>
+                  </button>
+                </div>
+                <i :class="[collapsedSections.moods ? 'fas fa-chevron-down' : 'fas fa-chevron-up']"></i>
+              </div>
+            </div>
+
+            <div class="section-content" v-show="!collapsedSections.moods">
+              <!-- 显示已选择的表情 -->
+              <div class="selected-emojis" v-if="params.moods.length > 0">
+                <div class="selected-emojis-wrapper">
+                  <div v-for="(emoji, index) in params.moods" 
+                      :key="`selected-${index}`" 
+                      class="selected-emoji-item">
+                    {{ emoji }}
+                    <button class="remove-emoji-btn" @click="removeEmoji(index)">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="emoji-tabs">
+                <div 
+                  v-for="(category, idx) in emojiCategories" 
+                  :key="idx" 
+                  :class="['emoji-tab', {active: currentEmojiCategory === idx}]"
+                  @click="currentEmojiCategory = idx"
+                >
+                  <i :class="category.icon"></i>
+                  <small>{{ category.name }}</small>
+                </div>
+              </div>
+
+              <div class="emoji-list">
+                <div 
+                  v-for="emoji in emojiCategories[currentEmojiCategory].emojis" 
+                  :key="emoji.symbol"
+                  :class="['emoji-item', { active: params.moods.includes(emoji.symbol) }]"
+                  @click="toggleEmoji(emoji.symbol)"
+                  :title="emoji.name"
+                >
+                  {{ emoji.symbol }}
+                </div>
+              </div>
+              
+              <div class="emoji-custom">
+                <input 
+                  type="text" 
+                  v-model="customMood" 
+                  class="mood-input"
+                  placeholder="自定义内容..."
+                  maxlength="5"
+                />
+                <button class="btn btn-small" @click="addCustomEmoji" :disabled="!customMood.trim()">
+                  添加
                 </button>
               </div>
             </div>
+          </div>
 
-            <!-- 显示已选择的表情 -->
-            <div class="selected-emojis" v-if="params.moods.length > 0">
-              <div class="selected-emojis-wrapper">
-                <div v-for="(emoji, index) in params.moods" 
-                    :key="`selected-${index}`" 
-                    class="selected-emoji-item">
-                  {{ emoji }}
-                  <button class="remove-emoji-btn" @click="removeEmoji(index)">
-                    <i class="fas fa-times"></i>
-                  </button>
+          <!-- 新增主题选择 - 添加折叠功能 -->
+          <div class="panel-section">
+            <div class="section-header collapsible" @click="toggleSection('theme')">
+              <h3>内容主题</h3>
+              <i :class="[collapsedSections.theme ? 'fas fa-chevron-down' : 'fas fa-chevron-up']"></i>
+            </div>
+            
+            <div class="section-content" v-show="!collapsedSections.theme">
+              <div class="theme-options">
+                <div 
+                  v-for="theme in themeOptions" 
+                  :key="theme.value"
+                  :class="['theme-option', {active: params.theme === theme.value}]"
+                  @click="params.theme = theme.value"
+                >
+                  <i :class="theme.icon"></i>
+                  <span>{{ theme.label }}</span>
                 </div>
               </div>
             </div>
-
-            <div class="emoji-tabs">
-              <div 
-                v-for="(category, idx) in emojiCategories" 
-                :key="idx" 
-                :class="['emoji-tab', {active: currentEmojiCategory === idx}]"
-                @click="currentEmojiCategory = idx"
-              >
-                <i :class="category.icon"></i>
-                <small>{{ category.name }}</small>
-              </div>
-            </div>
-
-            <div class="emoji-list">
-              <div 
-                v-for="emoji in emojiCategories[currentEmojiCategory].emojis" 
-                :key="emoji.symbol"
-                :class="['emoji-item', { active: params.moods.includes(emoji.symbol) }]"
-                @click="toggleEmoji(emoji.symbol)"
-                :title="emoji.name"
-              >
-                {{ emoji.symbol }}
-              </div>
-            </div>
-            
-            <div class="emoji-custom">
-              <input 
-                type="text" 
-                v-model="customMood" 
-                class="mood-input"
-                placeholder="自定义内容..."
-                maxlength="5"
-              />
-              <button class="btn btn-small" @click="addCustomEmoji" :disabled="!customMood.trim()">
-                添加
-              </button>
-            </div>
-          </div><!-- 添加这个闭合标签 -->
-
-          <!-- 新增主题选择 -->
-          <div class="panel-section">
-            <div class="section-header">
-              <h3>内容主题</h3>
-            </div>
-            <div class="theme-options">
-              <div 
-                v-for="theme in themeOptions" 
-                :key="theme.value"
-                :class="['theme-option', {active: params.theme === theme.value}]"
-                @click="params.theme = theme.value"
-              >
-                <i :class="theme.icon"></i>
-                <span>{{ theme.label }}</span>
-              </div>
-            </div>
           </div>
 
-          <!-- 情感风格选择 -->
+          <!-- 情感风格选择 - 添加折叠功能 -->
           <div class="panel-section">
-            <div class="section-header">
+            <div class="section-header collapsible" @click="toggleSection('style')">
               <h3>情感风格</h3>
+              <i :class="[collapsedSections.style ? 'fas fa-chevron-down' : 'fas fa-chevron-up']"></i>
             </div>
-            <div class="style-toggle">
-              <div 
-                class="style-option"
-                :class="{active: !params.savageMode}"
-                @click="params.savageMode = false"
-              >
-                <i class="fas fa-smile"></i>
-                <span>暖心</span>
-              </div>
-              <div 
-                class="style-option"
-                :class="{active: params.savageMode}"
-                @click="params.savageMode = true"
-              >
-                <i class="fas fa-fire"></i>
-                <span>毒舌</span>
+            
+            <div class="section-content" v-show="!collapsedSections.style">
+              <div class="style-toggle">
+                <div 
+                  class="style-option"
+                  :class="{active: !params.savageMode}"
+                  @click="params.savageMode = false"
+                >
+                  <i class="fas fa-smile"></i>
+                  <span>暖心</span>
+                </div>
+                <div 
+                  class="style-option"
+                  :class="{active: params.savageMode}"
+                  @click="params.savageMode = true"
+                >
+                  <i class="fas fa-fire"></i>
+                  <span>毒舌</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- 运势设置 -->
-            <div class="panel-section">
-            <div class="section-header">
+          <!-- 运势设置 - 添加折叠功能 -->
+          <div class="panel-section">
+            <div class="section-header collapsible" @click="toggleSection('fortune')">
               <h3>今日运势</h3>
-              <div class="toggle-switch-container">
-              <input 
-                type="checkbox" 
-                id="fortuneSwitchPanel" 
-                v-model="params.enableFortune"
-                class="toggle-checkbox"
-              />
-              <label for="fortuneSwitchPanel" class="toggle-label">
-                <span class="toggle-inner"></span>
-                <span class="toggle-switch"></span>
-              </label>
+              <div class="section-controls">
+                <div class="toggle-switch-container" @click.stop>
+                  <input 
+                    type="checkbox" 
+                    id="fortuneSwitchPanel" 
+                    v-model="params.enableFortune"
+                    class="toggle-checkbox"
+                  />
+                  <label for="fortuneSwitchPanel" class="toggle-label">
+                    <span class="toggle-inner"></span>
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+                <i :class="[collapsedSections.fortune ? 'fas fa-chevron-down' : 'fas fa-chevron-up']"></i>
               </div>
             </div>
             
-            <div class="fortune-options" v-if="params.enableFortune">
-              <div 
-                v-for="aspect in fortuneAspects" 
-                :key="aspect.value"
-                :class="['fortune-option', {active: params.fortuneAspect === aspect.value}]"
-                @click="params.fortuneAspect = aspect.value"
-              >
-                <i :class="aspect.icon"></i>
-                <span>{{ aspect.label }}</span>
+            <div class="section-content" v-show="!collapsedSections.fortune && params.enableFortune">
+              <div class="fortune-options">
+                <div 
+                  v-for="aspect in fortuneAspects" 
+                  :key="aspect.value"
+                  :class="['fortune-option', {active: params.fortuneAspect === aspect.value}]"
+                  @click="params.fortuneAspect = aspect.value"
+                >
+                  <i :class="aspect.icon"></i>
+                  <span>{{ aspect.label }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -702,6 +720,17 @@ const animationDuration = computed(() => {
   return baseDuration;
 });
 
+const collapsedSections = reactive({
+  moods: false,
+  theme: true,  // 默认折叠主题
+  style: true,  // 默认折叠风格
+  fortune: true // 默认折叠运势
+});
+
+// 切换区域的折叠状态
+function toggleSection(section) {
+  collapsedSections[section] = !collapsedSections[section];
+}
 
 // 修改生成笔记函数，允许更长的内容
 async function generateNote() {
@@ -1598,6 +1627,7 @@ function getFortuneAspectLabel() {
   backdrop-filter: blur(4px);
 }
 
+/* 修改参数面板样式，确保有正确的z-index */
 .params-panel {
   position: fixed;
   bottom: 0;
@@ -1621,7 +1651,7 @@ function getFortuneAspectLabel() {
   position: sticky;
   top: 0;
   background-color: var(--card-bg);
-  z-index: 2;
+  z-index: 103;
 }
 
 .params-panel-header h2 {
@@ -1654,6 +1684,32 @@ function getFortuneAspectLabel() {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+}
+
+.section-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.section-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 修改情绪计数器，防止点击穿透 */
+.mood-counter {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
 .section-header h3 {
@@ -1669,6 +1725,7 @@ function getFortuneAspectLabel() {
   bottom: 0;
   background-color: var(--card-bg);
   gap: var(--spacing-md);
+  z-index: 103;
 }
 
 /* Emoji选择器样式修改 */
@@ -2008,6 +2065,16 @@ function getFortuneAspectLabel() {
     padding: var(--spacing-sm);
   }
 }
+
+.collapsible {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.collapsible:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
 
 /* ...existing code... */
 </style>

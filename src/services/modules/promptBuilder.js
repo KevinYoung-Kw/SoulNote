@@ -92,7 +92,7 @@ export async function buildPrompt(params, debugLog = () => {}) {
   ## 这个人的性格行为表现:
   ${personalityInsights}
   
-  ## 当前环境与时间情境（用于情境推测）:
+  ## 当前环境与时间情境（用于情境推测与建议）:
   - 当前时间：${formattedTime}，${timeContext.period}时分
   - 当前日期：星期${timeContext.dateInfo.weekDay}，${timeContext.dateInfo.dayType}
   - 农历日期：${timeContext.dateInfo.lunarDate}，${timeContext.dateInfo.animal}年

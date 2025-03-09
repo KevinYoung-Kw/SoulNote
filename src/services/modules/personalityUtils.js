@@ -175,78 +175,336 @@ export function getRelationshipTraits(relationship) {
  * @returns {string} 性格特质的具体表现描述
  */
 export function getPersonalityInsights(zodiac, mbtiType) {
-  let insights = [];
-  
-  // 基于星座添加具体洞察
-  switch(zodiac) {
-    case 'aries':
-      insights.push('喜欢直接切入主题', '欣赏新点子和可能性', '不喜欢拖沓和过多细节');
-      break;
-    case 'taurus':
-      insights.push('重视稳定和舒适', '欣赏实际的建议而非理论', '需要时间接受新事物');
-      break;
-    case 'gemini':
-      insights.push('喜欢多样化的话题', '欣赏灵活多变的想法', '不喜欢重复和单调');
-      break;
-    case 'cancer':
-      insights.push('关注情感和关系', '欣赏体贴和理解', '需要安全感和认同');
-      break;
-    case 'leo':
-      insights.push('喜欢被认可和欣赏', '重视自我表达', '乐于分享成就和创意');
-      break;
-    case 'virgo':
-      insights.push('注重细节和实用性', '欣赏清晰和条理', '倾向于分析和改进');
-      break;
-    case 'libra':
-      insights.push('寻求平衡和协调', '欣赏不同观点', '在做决定前会权衡利弊');
-      break;
-    case 'scorpio':
-      insights.push('重视真诚和深度', '不喜欢表面交流', '关注背后的动机和含义');
-      break;
-    case 'sagittarius':
-      insights.push('追求自由和探索', '喜欢开阔视野', '不喜欢被约束和重复');
-      break;
-    case 'capricorn':
-      insights.push('关注目标和成就', '欣赏踏实和负责', '重视时间和资源管理');
-      break;
-    case 'aquarius':
-      insights.push('独立思考和创新', '关注更大的想法和社会', '不喜欢遵循常规');
-      break;
-    case 'pisces':
-      insights.push('丰富的想象力和同理心', '感受细腻', '有时会沉浸在自己的世界');
-      break;
+    let insights = [];
+    
+    // 基于星座添加具体洞察
+    switch(zodiac) {
+      case 'aries':
+        insights.push(
+          '喜欢直接切入主题', 
+          '欣赏新点子和可能性', 
+          '不喜欢拖沓和过多细节',
+          '做决定时果断且迅速',
+          '偏好挑战和竞争环境',
+          '热爱开创性的项目',
+          '沟通方式直接且坦率',
+          '遇到困难时表现出坚韧和勇气',
+          '容易对新事物产生兴趣',
+          '善于带领他人朝目标前进'
+        );
+        break;
+      case 'taurus':
+        insights.push(
+          '重视稳定和舒适', 
+          '欣赏实际的建议而非理论', 
+          '需要时间接受新事物',
+          '在决策前会充分考虑价值和回报',
+          '注重感官体验和美感',
+          '坚持自己认为正确的道路',
+          '偏好有条理、可预测的环境',
+          '非常忠诚但需要时间建立信任',
+          '重视高质量的物质享受',
+          '处理问题时脚踏实地且有耐心'
+        );
+        break;
+      case 'gemini':
+        insights.push(
+          '喜欢多样化的话题', 
+          '欣赏灵活多变的想法', 
+          '不喜欢重复和单调',
+          '善于同时处理多个任务或想法',
+          '沟通风格机智且多元',
+          '思维敏捷，善于文字和语言表达',
+          '容易对单一活动感到无聊',
+          '渴望不断学习新知识和技能',
+          '情绪和兴趣变化较快',
+          '能从多角度看待问题'
+        );
+        break;
+      case 'cancer':
+        insights.push(
+          '关注情感和关系', 
+          '欣赏体贴和理解', 
+          '需要安全感和认同',
+          '拥有极强的情感记忆',
+          '直觉敏锐，能感知他人情绪',
+          '珍视家庭和亲密关系',
+          '在熟悉环境中才能完全展现自我',
+          '面对压力时可能需要情感支持',
+          '保护欲强，愿为亲近的人付出',
+          '对环境和氛围特别敏感'
+        );
+        break;
+      case 'leo':
+        insights.push(
+          '喜欢被认可和欣赏', 
+          '重视自我表达', 
+          '乐于分享成就和创意',
+          '渴望成为关注的焦点',
+          '天生具有领导气质',
+          '对赞美和肯定非常敏感',
+          '慷慨大方，愿意帮助他人',
+          '热爱戏剧性和创造性的表达',
+          '在团队中自然承担责任',
+          '对忠诚和尊重非常看重'
+        );
+        break;
+      case 'virgo':
+        insights.push(
+          '注重细节和实用性', 
+          '欣赏清晰和条理', 
+          '倾向于分析和改进',
+          '善于发现问题和解决方案',
+          '对自己和他人有高标准',
+          '做事有条理且有计划性',
+          '善于观察微小的变化和细节',
+          '追求精确和完美',
+          '重视健康和日常习惯',
+          '沟通方式注重事实和准确性'
+        );
+        break;
+      case 'libra':
+        insights.push(
+          '寻求平衡和协调', 
+          '欣赏不同观点', 
+          '在做决定前会权衡利弊',
+          '天生的外交家，善于调解冲突',
+          '对美和和谐有敏锐的感知',
+          '重视公平和正义',
+          '善于看到事物的多个方面',
+          '追求理想中的关系和环境',
+          '倾向于避免极端和冲突',
+          '决策时可能过于考虑他人感受'
+        );
+        break;
+      case 'scorpio':
+        insights.push(
+          '重视真诚和深度', 
+          '不喜欢表面交流', 
+          '关注背后的动机和含义',
+          '有极强的洞察力和直觉',
+          '感情深沉且持久',
+          '重视隐私和内在世界',
+          '面对挑战表现出顽强的韧性',
+          '对背叛和不诚实特别敏感',
+          '愿意探索taboo和深层次话题',
+          '对投入的事物有极强的专注力'
+        );
+        break;
+      case 'sagittarius':
+        insights.push(
+          '追求自由和探索', 
+          '喜欢开阔视野', 
+          '不喜欢被约束和重复',
+          '思维开放，热爱哲学和宏大主题',
+          '向往adventure和新体验',
+          '乐观积极，幽默感强',
+          '讨厌被束缚或限制',
+          '直率表达想法和观点',
+          '热衷于学习不同文化和思想',
+          '重视诚实和真理'
+        );
+        break;
+      case 'capricorn':
+        insights.push(
+          '关注目标和成就', 
+          '欣赏踏实和负责', 
+          '重视时间和资源管理',
+          '制定长期计划且坚定执行',
+          '做事严谨且有规划',
+          '重视传统和经验',
+          '对个人成就和社会地位有追求',
+          '工作态度认真负责',
+          '善于克服困难和障碍',
+          '面对挑战表现出坚韧和耐力'
+        );
+        break;
+      case 'aquarius':
+        insights.push(
+          '独立思考和创新', 
+          '关注更大的想法和社会', 
+          '不喜欢遵循常规',
+          '思维前卫且具有未来导向',
+          '重视个人自由和独立性',
+          '对社会议题和人道主义有热情',
+          '愿意尝试非传统的方法和想法',
+          '看问题角度独特且有洞见',
+          '对知识和理论有强烈兴趣',
+          '重视思想上的交流和共鸣'
+        );
+        break;
+      case 'pisces':
+        insights.push(
+          '丰富的想象力和同理心', 
+          '感受细腻', 
+          '有时会沉浸在自己的世界',
+          '天生艺术气质和创造力',
+          '能感知他人情感和需求',
+          '追求精神和灵性的深度',
+          '拥有强大的直觉和预感',
+          '容易被艺术和美所触动',
+          '有时会逃避现实的挑战',
+          '心灵开放，包容不同的可能性'
+        );
+        break;
+    }
+    
+    // 基于MBTI类型添加具体洞察
+    if (mbtiType.includes('I')) {
+      insights.push(
+        '需要独处时间恢复能量', 
+        '喜欢深度而非广度的交流',
+        '倾向于先思考后表达',
+        '更喜欢一对一或小团体交流',
+        '在做决定前需要时间内省',
+        '通常在熟悉场合表现更自然'
+      );
+    } else if (mbtiType.includes('E')) {
+      insights.push(
+        '通过交流和分享获得能量', 
+        '喜欢讨论想法和体验',
+        '思考时偏好边说边想',
+        '在团体中感到活力和兴奋',
+        '倾向于更开放地表达情绪和想法',
+        '喜欢参与社交活动拓展人际圈'
+      );
+    }
+    
+    if (mbtiType.includes('S')) {
+      insights.push(
+        '关注具体和实际', 
+        '重视经验和事实',
+        '注重当下和实际可行的方案',
+        '喜欢有序且清晰的信息',
+        '解决问题时依赖已知方法',
+        '对细节有敏锐的观察力'
+      );
+    } else if (mbtiType.includes('N')) {
+      insights.push(
+        '关注意义和联系', 
+        '喜欢探索可能性和概念',
+        '容易发现模式和隐含意义',
+        '享受抽象和理论性的讨论',
+        '倾向于关注未来和创新',
+        '重视直觉和灵感'
+      );
+    }
+    
+    if (mbtiType.includes('T')) {
+      insights.push(
+        '重视逻辑和客观', 
+        '在决策时考虑利弊',
+        '追求公平和一致性',
+        '倾向于分析问题寻求解决方案',
+        '表达时注重清晰和准确',
+        '面对批评时关注内容而非表达方式'
+      );
+    } else if (mbtiType.includes('F')) {
+      insights.push(
+        '重视和谐和个人价值观', 
+        '在决策时考虑他人感受',
+        '善于理解他人情感需求',
+        '注重真实性和个人认同',
+        '在表达批评时考虑影响',
+        '看重赞赏和积极反馈'
+      );
+    }
+    
+    if (mbtiType.includes('J')) {
+      insights.push(
+        '喜欢确定性和规划', 
+        '注重完成和结果',
+        '倾向于建立结构和系统',
+        '享受按计划行事的满足感',
+        '提前做决定以减少不确定性',
+        '重视截止日期和承诺'
+      );
+    } else if (mbtiType.includes('P')) {
+      insights.push(
+        '喜欢灵活性和开放选项', 
+        '享受过程和探索',
+        '适应能力强，容易接受变化',
+        '倾向于保留选择和可能性',
+        '决策过程较为灵活开放',
+        '享受自发性和随机惊喜'
+      );
+    }
+    
+    // 特定MBTI组合的独特洞察
+    if (mbtiType === 'INFJ' || mbtiType === 'INTJ') {
+      insights.push(
+        '拥有强大的远见和洞察力',
+        '重视个人成长和持续学习',
+        '对内在矛盾有深刻理解'
+      );
+    }
+    
+    if (mbtiType === 'ENFP' || mbtiType === 'ENTP') {
+      insights.push(
+        '思维跳跃且富有创造力',
+        '能激发他人的热情和想法',
+        '常常寻求新的可能性和冒险'
+      );
+    }
+    
+    if (mbtiType === 'ISTJ' || mbtiType === 'ISFJ') {
+      insights.push(
+        '可靠且负责任',
+        '重视传统和既定流程',
+        '关注细节且记忆力强'
+      );
+    }
+    
+    if (mbtiType === 'ESTP' || mbtiType === 'ESFP') {
+      insights.push(
+        '活在当下，享受即时体验',
+        '解决问题能力强且实用',
+        '喜欢刺激和多变的环境'
+      );
+    }
+    
+    // 星座和MBTI的组合洞察
+    if ((zodiac === 'aries' || zodiac === 'leo' || zodiac === 'sagittarius') && 
+        (mbtiType.includes('E') && mbtiType.includes('N'))) {
+      insights.push(
+        '充满活力且具有感染力',
+        '在团队中自然成为思想领袖',
+        '善于激发他人的热情和创造力'
+      );
+    }
+    
+    if ((zodiac === 'taurus' || zodiac === 'virgo' || zodiac === 'capricorn') && 
+        (mbtiType.includes('S') && mbtiType.includes('J'))) {
+      insights.push(
+        '做事高效且有条理',
+        '善于管理资源和时间',
+        '注重实际结果和可靠性'
+      );
+    }
+    
+    if ((zodiac === 'gemini' || zodiac === 'libra' || zodiac === 'aquarius') && 
+        (mbtiType.includes('N') && mbtiType.includes('T'))) {
+      insights.push(
+        '思维开放且善于概念性思考',
+        '喜欢理性分析和探索新想法',
+        '在交流中展现智慧和见解'
+      );
+    }
+    
+    if ((zodiac === 'cancer' || zodiac === 'scorpio' || zodiac === 'pisces') && 
+        (mbtiType.includes('I') && mbtiType.includes('F'))) {
+      insights.push(
+        '情感丰富且富有同理心',
+        '有深刻的内在世界和直觉',
+        '在亲密关系中展现真诚和深度'
+      );
+    }
+    
+    // 随机选择5条洞察（如果有那么多）
+    if (insights.length > 5) {
+      const shuffled = [...insights].sort(() => 0.5 - Math.random());
+      insights = shuffled.slice(0, 5);
+    }
+    
+    return insights.map(insight => `- ${insight}`).join('\n');
   }
-  
-  // 基于MBTI类型添加具体洞察
-  if (mbtiType.includes('I')) {
-    insights.push('需要独处时间恢复能量', '喜欢深度而非广度的交流');
-  } else if (mbtiType.includes('E')) {
-    insights.push('通过交流和分享获得能量', '喜欢讨论想法和体验');
-  }
-  
-  if (mbtiType.includes('S')) {
-    insights.push('关注具体和实际', '重视经验和事实');
-  } else if (mbtiType.includes('N')) {
-    insights.push('关注意义和联系', '喜欢探索可能性和概念');
-  }
-  
-  if (mbtiType.includes('T')) {
-    insights.push('重视逻辑和客观', '在决策时考虑利弊');
-  } else if (mbtiType.includes('F')) {
-    insights.push('重视和谐和个人价值观', '在决策时考虑他人感受');
-  }
-  
-  if (mbtiType.includes('J')) {
-    insights.push('喜欢确定性和规划', '注重完成和结果');
-  } else if (mbtiType.includes('P')) {
-    insights.push('喜欢灵活性和开放选项', '享受过程和探索');
-  }
-  
-  // 随机选择5条洞察（如果有那么多）
-  if (insights.length > 5) {
-    const shuffled = [...insights].sort(() => 0.5 - Math.random());
-    insights = shuffled.slice(0, 5);
-  }
-  
-  return insights.map(insight => `- ${insight}`).join('\n');
-}

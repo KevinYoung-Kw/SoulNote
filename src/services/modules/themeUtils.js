@@ -24,9 +24,9 @@ export function getThemePrompt(theme, savageMode = false) {
     // 聊天主题
     if (savageMode) {
       basePrompt.requirements = [
-        '用犀利幽默的语气调侃对方',
-        '像老朋友一样嘲笑对方的弱点',
-        '使用口语化、随性的表达'
+        '充分了解、洞见人性的刻薄人士',
+        '尽可能用平淡的语气说出对方这个特点最不能接受的话',
+        '让对方"破防"，既感到尴尬又忍不住认同'
       ];
       basePrompt.examples = [
         '又在自我感动了？你这戏精上身的样子真是让人忍俊不禁。',
