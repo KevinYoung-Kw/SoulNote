@@ -871,19 +871,47 @@ async function saveNote() {
   }
 }
 
+function isWechatBrowser() {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.indexOf('micromessenger') !== -1;
+}
+
+// 修改exportNote函数
 async function exportNote() {
   if (!noteCardRef.value || !noteContent.value) return;
+  
+  // 先检测是否是微信浏览器
+  if (isWechatBrowser()) {
+    // 使用自定义对话框而非alert，以提供更友好的体验
+    const confirmed = confirm('检测到您正在使用微信浏览器，微信限制了保存图片功能。\n\n建议您：\n1. 点击右上角"..."，选择"在浏览器中打开"\n2. 或使用Chrome/Safari等系统浏览器访问\n\n由于使用了浏览器缓存技术，所有数据都存储在当前浏览器，换浏览器会丢失现有数据。如果喜欢这条心语，可以点击分享导出图片，长按保存图片。\n\n是否继续尝试保存？');
+    
+    if (!confirmed) return;
+  }
   
   try {
     const imageUrl = await exportAsImage(noteCardRef.value.$el);
     if (imageUrl) {
-      await saveToDevice(imageUrl, `心语_${new Date().toISOString().slice(0,10)}.png`);
+      try {
+        await saveToDevice(imageUrl, `心语_${new Date().toISOString().slice(0,10)}.png`);
+        // 如果成功保存，无需任何额外操作
+      } catch (downloadError) {
+        // 如果保存失败，可能是浏览器阻止了下载
+        if (isWechatBrowser()) {
+          // 针对微信浏览器提供更具体的引导
+          alert('保存失败。由于微信浏览器限制，无法直接保存图片。\n\n请点击右上角"..."，选择"在浏览器中打开"后重试，或使用其他浏览器访问。');
+        } else {
+          // 对于其他浏览器的通用错误提示
+          alert('保存图片失败，可能是浏览器阻止了下载。请尝试允许浏览器下载文件或使用其他浏览器。');
+        }
+        logger.error('EXPORT', '保存设备失败:', downloadError);
+      }
     }
   } catch (error) {
     logger.error('EXPORT', '导出失败:', error);
     alert('导出图片失败，请重试');
   }
 }
+
 
 async function shareNote() {
   if (!noteCardRef.value || !noteContent.value) return;
