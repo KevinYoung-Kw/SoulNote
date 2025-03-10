@@ -286,6 +286,8 @@ const isVerifying = ref(false);
 const inviteCodeError = ref(false);
 const inviteCodeErrorMessage = ref('');
 
+const errorMessage = ref(''); // 添加这一行到其他ref变量附近
+
 // 后端API URL - 应该从环境变量获取
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
@@ -535,33 +537,40 @@ function checkExistingInviteCode() {
   }
 }
 
+// 修改completeOnboarding函数，移除生成笔记的逻辑
 async function completeOnboarding() {
   try {
-    // Generate a sample note for the user
-    const params = {
+    // 直接保存用户偏好设置，不再生成样例纸条
+    const prefsToSave = {
       zodiac: userPreferences.zodiac,
       mbti: userPreferences.mbti,
-      moods: ['😊'],
+      moods: ['😊'], // 默认心情
       theme: 'chat',
       savageMode: false,
       gender: userPreferences.gender,
       age: userPreferences.age,
-      relationship: userPreferences.relationship
+      relationship: userPreferences.relationship,
+      language: userPreferences.language || 'zh',
+      fontSize: userPreferences.fontSize || 24,
+      background: userPreferences.background || 'paper-1',
+      enableFortune: false, // 默认不启用运势
+      fortuneAspect: 'overall' // 默认运势方面
     };
     
-    // Use generateNote instead of generateNoteContent
-    const result = await generateNote(params);
-    sampleNote.value = result.data.content;
+    // 移除生成笔记的代码，直接保存用户偏好
+    await saveUserPreferences(prefsToSave);
     
-    // Save user preferences to localStorage
-    localStorage.setItem('userPreferences', JSON.stringify(userPreferences));
-    localStorage.setItem('onboardingCompleted', 'true');
+    // 设置引导完成标志
+    await setOnboardingCompleted(true);
     
-    // Navigate to home page
+    // 导航到主页
+    console.log('引导完成，导航到主页');
     router.push('/');
   } catch (error) {
     console.error('Could not complete onboarding:', error);
     errorMessage.value = '设置过程中出现错误，请重试';
+    // 显示错误信息给用户
+    alert('无法完成设置: ' + error.message);
   }
 }
 
