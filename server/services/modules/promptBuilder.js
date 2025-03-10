@@ -1,7 +1,7 @@
-import { zodiacMap } from './constants.js';
-import { getThemePrompt, getThemeWordLimit } from './themeUtils.js';
-import { getTimeContext } from './timeUtils.js';
-import { 
+const { zodiacMap } = require('./constants.js');
+const { getThemePrompt, getThemeWordLimit } = require('./themeUtils.js');
+const { getTimeContext } = require('./timeUtils.js');
+const { 
   getZodiacTraits, 
   getMbtiTraits, 
   getGenderLabel, 
@@ -11,8 +11,8 @@ import {
   getAgeTraits, 
   getRelationshipTraits,
   getPersonalityInsights
-} from './personalityUtils.js';
-import { getZodiacFortune } from './fortuneUtils.js';
+} = require('./personalityUtils.js');
+const { getZodiacFortune } = require('./fortuneUtils.js');
 
 /**
  * 构建提示词
@@ -20,7 +20,7 @@ import { getZodiacFortune } from './fortuneUtils.js';
  * @param {function} debugLog 调试日志函数
  * @returns {Promise<string>} 完整的提示词
  */
-export async function buildPrompt(params, debugLog = () => {}) {
+async function buildPrompt(params, debugLog = () => {}) {
   // 获取中文星座名称
   const zodiacChinese = zodiacMap[params.zodiac] || '未知星座';
   const mbtiType = params.mbti || 'MBTI类型';
@@ -195,3 +195,7 @@ export async function buildPrompt(params, debugLog = () => {}) {
   
   return basePrompt;
 }
+
+module.exports = {
+  buildPrompt
+};

@@ -94,15 +94,34 @@
 │   │   └── main.css        # 主样式文件
 │   ├── App.vue             # 应用根组件
 │   └── main.js             # 应用入口
-├── server/                 # 服务器端代码
-│   ├── controllers/        # 控制器
-│   ├── models/             # 数据模型
-│   ├── routes/             # 路由
-│   ├── services/           # 服务
-│   ├── utils/              # 工具函数
-│   ├── .env.example        # 环境变量示例
-│   ├── app.js              # 应用入口
-│   └── server.js           # 服务器入口
+server/
+  ├── controllers/          # API 控制器
+  │   └── noteController.js # 处理笔记生成请求
+  ├── services/             # 业务逻辑服务
+  │   ├── aiService.js      # AI API 调用服务
+  │   ├── promptService.js  # 提示词构建服务
+  │   └── modules/          # 提示词模块
+  │       ├── constants.js     # 常量定义
+  │       ├── apiService.js    # API服务函数
+  │       ├── fortuneUtils.js  # 运势相关工具
+  │       ├── personalityUtils.js # 性格特质工具
+  │       ├── promptBuilder.js # 提示词构建器
+  │       ├── themeUtils.js    # 主题工具
+  │       ├── timeUtils.js     # 时间相关工具
+  │       └── index.js         # 模块导出
+  ├── utils/                # 工具函数
+  │   ├── constants.js      # 全局常量定义
+  │   └── logger.js         # 日志工具
+  ├── routes/               # 路由定义
+  │   └── noteRoutes.js     # 笔记生成相关路由
+  ├── data/                 # 数据文件夹 (已有)
+  ├── middleware/           # 中间件
+  │   ├── auth.js           # 认证中间件
+  │   └── rateLimiter.js    # 请求限制中间件
+  ├── config/               # 配置
+  │   └── config.js         # 环境配置
+  ├── index.js              # 入口文件 (已有)
+  └── package.json          # 项目配置 (已有)
 ├── .env.example            # 环境变量示例
 ├── index.html              # HTML入口
 ├── package.json            # 依赖配置

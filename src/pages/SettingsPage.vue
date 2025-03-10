@@ -355,6 +355,7 @@
 import { ref, reactive, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserPreferences, saveUserPreferences, resetUserData } from '../services/storageService';
+import logger from '../utils/logger';
 
 const router = useRouter();
 const showZodiacSelector = ref(false);
@@ -646,13 +647,13 @@ onMounted(async () => {
     document.body.classList.toggle('savage-mode', isSavageMode.value);
     
     // 检查并打印当前激活的模式
-    console.log('Current modes:', {
+    logger.info('SETTINGS', '当前模式设置', {
       darkMode: isDarkMode.value,
       savageMode: isSavageMode.value
     });
-    console.log('Body classes:', document.body.classList);
+    logger.info('DOM', 'Body classes:', document.body.classList);
   } catch (error) {
-    console.error('加载用户偏好失败:', error);
+    logger.error('SETTINGS', '加载用户偏好失败', error);
   }
 });
 
@@ -1025,7 +1026,7 @@ input:checked + .switch-label::after {
 .reset-btn {
   padding: var(--spacing-xs) var(--spacing-md);
   font-size: 14px;
-  border-radius: var(--radius-md);
+  border-radius: var (--radius-md);
   display: flex;
   align-items: center;
 }

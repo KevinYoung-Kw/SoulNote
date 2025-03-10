@@ -99,7 +99,6 @@ const sanitizedContent = computed(() => {
   // 如果以 <content> 开头，但没有结束标签，添加结束标签
   if (content.includes('<content>') && !content.includes('</content>')) {
     content = content.replace('<content>', '').trim();
-    console.log('已修复缺少的结束标签');
   }
   
   // 移除所有content标签，只显示实际内容
@@ -160,7 +159,6 @@ const cardStyle = computed(() => {
 
 // 创建内容样式的计算属性，确保字体大小变化时能够正确更新
 const contentStyle = computed(() => {
-  console.log("应用字体大小:", props.fontSize);
   return {
     fontSize: `${props.fontSize}px`,
     fontFamily: 'var(--font-note)', // 确保使用正确的字体变量
@@ -196,13 +194,11 @@ onMounted(() => {
     document.fonts.ready.then(() => {
       // 字体加载完成后设置标志
       fontLoaded.value = true;
-      console.log('Fonts have been loaded');
     });
   } else {
     // 如果浏览器不支持 document.fonts API，设置一个超时作为替代
     setTimeout(() => {
       fontLoaded.value = true;
-      console.log('Assuming fonts loaded after timeout');
     }, 1000);
   }
 });
@@ -216,13 +212,11 @@ watch(() => props.content, (newContent, oldContent) => {
 
 // 监听字体大小变化，强制更新DOM
 watch(() => props.fontSize, (newSize) => {
-  console.log('Font size changed to:', newSize);
   // 确保DOM更新
   nextTick(() => {
     const contentEl = noteCardRef.value?.querySelector('.note-content');
     if (contentEl) {
       contentEl.style.fontSize = `${newSize}px`;
-      console.log('直接更新DOM元素字体大小:', newSize);
     }
   });
 }, { immediate: true });

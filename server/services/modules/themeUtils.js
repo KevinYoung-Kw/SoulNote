@@ -1,4 +1,4 @@
-import { THEMES, themeConfigs } from './constants';
+const { THEMES, themeConfigs } = require('./constants');
 
 /**
  * 获取特定主题的提示词模板
@@ -6,7 +6,7 @@ import { THEMES, themeConfigs } from './constants';
  * @param {boolean} savageMode 是否为毒舌模式
  * @returns {Object} 主题提示词模板
  */
-export function getThemePrompt(theme, savageMode = false) {
+function getThemePrompt(theme, savageMode = false) {
   // 默认使用聊天主题
   const themeKey = Object.values(THEMES).includes(theme) ? theme : THEMES.CHAT;
   const config = themeConfigs[themeKey];
@@ -143,9 +143,9 @@ export function getThemePrompt(theme, savageMode = false) {
       ];
       basePrompt.examples = [
         '数学多选题\n啥也不会选了C\n答案ABD',
-        '夜深想母亲\n哭泣过后脚冰冷\n被套长宽反'
-        `早八去上课\n两点才能吃上饭\n我需要食物`,
-        `帮人取快递\n对方迟迟不发码\n身后排长队`
+        '夜深想母亲\n哭泣过后脚冰冷\n被套长宽反', 
+        '早八去上课\n两点才能吃上饭\n我需要食物', 
+        '帮人取快递\n对方迟迟不发码\n身后排长队'   
       ];
       basePrompt.limits = [
         '不需要强行融入自然意象',
@@ -165,7 +165,7 @@ export function getThemePrompt(theme, savageMode = false) {
  * @param {string} language 语言 ('zh'|'en-zh')
  * @returns {string} 字数限制描述
  */
-export function getThemeWordLimit(theme, language) {
+function getThemeWordLimit(theme, language) {
   const themeKey = Object.values(THEMES).includes(theme) ? theme : THEMES.CHAT;
   const config = themeConfigs[themeKey];
   
@@ -183,7 +183,7 @@ export function getThemeWordLimit(theme, language) {
  * @param {Object} params 其他参数
  * @returns {string} 生成的备用内容
  */
-export function generateThemeLocalContent(theme, savageMode, params) {
+function generateThemeLocalContent(theme, savageMode, params) {
   const themeKey = Object.values(THEMES).includes(theme) ? theme : THEMES.CHAT;
   const templates = [];
   
@@ -289,3 +289,9 @@ export function generateThemeLocalContent(theme, savageMode, params) {
   // 随机选择一个模板
   return templates[Math.floor(Math.random() * templates.length)];
 }
+
+module.exports = {
+  getThemePrompt,
+  getThemeWordLimit,
+  generateThemeLocalContent
+};

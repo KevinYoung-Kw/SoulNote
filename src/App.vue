@@ -20,6 +20,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserPreferences } from './services/storageService';
+import logger from './utils/logger';
 
 const router = useRouter();
 const showAdminButton = ref(false);
@@ -46,18 +47,18 @@ onMounted(async () => {
     // 应用暗黑模式
     if (preferences && preferences.theme === 'dark') {
       document.body.classList.add('dark-mode');
-      console.log('Dark mode activated on app load');
+      logger.info('THEME', 'Dark mode activated on app load');
     }
     
     // 应用毒舌模式
     if (preferences && preferences.savageMode) {
       document.body.classList.add('savage-mode');
-      console.log('Savage mode activated on app load');
+      logger.info('THEME', 'Savage mode activated on app load');
     }
     
     // 添加全局事件监听，用于处理偏好设置更新
     document.addEventListener('preferences-updated', async (event) => {
-      console.log('Preferences updated event received:', event.detail);
+      logger.info('PREFERENCES', 'Preferences updated event received:', event.detail);
       const updatedPrefs = await getUserPreferences();
       
       // 更新页面状态以适应新的偏好设置
@@ -67,11 +68,8 @@ onMounted(async () => {
       }
     });
     
-    // 调试信息
-    console.log('Loaded preferences:', preferences);
-    console.log('Current body classes:', document.body.classList.toString());
   } catch (error) {
-    console.error('初始化主题失败:', error);
+    logger.error('APP', '初始化应用失败', error);
   } finally {
     appReady.value = true;
   }

@@ -1,11 +1,29 @@
-import { Lunar, Solar, HolidayUtil } from 'lunar-javascript';
+/**
+ * 时间工具模块 - 提供时间相关的辅助功能
+ */
+
+// 由于lunar-javascript库可能使用ESM格式，尝试以兼容方式导入
+let Lunar, Solar, HolidayUtil;
+try {
+  const lunarJS = require('lunar-javascript');
+  // 检查是否成功导入
+  if (lunarJS && lunarJS.Lunar) {
+    Lunar = lunarJS.Lunar;
+    Solar = lunarJS.Solar;
+    HolidayUtil = lunarJS.HolidayUtil;
+  } else {
+    console.warn('lunar-javascript导入不完整，将使用简化的时间处理');
+  }
+} catch (error) {
+  console.warn('无法导入lunar-javascript，将使用简化的时间处理:', error.message);
+}
 
 /**
  * 获取当前时段及相关建议
  * @param {boolean} savageMode 是否为毒舌模式
  * @returns {Object} 时段描述和建议
  */
-export function getTimeContext(savageMode = false) {
+function getTimeContext(savageMode = false) {
   const now = new Date();
   const hour = now.getHours();
   const year = now.getFullYear();
@@ -15,39 +33,51 @@ export function getTimeContext(savageMode = false) {
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const formattedTime = `${year}-${month}-${date} ${hours}:${minutes}`;
   
-  // 获取农历信息
-  const solar = Solar.fromDate(now);
-  const lunar = solar.getLunar();
+  // 基本的日期信息
+  const dayOfWeek = now.getDay();
+  let lunarDate = '未知';
+  let animal = '未知';
+  let festivals = [];
+  let isHoliday = false;
+  let holidayName = '';
   
-  // 获取节日信息
-  const festivals = [];
-  
-  // 获取公历节日
-  const solarFestivals = solar.getFestivals();
-  if (solarFestivals.length > 0) {
-    festivals.push(...solarFestivals);
+  // 尝试获取农历信息
+  try {
+    if (Solar && Lunar && HolidayUtil) {
+      const solar = Solar.fromDate(now);
+      const lunar = solar.getLunar();
+      
+      // 农历日期
+      lunarDate = `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
+      animal = lunar.getYearShengXiao();
+      
+      // 获取节日信息
+      const solarFestivals = solar.getFestivals();
+      if (solarFestivals.length > 0) {
+        festivals.push(...solarFestivals);
+      }
+      
+      const lunarFestivals = lunar.getFestivals();
+      if (lunarFestivals.length > 0) {
+        festivals.push(...lunarFestivals);
+      }
+      
+      // 获取节气
+      const jieQi = lunar.getJieQi();
+      if (jieQi) {
+        festivals.push(`${jieQi}节气`);
+      }
+      
+      // 判断是否为法定假日
+      const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay());
+      isHoliday = holiday !== null;
+      holidayName = holiday ? holiday.getName() : '';
+    }
+  } catch (error) {
+    console.warn('获取农历信息失败:', error.message);
   }
-
-  // 获取农历节日
-  const lunarFestivals = lunar.getFestivals();
-  if (lunarFestivals.length > 0) {
-    festivals.push(...lunarFestivals);
-  }
-
-  // 获取节气
-  const jieQi = lunar.getJieQi();
-  let term = jieQi || null;
-  if (jieQi) {
-    festivals.push(`${jieQi}节气`);
-  }
-
-  // 判断是否为法定假日
-  const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay());
-  const isHoliday = holiday !== null;
-  const holidayName = holiday ? holiday.getName() : '';
   
   // 判断周末
-  const dayOfWeek = now.getDay();
   const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6) && !isHoliday;
   
   // 工作日/休息日状态
@@ -59,13 +89,6 @@ export function getTimeContext(savageMode = false) {
   } else {
     dayType = '工作日';
   }
-  
-  // 农历日期
-  const lunarDate = `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
-  const animal = lunar.getYearShengXiao();
-  
-  // 星座
-  const astro = solar.getXingZuo();
   
   // 定义不同时间段的上下文
   let timeContext = {
@@ -80,7 +103,8 @@ export function getTimeContext(savageMode = false) {
       festivals: festivals.length > 0 ? festivals : ['无特殊节日'],
       weekDay: ['日', '一', '二', '三', '四', '五', '六'][dayOfWeek],
       dayType,
-      astro
+      // astro在lunar-javascript不可用时可能缺失
+      astro: Solar && Lunar ? Solar.fromDate(now).getXingZuo() : '未知'
     }
   };
   
@@ -125,8 +149,8 @@ export function getTimeContext(savageMode = false) {
       }
       
       // 节气相关
-      if (term) {
-        baseSuggestions.push(`${term}节气到了，注意季节变化`);
+      if (jieQi) {
+        baseSuggestions.push(`${jieQi}节气到了，注意季节变化`);
       }
       
       timeContext.suggestions = baseSuggestions;
@@ -173,7 +197,7 @@ export function getTimeContext(savageMode = false) {
       timeContext.activities = baseActivities;
       timeContext.concerns = baseConcerns;
     }
-} else if (hour >= 12 && hour < 14) {
+  } else if (hour >= 12 && hour < 14) {
     timeContext.period = '中午';
     
     if (savageMode) {
@@ -246,8 +270,8 @@ export function getTimeContext(savageMode = false) {
       }
       
       // 节气相关
-      if (term) {
-        baseSuggestions.push(getSeasonalActivities(term));
+      if (jieQi) {
+        baseSuggestions.push(getSeasonalActivities(jieQi));
       }
       
       timeContext.suggestions = baseSuggestions;
@@ -380,12 +404,13 @@ export function getTimeContext(savageMode = false) {
     timeContext
   };
 }
+
 /**
  * 根据节气获取季节性活动建议
  * @param {string} term 节气名称
  * @returns {string} 季节性活动建议
  */
-export function getSeasonalActivities(term) {
+function getSeasonalActivities(term) {
   const termActivities = {
     '立春': '感受春天的气息，可以踏青',
     '雨水': '雨季将至，记得携带雨具',
@@ -415,3 +440,8 @@ export function getSeasonalActivities(term) {
   
   return termActivities[term] || '适应季节变化';
 }
+
+module.exports = {
+  getTimeContext,
+  getSeasonalActivities
+};

@@ -1,4 +1,6 @@
-import { zodiacMap } from './constants';
+const path = require('path');
+const fs = require('fs').promises;
+const { zodiacMap } = require('./constants.js');
 
 /**
  * 获取星座运势信息
@@ -7,7 +9,7 @@ import { zodiacMap } from './constants';
  * @param {function} debugLog 调试日志函数
  * @returns {Promise<Object>} 星座运势信息
  */
-export async function getZodiacFortune(zodiacParam, aspect = 'overall', debugLog = () => {}) {
+async function getZodiacFortune(zodiacParam, aspect = 'overall', debugLog = () => {}) {
   try {
     // 如果传入的是星座英文名称，需要转换为索引
     let zodiacIndex = zodiacParam;
@@ -23,9 +25,10 @@ export async function getZodiacFortune(zodiacParam, aspect = 'overall', debugLog
     // 尝试从本地缓存读取数据
     let astroData;
     try {
-      // 导入cached数据 - 在生产环境中要确保这个文件会被正确打包
-      const cacheModule = await import('../../../astro_api/astro_cache.json');
-      astroData = cacheModule.default || cacheModule;
+      // 从本地文件读取
+      const cacheFilePath = path.join(__dirname, '../../../astro_api/astro_cache.json');
+      const fileData = await fs.readFile(cacheFilePath, 'utf8');
+      astroData = JSON.parse(fileData);
       
       debugLog('fortune', '从本地缓存加载星座运势数据');
     } catch (cacheError) {
@@ -186,3 +189,7 @@ export async function getZodiacFortune(zodiacParam, aspect = 'overall', debugLog
     };
   }
 }
+
+module.exports = {
+  getZodiacFortune
+};

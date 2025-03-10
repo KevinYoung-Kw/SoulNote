@@ -3,30 +3,19 @@
  * @param {string} zodiac 星座名称
  * @returns {string} 星座特质描述
  */
-export function getZodiacTraits(zodiac) {
+function getZodiacTraits(zodiac) {
   const traits = {
     'aries': '正向特质：充沛活力、勇敢无畏、领导能力强、直率坦诚、乐于挑战、创新精神；负向特质：急躁冲动、自我中心、缺乏耐心、好斗好胜、粗心大意、容易放弃',
-    
     'taurus': '正向特质：可靠稳重、耐心专注、务实高效、审美细腻、忠诚坚定、享受生活；负向特质：固执己见、抗拒变化、占有欲强、行动迟缓、物质主义、记仇不忘',
-    
     'gemini': '正向特质：思维敏捷、好奇心强、沟通能力佳、适应力强、学习迅速、创意丰富；负向特质：情绪多变、注意力分散、优柔寡断、表里不一、肤浅片面、缺乏定性',
-    
     'cancer': '正向特质：富有同情心、保护欲强、记忆力好、情感丰富、直觉敏锐、珍视传统；负向特质：情绪化强、过度敏感、依赖性高、控制欲强、记仇耿耿、情绪多变',
-    
     'leo': '正向特质：阳光自信、慷慨大方、领导魅力、创造力强、忠诚勇敢、温暖热情；负向特质：自我中心、好面子爱虚荣、权威独断、不接受批评、骄傲自大、铺张浪费',
-    
     'virgo': '正向特质：分析能力强、注重细节、实际可靠、追求完美、勤劳踏实、理性逻辑；负向特质：过度挑剔、焦虑忧心、完美主义、过于自我批评、吹毛求疵、难以满足',
-    
     'libra': '正向特质：追求和谐、公平正义、外交手腕佳、审美优雅、善解人意、平易近人；负向特质：犹豫不决、过度依赖他人、避免冲突、表面和平、难以坚持立场、过度理想化',
-    
     'scorpio': '正向特质：洞察力强、意志坚定、忠诚专一、执着追求、直觉敏锐、深度思考；负向特质：多疑猜忌、极端固执、报复心强、情绪偏执、控制欲强、难以释怀',
-    
     'sagittarius': '正向特质：乐观开朗、思想自由、诚实直言、热爱冒险、幽默风趣、博学多才；负向特质：缺乏耐心、言语无状、缺乏责任感、善变轻浮、过度理想化、承诺难守',
-    
     'capricorn': '正向特质：自律严谨、责任心强、耐心坚韧、条理分明、稳重可靠、目标明确；负向特质：悲观保守、过于严肃、工作狂倾向、情感压抑、过度自我苛责、功利现实',
-    
     'aquarius': '正向特质：创新前卫、思想独立、人道主义、理性客观、才智过人、团队合作；负向特质：叛逆特立独行、情感疏离、过度理想化、难以捉摸、固执己见、不切实际',
-    
     'pisces': '正向特质：富有同理心、艺术感性、直觉敏锐、无私奉献、想象力丰富、心地善良；负向特质：沉溺幻想、缺乏自律、优柔寡断、易受影响、逃避现实、边界感模糊'
   };
   
@@ -38,38 +27,23 @@ export function getZodiacTraits(zodiac) {
  * @param {string} mbtiType MBTI类型
  * @returns {string} MBTI特质描述
  */
-export function getMbtiTraits(mbtiType) {
+function getMbtiTraits(mbtiType) {
   const traits = {
     'INTJ': '正向特质：战略性思维、独立自主、高效精准、系统规划、追求卓越、创新洞见；负向特质：过分完美主义、情感表达困难、缺乏灵活性、不善交际、过度批判、难以妥协',
-    
     'INTP': '正向特质：逻辑分析、概念思维、创新能力强、独立思考、求知欲强、理论洞察；负向特质：社交疏离、过度理论化、拖延决策、忽视情感、不切实际、过于沉浸思考',
-    
     'ENTJ': '正向特质：领导才能、决断力强、战略眼光、组织规划、目标驱动、坦率直接；负向特质：强势专断、情感冷漠、过于苛责、缺乏耐心、控制欲强、工作狂倾向',
-    
     'ENTP': '正向特质：创意思维、辩论技巧、适应力强、思想开放、解决问题能力佳、充满活力；负向特质：注意力分散、难以坚持、好辩争论、忽视细节、挑战权威、情绪波动',
-    
     'INFJ': '正向特质：洞察人性、理想主义、深思熟虑、创意表达、同理心强、追求意义；负向特质：过度理想化、自我批判、完美主义、难以面对冲突、情感负荷重、逃避现实',
-    
     'INFP': '正向特质：深刻的同理心、丰富想象力、价值观坚定、创意思考、真诚热情、善于适应；负向特质：过度敏感、现实感弱、优柔寡断、过度自我批评、不切实际、情绪化',
-    
     'ENFJ': '正向特质：人际影响力、鼓舞他人、组织能力强、善解人意、追求和谐、富有远见；负向特质：过度迎合他人、忽视自身需求、情绪化决策、控制欲强、难以接受批评、过度负责',
-    
     'ENFP': '正向特质：热情活力、创新思维、适应力强、人际魅力、乐观积极、表达能力佳；负向特质：注意力分散、难以坚持、情绪波动大、实践能力弱、难以做决定、过度理想化',
-    
     'ISTJ': '正向特质：可靠负责、注重细节、逻辑思考、组织能力强、务实高效、坚守承诺；负向特质：僵化教条、抗拒变化、情感表达困难、过分保守、批判倾向、缺乏创新',
-    
     'ISFJ': '正向特质：忠诚可靠、关怀他人、注重细节、善于观察、实际可靠、保护他人；负向特质：过度牺牲自我、难以拒绝、过于传统、回避冲突、压抑情感、过度担忧',
-    
     'ESTJ': '正向特质：高效执行、组织能力佳、实用务实、直接诚实、责任感强、坚定决断；负向特质：固执己见、情感表达少、过度教条、缺乏灵活性、对抗性强、急躁苛刻',
-    
     'ESFJ': '正向特质：热心助人、责任感强、关注他人需求、组织能力佳、交际能力强、注重和谐；负向特质：过度在意他人看法、情绪敏感、需要认可、忽视自身需求、保守传统、难以应对批评',
-    
     'ISTP': '正向特质：实际果断、技术精通、灵活应变、冷静沉着、独立自主、解决问题能力强；负向特质：冷漠疏离、规则感弱、难以承诺、情感表达少、冒险倾向、缺乏长期规划',
-    
     'ISFP': '正向特质：艺术敏感度、真诚温和、适应力强、欣赏美感、专注当下、和平主义；负向特质：消极被动、情绪化、缺乏自信、难以长期规划、边界感弱、逃避冲突',
-    
     'ESTP': '正向特质：行动力强、实用主义、适应力佳、风险管理能力、谈判技巧好、丰富活力；负向特质：缺乏耐心、追求刺激、规则意识弱、漫不经心、注意力短暂、缺乏长远规划',
-    
     'ESFP': '正向特质：活力四射、社交能力强、乐观积极、实用性强、享受当下、适应力佳；负向特质：冲动行事、难以专注、逃避责任、抗拒计划、缺乏自律、情绪化决策'
   };
   
@@ -81,7 +55,7 @@ export function getMbtiTraits(mbtiType) {
  * @param {string} gender 性别值
  * @returns {string} 性别中文标签
  */
-export function getGenderLabel(gender) {
+function getGenderLabel(gender) {
   const genderMap = {
     'male': '男性',
     'female': '女性',
@@ -95,7 +69,7 @@ export function getGenderLabel(gender) {
  * @param {string} age 年龄段值
  * @returns {string} 年龄段标签
  */
-export function getAgeLabel(age) {
+function getAgeLabel(age) {
   const ageMap = {
     'under18': '18岁以下',
     '18-24': '18-24岁',
@@ -112,7 +86,7 @@ export function getAgeLabel(age) {
  * @param {string} relationship 感情状况值
  * @returns {string} 感情状况标签
  */
-export function getRelationshipLabel(relationship) {
+function getRelationshipLabel(relationship) {
   const relationshipMap = {
     'single': '单身',
     'crushing': '有心仪对象',
@@ -127,7 +101,7 @@ export function getRelationshipLabel(relationship) {
  * @param {string} gender 性别
  * @returns {string} 性别特质描述
  */
-export function getGenderTraits(gender) {
+function getGenderTraits(gender) {
   const traits = {
     'male': '更倾向于直接表达和解决问题，社交中可能更关注信息和观点交流而非情感连接，面对困难时可能更独立，倾向于通过行动和成就获取自我认同',
     'female': '更倾向于共情和情感表达，社交中注重情感连接和关系维护，面对困难时可能更愿意寻求和提供支持，倾向于通过关系和连接获取自我认同',
@@ -141,7 +115,7 @@ export function getGenderTraits(gender) {
  * @param {string} age 年龄段
  * @returns {string} 年龄段特质描述
  */
-export function getAgeTraits(age) {
+function getAgeTraits(age) {
   const traits = {
     'under18': '处于自我认知和价值观形成期，充满好奇心和创造力，倾向于寻求认同，较为理想化，追求新奇体验，对未来充满可能性',
     '18-24': '处于探索期，正在形成独立的世界观，面临学业和职业起步的挑战，社交圈广泛，较为开放但可能存在身份认同困惑，开始承担更多责任',
@@ -158,7 +132,7 @@ export function getAgeTraits(age) {
  * @param {string} relationship 感情状况
  * @returns {string} 感情状况特质描述
  */
-export function getRelationshipTraits(relationship) {
+function getRelationshipTraits(relationship) {
   const traits = {
     'single': '保持较高的个人空间和自由度，决策更独立，时间安排更灵活，可能更专注于个人发展和社交圈扩展，对未来关系持开放态度',
     'crushing': '处于情感期待和不确定性阶段，情绪波动较大，倾向于理想化对象，投入较多心理能量在感情思考上，对暗示和互动特别敏感',
@@ -174,7 +148,7 @@ export function getRelationshipTraits(relationship) {
  * @param {string} mbtiType MBTI类型
  * @returns {string} 性格特质的具体表现描述
  */
-export function getPersonalityInsights(zodiac, mbtiType) {
+function getPersonalityInsights(zodiac, mbtiType) {
     let insights = [];
     
     // 基于星座添加具体洞察
@@ -508,3 +482,15 @@ export function getPersonalityInsights(zodiac, mbtiType) {
     
     return insights.map(insight => `- ${insight}`).join('\n');
   }
+
+module.exports = {
+  getZodiacTraits,
+  getMbtiTraits,
+  getGenderLabel,
+  getAgeLabel,
+  getRelationshipLabel,
+  getGenderTraits,
+  getAgeTraits,
+  getRelationshipTraits,
+  getPersonalityInsights
+};

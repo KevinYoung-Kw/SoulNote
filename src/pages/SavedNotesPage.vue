@@ -92,6 +92,7 @@ import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
 import { getSavedNotes, deleteNote, clearSavedNotes } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
+import { generateNote } from '../services/aiService.js';
 
 const router = useRouter();
 const savedNotes = ref([]);
@@ -235,6 +236,55 @@ function formatDate(dateString) {
 function formatDateForFile(dateString) {
   const date = new Date(dateString);
   return date.toISOString().slice(0, 10);
+}
+
+// 重新生成笔记内容
+async function regenerateNote(note) {
+  isRegenerating.value = note.id;
+  
+  try {
+    const params = {
+      zodiac: userPreferences.zodiac,
+      mbti: userPreferences.mbti,
+      moods: note.moods || ['😊'],
+      theme: note.theme || 'chat',
+      savageMode: note.savageMode || false,
+      language: preferDualLanguage.value ? 'en-zh' : 'zh',
+      gender: userPreferences.gender,
+      age: userPreferences.age,
+      relationship: userPreferences.relationship
+    };
+    
+    // Use generateNote instead of generateNoteContent
+    const result = await generateNote(params);
+    
+    // Update the note with the new content
+    const updatedNote = {
+      ...note,
+      content: result.data.content,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Update in your storage
+    updateSavedNote(updatedNote);
+    
+    // Refresh the notes list
+    loadSavedNotes();
+    
+    // Show success message
+    successMessage.value = '已重新生成内容';
+    setTimeout(() => {
+      successMessage.value = '';
+    }, 3000);
+  } catch (error) {
+    console.error('重新生成内容失败:', error);
+    errorMessage.value = error.message || '重新生成失败，请稍后重试';
+    setTimeout(() => {
+      errorMessage.value = '';
+    }, 3000);
+  } finally {
+    isRegenerating.value = null;
+  }
 }
 
 // 生命周期

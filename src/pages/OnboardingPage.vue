@@ -274,6 +274,7 @@ import welcomeSvg from '../assets/onboarding-welcome.svg';
 import completeSvg from '../assets/onboarding-complete.svg';
 // 导入axios用于API调用
 import axios from 'axios';
+import { generateNote } from '../services/aiService.js';
 
 // 预加载字体
 const fontPreloaded = ref(false);
@@ -536,17 +537,31 @@ function checkExistingInviteCode() {
 
 async function completeOnboarding() {
   try {
-    // 保存用户偏好
-    await saveUserPreferences(userPreferences);
+    // Generate a sample note for the user
+    const params = {
+      zodiac: userPreferences.zodiac,
+      mbti: userPreferences.mbti,
+      moods: ['😊'],
+      theme: 'chat',
+      savageMode: false,
+      gender: userPreferences.gender,
+      age: userPreferences.age,
+      relationship: userPreferences.relationship
+    };
     
-    // 标记完成引导流程
-    await setOnboardingCompleted(true);
+    // Use generateNote instead of generateNoteContent
+    const result = await generateNote(params);
+    sampleNote.value = result.data.content;
     
-    // 导航到主页
-    router.push('/home');
+    // Save user preferences to localStorage
+    localStorage.setItem('userPreferences', JSON.stringify(userPreferences));
+    localStorage.setItem('onboardingCompleted', 'true');
+    
+    // Navigate to home page
+    router.push('/');
   } catch (error) {
-    console.error('完成引导流程失败:', error);
-    alert('设置保存失败，请重试');
+    console.error('Could not complete onboarding:', error);
+    errorMessage.value = '设置过程中出现错误，请重试';
   }
 }
 

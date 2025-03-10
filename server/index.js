@@ -3,18 +3,40 @@
  * 提供邀请码验证和用户统计功能
  */
 
+// 确保在所有其他导入之前加载环境变量
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+const logger = require('./utils/logger'); // 引入增强的logger
+
+// 导入路由
+const noteRoutes = require('./routes/noteRoutes.js');
+
+// 输出环境变量是否成功读取
+logger.system('ENV', '环境变量加载状态', {
+  PORT: !!process.env.PORT,
+  NODE_ENV: process.env.NODE_ENV,
+  ADMIN_KEY: !!process.env.ADMIN_KEY,
+  VITE_API_KEY: !!process.env.VITE_API_KEY,
+  VITE_API_URL: !!process.env.VITE_API_URL,
+  VITE_API_MODEL: !!process.env.VITE_API_MODEL,
+  DEBUG_MODE: process.env.DEBUG_MODE
+});
 
 // 检查管理员密钥配置
 if (!process.env.ADMIN_KEY) {
-  console.warn('警告: 管理员密钥(ADMIN_KEY)未设置，建议在.env文件中配置');
+  logger.warn('CONFIG', '管理员密钥未设置，使用开发环境默认值');
   // 设置一个默认的管理员密钥，仅用于开发环境
   process.env.ADMIN_KEY = 'admin-dev-key';
+}
+
+// 检查API密钥配置
+if (!process.env.VITE_API_KEY) {
+  logger.warn('CONFIG', 'API密钥未设置，AI生成功能将无法正常工作');
 }
 
 // 初始化 Express 应用
@@ -31,9 +53,12 @@ const STATS_FILE = path.join(DATA_DIR, 'stats.json');
 async function ensureDataDir() {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    console.log('数据目录已创建或已存在');
+    logger.info('DATA', '数据目录已创建或已存在', { path: DATA_DIR });
   } catch (error) {
-    console.error('创建数据目录失败:', error);
+    logger.error('DATA', '创建数据目录失败', { 
+      path: DATA_DIR,
+      error: error.message 
+    });
   }
 }
 
@@ -43,6 +68,7 @@ async function initDataFiles() {
     // 检查邀请码文件
     try {
       await fs.access(INVITE_CODES_FILE);
+      logger.debug('DATA', '邀请码文件已存在', { path: INVITE_CODES_FILE });
     } catch (error) {
       // 文件不存在，创建默认邀请码文件
       const defaultInviteCodes = {
@@ -57,21 +83,23 @@ async function initDataFiles() {
         ]
       };
       await fs.writeFile(INVITE_CODES_FILE, JSON.stringify(defaultInviteCodes, null, 2));
-      console.log('已创建默认邀请码文件');
+      logger.info('DATA', '已创建默认邀请码文件', { path: INVITE_CODES_FILE });
     }
 
     // 检查用户文件
     try {
       await fs.access(USERS_FILE);
+      logger.debug('DATA', '用户数据文件已存在', { path: USERS_FILE });
     } catch (error) {
       // 文件不存在，创建空用户文件
       await fs.writeFile(USERS_FILE, JSON.stringify({ users: [] }, null, 2));
-      console.log('已创建用户数据文件');
+      logger.info('DATA', '已创建用户数据文件', { path: USERS_FILE });
     }
 
     // 检查统计文件
     try {
       await fs.access(STATS_FILE);
+      logger.debug('DATA', '统计数据文件已存在', { path: STATS_FILE });
     } catch (error) {
       // 文件不存在，创建默认统计文件
       const defaultStats = {
@@ -80,10 +108,10 @@ async function initDataFiles() {
         lastUpdated: new Date().toISOString()
       };
       await fs.writeFile(STATS_FILE, JSON.stringify(defaultStats, null, 2));
-      console.log('已创建统计数据文件');
+      logger.info('DATA', '已创建统计数据文件', { path: STATS_FILE });
     }
   } catch (error) {
-    console.error('初始化数据文件失败:', error);
+    logger.error('DATA', '初始化数据文件失败', { error: error.message });
   }
 }
 
@@ -91,9 +119,13 @@ async function initDataFiles() {
 async function getInviteCodes() {
   try {
     const data = await fs.readFile(INVITE_CODES_FILE, 'utf8');
-    return JSON.parse(data);
+    const inviteCodes = JSON.parse(data);
+    logger.debug('INVITE_CODES', '读取邀请码数据', { 
+      count: inviteCodes.codes?.length || 0
+    });
+    return inviteCodes;
   } catch (error) {
-    console.error('读取邀请码文件失败:', error);
+    logger.error('INVITE_CODES', '读取邀请码文件失败', { error: error.message });
     return { codes: [] };
   }
 }
@@ -102,8 +134,11 @@ async function getInviteCodes() {
 async function saveInviteCodes(inviteCodesData) {
   try {
     await fs.writeFile(INVITE_CODES_FILE, JSON.stringify(inviteCodesData, null, 2));
+    logger.debug('INVITE_CODES', '保存邀请码数据', { 
+      count: inviteCodesData.codes?.length || 0
+    });
   } catch (error) {
-    console.error('保存邀请码文件失败:', error);
+    logger.error('INVITE_CODES', '保存邀请码文件失败', { error: error.message });
   }
 }
 
@@ -111,9 +146,11 @@ async function saveInviteCodes(inviteCodesData) {
 async function getStats() {
   try {
     const data = await fs.readFile(STATS_FILE, 'utf8');
-    return JSON.parse(data);
+    const stats = JSON.parse(data);
+    logger.debug('STATS', '读取统计数据', stats);
+    return stats;
   } catch (error) {
-    console.error('读取统计文件失败:', error);
+    logger.error('STATS', '读取统计文件失败', { error: error.message });
     return {
       totalVerifications: 0,
       totalUniqueUsers: 0,
@@ -127,8 +164,9 @@ async function saveStats(statsData) {
   try {
     statsData.lastUpdated = new Date().toISOString();
     await fs.writeFile(STATS_FILE, JSON.stringify(statsData, null, 2));
+    logger.debug('STATS', '保存统计数据', { updated: statsData.lastUpdated });
   } catch (error) {
-    console.error('保存统计文件失败:', error);
+    logger.error('STATS', '保存统计文件失败', { error: error.message });
   }
 }
 
@@ -142,12 +180,24 @@ async function addUser(ip, inviteCode) {
     
     if (existingUser) {
       // 更新现有用户
+      const oldLoginCount = existingUser.loginCount;
       existingUser.lastLogin = new Date().toISOString();
       existingUser.loginCount += 1;
       
       // 检查是否需要添加新的邀请码
       if (!existingUser.inviteCodes.includes(inviteCode)) {
         existingUser.inviteCodes.push(inviteCode);
+        logger.info('USER', '为现有用户添加新邀请码', {
+          ip: ip.replace(/\d+\.\d+$/, 'XX.XX'), // 部分隐藏IP
+          inviteCode,
+          loginCount: existingUser.loginCount
+        });
+      } else {
+        logger.info('USER', '现有用户再次登录', {
+          ip: ip.replace(/\d+\.\d+$/, 'XX.XX'),
+          loginCount: existingUser.loginCount,
+          previousLogin: oldLoginCount
+        });
       }
     } else {
       // 添加新用户
@@ -159,6 +209,11 @@ async function addUser(ip, inviteCode) {
         loginCount: 1
       });
       
+      logger.info('USER', '添加新用户', {
+        newUserCount: userData.users.length,
+        inviteCode
+      });
+      
       // 更新唯一用户统计
       const stats = await getStats();
       stats.totalUniqueUsers += 1;
@@ -167,7 +222,10 @@ async function addUser(ip, inviteCode) {
     
     await fs.writeFile(USERS_FILE, JSON.stringify(userData, null, 2));
   } catch (error) {
-    console.error('添加用户失败:', error);
+    logger.error('USER', '添加用户失败', {
+      ip: ip.replace(/\d+\.\d+$/, 'XX.XX'),
+      error: error.message
+    });
   }
 }
 
@@ -231,8 +289,10 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      logger.debug('CORS', '允许跨域请求', { origin });
       callback(null, true);
     } else {
+      logger.warn('CORS', '拒绝跨域请求', { origin });
       callback(new Error('不允许的跨域请求'));
     }
   },
@@ -243,6 +303,26 @@ app.use(cors({
 // 中间件
 app.use(express.json());
 
+// 请求日志中间件
+app.use((req, res, next) => {
+  const start = Date.now();
+  logger.debug('REQUEST', `${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent']
+  });
+  
+  // 拦截响应完成
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.debug('RESPONSE', `${req.method} ${req.originalUrl} - ${res.statusCode}`, {
+      duration: `${duration}ms`,
+      contentLength: res.getHeader('content-length')
+    });
+  });
+  
+  next();
+});
+
 // 防止暴力破解的请求限制
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
@@ -252,6 +332,14 @@ const apiLimiter = rateLimit({
   message: {
     status: 429,
     message: '请求过于频繁，请稍后再试'
+  },
+  handler: (req, res, next, options) => {
+    logger.warn('RATE_LIMIT', 'API请求达到频率限制', {
+      ip: req.ip.replace(/\d+\.\d+$/, 'XX.XX'),
+      path: req.path,
+      headers: req.headers['user-agent']
+    });
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -264,6 +352,13 @@ const loginLimiter = rateLimit({
   message: {
     status: 429,
     message: '尝试次数过多，请稍后再试'
+  },
+  handler: (req, res, next, options) => {
+    logger.warn('RATE_LIMIT', '敏感操作达到频率限制', {
+      ip: req.ip.replace(/\d+\.\d+$/, 'XX.XX'),
+      path: req.path
+    });
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -271,12 +366,18 @@ const loginLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use('/api/generate-invite-code', loginLimiter);
 
+// 注册noteRoutes路由
+app.use('/api/note', noteRoutes);
+
 // 路由：验证邀请码
 app.post('/api/verify-invite-code', async (req, res) => {
   try {
     const { inviteCode, clientIP } = req.body;
     
     if (!inviteCode) {
+      logger.warn('INVITE', '验证请求未提供邀请码', { 
+        ip: req.ip.replace(/\d+\.\d+$/, 'XX.XX') 
+      });
       return res.status(400).json({ 
         valid: false, 
         message: '请提供邀请码'
@@ -285,6 +386,11 @@ app.post('/api/verify-invite-code', async (req, res) => {
     
     // 获取请求IP
     const ip = clientIP || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    logger.info('INVITE', '收到邀请码验证请求', {
+      code: inviteCode,
+      ip: ip.replace(/\d+\.\d+$/, 'XX.XX')
+    });
     
     // 读取邀请码数据
     const inviteCodesData = await getInviteCodes();
@@ -331,7 +437,10 @@ app.post('/api/verify-invite-code', async (req, res) => {
       message: '邀请码验证成功'
     });
   } catch (error) {
-    console.error('验证邀请码时出错:', error);
+    logger.error('INVITE', '验证邀请码时出错', {
+      error: error.message,
+      stack: process.env.DEBUG_MODE === 'true' ? error.stack : undefined
+    });
     return res.status(500).json({ 
       valid: false, 
       message: '服务器内部错误'
@@ -506,12 +615,31 @@ app.post('/api/edit-invite-code', async (req, res) => {
   }
 });
 
+// 添加中间件处理错误
+app.use((err, req, res, next) => {
+  logger.error('SERVER_ERROR', '未捕获的服务器错误', {
+    path: req.path,
+    method: req.method,
+    error: err.message,
+    stack: process.env.DEBUG_MODE === 'true' ? err.stack : undefined
+  });
+  
+  res.status(500).json({
+    success: false,
+    message: '服务器内部错误',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
 // 启动服务器前初始化数据
 (async function initialize() {
   await ensureDataDir();
   await initDataFiles();
   
   app.listen(port, () => {
-    console.log(`SoulNote后端服务已启动，监听端口 ${port}`);
+    logger.system('SERVER', `SoulNote后端服务已启动，监听端口 ${port}`, {
+      nodeEnv: process.env.NODE_ENV,
+      debugMode: process.env.DEBUG_MODE === 'true'
+    });
   });
 })();

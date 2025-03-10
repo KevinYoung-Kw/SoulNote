@@ -96,7 +96,7 @@
       
       <button 
         class="btn btn-primary generate-btn" 
-        @click="generateNote"
+        @click="generateNoteContent"
         :disabled="isGenerating"
       >
         <i class="fas fa-magic"></i>
@@ -305,9 +305,11 @@ import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
 import LoadingIndicator from '../components/LoadingIndicator.vue';
 // 修改回原来的导入方式，确保代码可以正常运行
-import { generateNoteContent, getEstimatedResponseTime } from '../services/aiService';
+import { generateNote, getEstimatedResponseTime } from '../services/aiService';
 import { saveUserPreferences, getUserPreferences, saveNote as saveNoteToStorage } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
+// 导入日志工具
+import logger from '../utils/logger';
 
 const router = useRouter();
 const noteContainerRef = ref(null);
@@ -325,6 +327,7 @@ const fontSize = ref(24);
 const darkMode = ref(false);
 const loadingMessage = ref(''); 
 const hasGeneratedContent = ref(false); // 添加判断是否已生成内容的状态
+const errorMessage = ref(''); // 添加错误消息状态
 
 // 导出功能
 const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
@@ -763,79 +766,76 @@ async function cacheGeneratedContent() {
     });
     
     hasGeneratedContent.value = true;
-    console.log('已缓存生成的内容:', cachedContent);
+    logger.info('CACHE', '已缓存生成的内容:', cachedContent);
   } catch (error) {
-    console.error('缓存生成内容失败:', error);
+    logger.error('CACHE', '缓存生成内容失败:', error);
   }
 }
 
-// 修改生成笔记函数，允许更长的内容
-async function generateNote() {
-  if (isGenerating.value) return;
-  
+// ...existing code...
+async function generateNoteContent() {
   isGenerating.value = true;
-  
-  // 设置加载消息循环
-  let messageIndex = 0;
-  loadingMessage.value = loadingMessages.value[messageIndex];
-  loadingInterval = setInterval(() => {
-    messageIndex = (messageIndex + 1) % loadingMessages.value.length;
-    loadingMessage.value = loadingMessages.value[messageIndex];
-  }, 2000);
-  
-  // 获取当前模型的预估响应时间
-  estimatedResponseTime.value = getEstimatedResponseTime(import.meta.env.VITE_API_MODEL || 'default');
+  errorMessage.value = '';
   
   try {
-    // 验证必要参数
-    if (!params.zodiac) params.zodiac = zodiacs[Math.floor(Math.random() * zodiacs.length)].value;
-    if (!params.mbti) params.mbti = mbtiTypes[Math.floor(Math.random() * mbtiTypes.length)].value;
+    // 获取估计响应时间
+    estimatedResponseTime.value = await getEstimatedResponseTime();
     
-    // 调用API生成内容
-    const content = await generateNoteContent(params).catch(() => {
-      // API调用失败时使用本地生成
-      return generateLocalContent(params);
+    // Fix: Use params instead of userPreferences
+    const requestParams = {
+      zodiac: params.zodiac,
+      mbti: params.mbti,
+      moods: params.moods,
+      theme: params.theme,
+      savageMode: params.savageMode,
+      language: params.language === 'en-zh' ? 'en-zh' : 'zh',
+      gender: params.gender,
+      age: params.age,
+      relationship: params.relationship,
+      enableFortune: params.enableFortune,
+      fortuneAspect: params.fortuneAspect
+    };
+    
+    logger.info('REQUEST', '发送生成请求, 请求参数:', requestParams);
+    
+    // 使用新的generateNote函数
+    const result = await generateNote(requestParams);
+    
+    // 更新笔记内容
+    noteContent.value = result.data.content;
+    
+    // 保存到历史记录
+    // Fix: The saveNoteToHistory function doesn't seem to be imported
+    // You should either import it or replace with your actual storage function
+    /* 
+    saveNoteToHistory({
+      content: noteContent.value,
+      timestamp: new Date().toISOString(),
+      theme: params.theme,
+      moods: params.moods,
+      savageMode: params.savageMode
     });
+    */
     
-    // 更新内容
-    noteContent.value = content;
+    // Since you already have a cacheGeneratedContent function, use that instead
+    await cacheGeneratedContent();
     
-    // 清除加载消息循环
-    clearInterval(loadingInterval);
-    loadingInterval = null;
-    
-    // 加载完成后开始动画
-    setTimeout(() => {
-      isAnimating.value = true;
-      isGenerating.value = false;
-      
-      // 缓存生成的内容
-      cacheGeneratedContent();
-    }, 300); // 短暂延迟，让加载条完成到100%
-    
-    // 内容生成完成后，根据内容长度确保纸条可见
-    setTimeout(() => {
-      const noteContainer = noteContainerRef.value;
-      if (noteContainer) {
-        // 确保纸条在视口中可见
-        noteContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }, 500);
-    
+    // 更新UI状态
+    hasGeneratedContent.value = true;
+    // Fix: The startNoteAnimation function isn't defined
+    // You need to either define it or remove this line
+    isAnimating.value = true; // Use this instead if you want to trigger animation
   } catch (error) {
-    console.error('生成失败:', error);
-    noteContent.value = '内容生成失败，请稍后重试...';
-    
-    // 清除加载消息循环
-    clearInterval(loadingInterval);
-    loadingInterval = null;
+    logger.error('REQUEST', '生成请求失败', error);
+    errorMessage.value = error.message || '生成失败，请稍后重试';
+  } finally {
     isGenerating.value = false;
   }
 }
 
 function regenerateNote() {
   if (!isGenerating.value) {
-    generateNote();
+    generateNoteContent();
   }
 }
 
@@ -867,7 +867,7 @@ async function exportNote() {
       await saveToDevice(imageUrl, `心语_${new Date().toISOString().slice(0,10)}.png`);
     }
   } catch (error) {
-    console.error('导出失败:', error);
+    logger.error('EXPORT', '导出失败:', error);
     alert('导出图片失败，请重试');
   }
 }
@@ -886,7 +886,7 @@ async function shareNote() {
       }
     }
   } catch (error) {
-    console.error('分享失败:', error);
+    logger.error('SHARE', '分享失败:', error);
     alert('分享失败，请重试');
   }
 }
@@ -915,7 +915,7 @@ function increaseFontSize() {
     }
     // 将变更保存到本地
     updateLocalPreferences();
-    console.log('Increased font size to:', fontSize.value);
+    logger.info('FONT_SIZE', 'Increased font size to:', fontSize.value);
   }
 }
 
@@ -933,7 +933,7 @@ function decreaseFontSize() {
     }
     // 将变更保存到本地
     updateLocalPreferences();
-    console.log('Decreased font size to:', fontSize.value);
+    logger.info('FONT_SIZE', 'Decreased font size to:', fontSize.value);
   }
 }
 
@@ -961,13 +961,13 @@ async function updateLocalPreferences() {
       noteCardRef.value.$forceUpdate();
     }
   } catch (error) {
-    console.error('更新本地偏好设置失败:', error);
+    logger.error('PREFERENCES', '更新本地偏好设置失败:', error);
   }
 }
 
 // 监听字体大小变化，确保视图更新
 watch(fontSize, (newSize) => {
-  console.log('Font size changed in HomePage:', newSize);
+  logger.info('FONT_SIZE', 'Font size changed in HomePage:', newSize);
   
   // 确保DOM更新，不仅仅依赖于组件刷新
   nextTick(() => {
@@ -975,7 +975,7 @@ watch(fontSize, (newSize) => {
       const contentEl = noteCardRef.value.$el.querySelector('.note-content');
       if (contentEl) {
         contentEl.style.fontSize = `${newSize}px`;
-        console.log('直接通过DOM更新字体大小:', newSize);
+        logger.info('FONT_SIZE', '直接通过DOM更新字体大小:', newSize);
       }
     }
   });
@@ -1048,10 +1048,10 @@ async function clearContentCache() {
     if (currentPrefs.cachedContent) {
       delete currentPrefs.cachedContent;
       await saveUserPreferences(currentPrefs);
-      console.log('已清除缓存内容');
+      logger.info('CACHE', '已清除缓存内容');
     }
   } catch (error) {
-    console.error('清除缓存失败:', error);
+    logger.error('CACHE', '清除缓存失败:', error);
   }
 }
 
@@ -1083,10 +1083,10 @@ async function restoreFromCache() {
         fontSize.value = cachedFontSize;
       }
       
-      console.log('从缓存恢复内容成功');
+      logger.info('CACHE', '从缓存恢复内容成功');
     }
   } catch (error) {
-    console.error('恢复缓存内容失败:', error);
+    logger.error('CACHE', '恢复缓存内容失败:', error);
   }
 }
 
@@ -1129,7 +1129,7 @@ onMounted(async () => {
       await restoreFromCache();
     }
   } catch (error) {
-    console.error('加载用户偏好设置失败:', error);
+    logger.error('PREFERENCES', '加载用户偏好设置失败:', error);
   }
 });
 
@@ -1169,7 +1169,7 @@ watch(() => params.fortuneAspect, () => {
 
 // 修改主题监听器，确保主题改变时保存设置
 watch(() => params.theme, (newTheme) => {
-  console.log('主题已更改为:', newTheme);
+  logger.info('THEME', '主题已更改为:', newTheme);
   updateLocalPreferences();
 });
 
