@@ -59,10 +59,10 @@ export const themeConfigs = {
   },
   [THEMES.HAIKU]: {
     title: '俳句',
-    description: '简短精炼的日式诗歌',
+    description: '简短精练的现代生活俳句',
     wordLimitZh: '严格遵循5-7-5音节结构，共17字',
-    wordLimitEn: 'Follows the 5-7-5 syllable structure, total 17 words',
-    style: '简约自然，季节意象，瞬间感受',
-    keywords: ['简约', '自然', '季节', '瞬间'],
+    wordLimitEn: 'Follows the 5-7-5 syllable structure, total 17 syllables',
+    style: '简约直白，反映日常生活，捕捉人的情感和互动',
+    keywords: ['现代', '生活', '情感', '互动', '简练'],
   }
 };
