@@ -62,12 +62,6 @@ function getTimeContext(savageMode = false) {
         festivals.push(...lunarFestivals);
       }
       
-      // 获取节气
-      const jieQi = lunar.getJieQi();
-      if (jieQi) {
-        festivals.push(`${jieQi}节气`);
-      }
-      
       // 判断是否为法定假日
       const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay());
       isHoliday = holiday !== null;
@@ -146,11 +140,6 @@ function getTimeContext(savageMode = false) {
       if (lunarFestivals.length > 0) {
         baseSuggestions.push(`今天是${lunarFestivals.join('/')}，记得传统习俗`);
         baseActivities.push('参与传统节日活动');
-      }
-      
-      // 节气相关
-      if (jieQi) {
-        baseSuggestions.push(`${jieQi}节气到了，注意季节变化`);
       }
       
       timeContext.suggestions = baseSuggestions;
@@ -267,11 +256,6 @@ function getTimeContext(savageMode = false) {
       } else {
         baseSuggestions.push('下午是完成日常任务的好时机', '为明天做些准备');
         baseConcerns.push('避免下午疲劳影响效率');
-      }
-      
-      // 节气相关
-      if (jieQi) {
-        baseSuggestions.push(getSeasonalActivities(jieQi));
       }
       
       timeContext.suggestions = baseSuggestions;
