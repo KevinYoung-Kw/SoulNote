@@ -124,6 +124,10 @@ onBeforeUnmount(() => {
 .loading-text {
   font-size: 14px;
   color: var(--text-secondary);
+  white-space: nowrap; /* 防止文字换行 */
+  overflow: hidden; /* 超出部分隐藏 */
+  text-overflow: ellipsis; /* 超出显示省略号 */
+  max-width: 80%; /* 限制最大宽度，防止超长文本破坏布局 */
 }
 
 @keyframes spin {

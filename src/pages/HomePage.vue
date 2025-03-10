@@ -716,11 +716,13 @@ const savageLoadingMessages = [
 ];
 
 // 根据模式选择加载信息
-const loadingMessages = computed(() => {
+const loadingMessagesArray = computed(() => {
   return params.savageMode ? savageLoadingMessages : normalLoadingMessages;
 });
 
+// 修改为可旋转的消息文本
 let loadingInterval = null;
+loadingMessage.value = '正在生成中...';
 
 // 动态计算响应时间和动画时长
 const estimatedResponseTime = ref(3000); // 默认3秒
@@ -772,16 +774,29 @@ async function cacheGeneratedContent() {
   }
 }
 
-// ...existing code...
 async function generateNoteContent() {
   isGenerating.value = true;
   errorMessage.value = '';
+  
+  // 添加消息轮换功能
+  let messageIndex = 0;
+  loadingMessage.value = loadingMessagesArray.value[messageIndex];
+  
+  // 设置定时器轮换消息
+  if (loadingInterval) {
+    clearInterval(loadingInterval);
+  }
+  
+  loadingInterval = setInterval(() => {
+    messageIndex = (messageIndex + 1) % loadingMessagesArray.value.length;
+    loadingMessage.value = loadingMessagesArray.value[messageIndex];
+  }, 2000); // 每2秒切换一次消息
   
   try {
     // 获取估计响应时间
     estimatedResponseTime.value = await getEstimatedResponseTime();
     
-    // Fix: Use params instead of userPreferences
+    // 使用正确的参数格式
     const requestParams = {
       zodiac: params.zodiac,
       mbti: params.mbti,
@@ -798,37 +813,35 @@ async function generateNoteContent() {
     
     logger.info('REQUEST', '发送生成请求, 请求参数:', requestParams);
     
-    // 使用新的generateNote函数
+    // 使用generateNote函数
     const result = await generateNote(requestParams);
     
-    // 更新笔记内容
-    noteContent.value = result.data.content;
-    
-    // 保存到历史记录
-    // Fix: The saveNoteToHistory function doesn't seem to be imported
-    // You should either import it or replace with your actual storage function
-    /* 
-    saveNoteToHistory({
-      content: noteContent.value,
-      timestamp: new Date().toISOString(),
-      theme: params.theme,
-      moods: params.moods,
-      savageMode: params.savageMode
-    });
-    */
-    
-    // Since you already have a cacheGeneratedContent function, use that instead
-    await cacheGeneratedContent();
-    
-    // 更新UI状态
-    hasGeneratedContent.value = true;
-    // Fix: The startNoteAnimation function isn't defined
-    // You need to either define it or remove this line
-    isAnimating.value = true; // Use this instead if you want to trigger animation
+    // 修复：检查正确的返回数据结构 - 直接检查result.content而非result.data.content
+    if (result && result.content) {
+      // 更新笔记内容
+      noteContent.value = result.content;
+      
+      // 保存到历史记录
+      await cacheGeneratedContent();
+      
+      // 更新UI状态
+      hasGeneratedContent.value = true;
+      isAnimating.value = true;
+    } else {
+      // 处理API返回数据格式不正确的情况
+      throw new Error('服务器返回数据格式不正确，请稍后重试');
+    }
   } catch (error) {
     logger.error('REQUEST', '生成请求失败', error);
     errorMessage.value = error.message || '生成失败，请稍后重试';
+    // 在出错时显示错误消息
+    loadingMessage.value = '生成失败，请稍后重试...';
   } finally {
+    // 清除消息轮换计时器
+    if (loadingInterval) {
+      clearInterval(loadingInterval);
+      loadingInterval = null;
+    }
     isGenerating.value = false;
   }
 }
