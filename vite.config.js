@@ -15,7 +15,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
+    // 添加允许的主机配置
+    host: '0.0.0.0',  // 允许局域网/公网 IP 访问
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      'soulnote.kevinyoung0210.me'
+    ]
   },
   build: {
     outDir: 'dist',
