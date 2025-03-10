@@ -41,6 +41,8 @@ function getTimeContext(savageMode = false) {
   let isHoliday = false;
   let holidayName = '';
   let lunar = null;
+  let lunarFestivals = [];
+  let holiday = null;
   
   // 尝试获取农历信息
   try {
@@ -58,13 +60,13 @@ function getTimeContext(savageMode = false) {
         festivals.push(...solarFestivals);
       }
       
-      const lunarFestivals = lunar.getFestivals();
+      lunarFestivals = lunar.getFestivals();
       if (lunarFestivals.length > 0) {
         festivals.push(...lunarFestivals);
       }
       
       // 判断是否为法定假日
-      const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay());
+      holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay());
       isHoliday = holiday !== null;
       holidayName = holiday ? holiday.getName() : '';
     }
