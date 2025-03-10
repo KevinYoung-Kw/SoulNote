@@ -2,7 +2,6 @@
   <div class="loading-container">
     <div class="loading-progress" :style="{ width: `${progress}%` }"></div>
     <div class="loading-content">
-      <div class="loading-spinner"></div>
       <span class="loading-text">{{ message }}</span>
     </div>
   </div>
@@ -109,6 +108,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   padding: var(--spacing-xs) 0;
+  width: 100%;
 }
 
 .loading-spinner {
@@ -124,10 +124,10 @@ onBeforeUnmount(() => {
 .loading-text {
   font-size: 14px;
   color: var(--text-secondary);
-  white-space: nowrap; /* 防止文字换行 */
-  overflow: hidden; /* 超出部分隐藏 */
-  text-overflow: ellipsis; /* 超出显示省略号 */
-  max-width: 80%; /* 限制最大宽度，防止超长文本破坏布局 */
+  white-space: nowrap; /* 保持不换行 */
+  overflow: visible; /* 允许内容溢出显示 */
+  width: auto; /* 自动宽度适应内容 */
+  flex-grow: 1; /* 允许文本占用剩余空间 */
 }
 
 @keyframes spin {
