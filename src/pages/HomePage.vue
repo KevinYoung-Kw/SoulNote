@@ -33,7 +33,7 @@
               </template>
               <template v-else>
                 <i class="fas fa-smile"></i>
-                <span>添加心情...</span>
+                <span>心情</span>
               </template>
             </div>
             <!-- 添加主题参数显示 -->
@@ -360,10 +360,10 @@ const customMood = ref('');
 
 // 运势类型选项
 const fortuneAspects = [
-  { label: '整体运势', value: 'overall', icon: 'fas fa-star' },
-  { label: '爱情运势', value: 'love', icon: 'fas fa-heart' },
-  { label: '事业运势', value: 'career', icon: 'fas fa-briefcase' },
-  { label: '财运运势', value: 'wealth', icon: 'fas fa-coins' }
+  { label: '整体', value: 'overall', icon: 'fas fa-star' },
+  { label: '爱情', value: 'love', icon: 'fas fa-heart' },
+  { label: '事业', value: 'career', icon: 'fas fa-briefcase' },
+  { label: '财运', value: 'wealth', icon: 'fas fa-coins' }
 ];
 
 // 数据源
@@ -1226,7 +1226,7 @@ function saveAndClosePanel() {
 // 获取当前运势类型的显示文本
 function getFortuneAspectLabel() {
   const aspect = fortuneAspects.find(a => a.value === params.fortuneAspect);
-  return aspect ? aspect.label : '整体运势';
+  return aspect ? aspect.label : '整体';
 }
 
 </script>
