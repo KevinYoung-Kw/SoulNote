@@ -3,11 +3,12 @@ from bs4 import BeautifulSoup
 import requests
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 # Import OpenCC for Chinese conversion
 try:
@@ -79,7 +80,11 @@ def fetch_astro_data(num, force_update=False):
         return cache[str(num)]
         
     try:
-        r = requests.get(f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}')
+        # Add timeout to prevent hanging requests
+        r = requests.get(
+            f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}', 
+            timeout=30
+        )
         r.raise_for_status()
         
         # Parse HTML
@@ -107,6 +112,7 @@ def fetch_all_astro_data():
     """Fetch data for all 12 astrology signs"""
     logger.info("Scheduled job: Fetching data for all astrology signs")
     updated = False
+    failed_signs = []
     
     for num in range(12):  # 0-11 for the 12 signs
         try:
@@ -119,6 +125,7 @@ def fetch_all_astro_data():
                 logger.info(f"No updates needed for astrology sign {num}")
         except Exception as e:
             logger.error(f"Error updating astrology sign {num}: {e}")
+            failed_signs.append(num)
     
     # Save cache if any updates were made
     if updated:
@@ -126,6 +133,29 @@ def fetch_all_astro_data():
         save_cache()
     else:
         logger.info("No updates found for any astrology sign")
+        
+    # Return failed signs for retry
+    return failed_signs
+
+def retry_failed_signs(signs):
+    """Retry fetching data for failed astrology signs"""
+    if not signs:
+        return
+    
+    logger.info(f"Retrying update for signs: {signs}")
+    updated = False
+    
+    for num in signs:
+        try:
+            logger.info(f"Retrying update for astrology sign {num}")
+            fetch_astro_data(num, force_update=True)
+            updated = True
+        except Exception as e:
+            logger.error(f"Error during retry for astrology sign {num}: {e}")
+    
+    if updated:
+        logger.info("Updates found during retry, saving cache")
+        save_cache()
 
 def needs_update(num):
     """Check if the astrology data needs to be updated"""
@@ -135,7 +165,11 @@ def needs_update(num):
             return True
             
         # Fetch current data without saving to cache
-        r = requests.get(f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}')
+        # Add timeout to prevent hanging requests
+        r = requests.get(
+            f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}', 
+            timeout=30
+        )
         r.raise_for_status()
         
         # Parse HTML
@@ -164,21 +198,71 @@ def setup_scheduler():
         scheduler.shutdown()
     
     scheduler = BackgroundScheduler()
-    # Schedule jobs at 8:00 AM and 8:00 PM every day
+    
+    # Schedule main job at midnight (00:00) every day
     scheduler.add_job(
-        fetch_all_astro_data, 
-        CronTrigger(hour='8,20'), 
-        id='fetch_astro_morning_evening'
+        check_and_schedule_updates, 
+        CronTrigger(hour='0', minute='0'), 
+        id='daily_midnight_check'
     )
     
     # Add a job that runs immediately when the app starts
     scheduler.add_job(
-        fetch_all_astro_data, 
-        id='fetch_astro_startup'
+        check_and_schedule_updates, 
+        id='startup_check'
     )
     
     scheduler.start()
-    logger.info("Scheduler started with jobs at 8:00 AM and 8:00 PM")
+    logger.info("Scheduler started with jobs at midnight (00:00)")
+
+def check_and_schedule_updates():
+    """Check for updates and schedule retries if needed"""
+    logger.info("Running update check")
+    
+    # Try to update all signs
+    failed_signs = fetch_all_astro_data()
+    
+    # If any signs failed, schedule retries
+    if failed_signs:
+        logger.info(f"Scheduling retries for failed signs: {failed_signs}")
+        
+        # Add a job to retry every 5 minutes for the next 2 hours
+        # We'll store the job IDs to remove them once successful
+        retry_times = 0
+        max_retries = 24  # 2 hours (24 * 5 minutes)
+        
+        def retry_with_count():
+            nonlocal retry_times, failed_signs
+            retry_times += 1
+            logger.info(f"Retry attempt {retry_times}/{max_retries}")
+            
+            # Try to update the failed signs
+            failed_signs = [num for num in failed_signs if retry_single_sign(num) is False]
+            
+            # If all signs updated or max retries reached, remove the job
+            if not failed_signs or retry_times >= max_retries:
+                logger.info(f"Removing retry job after {retry_times} attempts")
+                # We have all signs or reached max retries
+                if job_id in scheduler.get_jobs():
+                    scheduler.remove_job(job_id)
+        
+        job_id = f'retry_job_{int(time.time())}'
+        scheduler.add_job(
+            retry_with_count,
+            IntervalTrigger(minutes=5),
+            id=job_id
+        )
+
+def retry_single_sign(num):
+    """Retry updating a single sign, return True if successful"""
+    try:
+        logger.info(f"Retrying update for sign {num}")
+        fetch_astro_data(num, force_update=True)
+        save_cache()  # Save after each successful update
+        return True
+    except Exception as e:
+        logger.error(f"Failed retry for sign {num}: {e}")
+        return False
 
 # Create Flask app
 app = Flask(__name__)
@@ -285,8 +369,12 @@ def astro_json_api(num):
 def manual_update():
     """Endpoint to manually trigger astrology data update"""
     try:
-        fetch_all_astro_data()
-        return jsonify({"status": "success", "message": "Data update triggered successfully"})
+        failed_signs = fetch_all_astro_data()
+        return jsonify({
+            "status": "success", 
+            "message": "Data update triggered successfully",
+            "failed_signs": failed_signs
+        })
     except Exception as e:
         logger.error(f"Error triggering data update: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500

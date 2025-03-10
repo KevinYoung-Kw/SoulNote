@@ -11,6 +11,7 @@ import logging
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -45,7 +46,11 @@ def save_cache(cache):
 def fetch_astro_data(num, cache):
     """Fetch astrology data for a specific sign"""
     try:
-        r = requests.get(f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}')
+        # Add timeout to prevent hanging requests
+        r = requests.get(
+            f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}', 
+            timeout=30
+        )
         r.raise_for_status()
         
         # Parse HTML
@@ -77,7 +82,11 @@ def needs_update(num, cache):
         
     try:
         # Fetch current data to compare
-        r = requests.get(f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}')
+        # Add timeout to prevent hanging requests
+        r = requests.get(
+            f'http://astro.click108.com.tw/daily_{num}.php?iAstro={num}', 
+            timeout=30
+        )
         r.raise_for_status()
         
         # Parse HTML
@@ -99,36 +108,105 @@ def needs_update(num, cache):
         # In case of error, assume update is needed
         return True
 
-def update_all_astro_data():
-    """Update data for all 12 astrology signs"""
+def update_all_astro_data(max_retries=3, retry_delay=5):
+    """Update data for all 12 astrology signs with retry logic"""
     logger.info("Starting update for all astrology signs")
     cache = load_cache()
     updated = False
+    failed_signs = []
     
     for num in range(12):  # 0-11 for the 12 signs
-        try:
-            # Check if needs update
-            if needs_update(num, cache):
-                logger.info(f"Updating data for astrology sign {num}")
-                data = fetch_astro_data(num, cache)
-                if data:
-                    cache[str(num)] = data
-                    updated = True
-            else:
-                logger.info(f"No update needed for astrology sign {num}")
-        except Exception as e:
-            logger.error(f"Error processing astrology sign {num}: {e}")
-    
+        retries = 0
+        success = False
+        
+        while retries < max_retries and not success:
+            try:
+                # Check if needs update
+                if needs_update(num, cache):
+                    logger.info(f"Updating data for astrology sign {num}")
+                    data = fetch_astro_data(num, cache)
+                    if data:
+                        cache[str(num)] = data
+                        updated = True
+                        success = True
+                    else:
+                        raise Exception(f"Failed to fetch data for sign {num}")
+                else:
+                    logger.info(f"No update needed for astrology sign {num}")
+                    success = True
+            except Exception as e:
+                retries += 1
+                if retries < max_retries:
+                    logger.warning(f"Error processing astrology sign {num} (attempt {retries}/{max_retries}): {e}")
+                    logger.info(f"Waiting {retry_delay} seconds before retry")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to update astrology sign {num} after {max_retries} attempts: {e}")
+                    failed_signs.append(num)
+        
     # Save cache if any updates were made
     if updated:
         logger.info("Updates found, saving cache")
         save_cache(cache)
     else:
         logger.info("No updates found for any astrology sign")
+        
+    return failed_signs
+
+def retry_failed_signs(failed_signs, cache, max_retries=3, retry_delay=5):
+    """Retry updating failed signs"""
+    if not failed_signs:
+        return []
+        
+    logger.info(f"Retrying update for {len(failed_signs)} failed signs: {failed_signs}")
+    updated = False
+    still_failed = []
+    
+    for num in failed_signs:
+        retries = 0
+        success = False
+        
+        while retries < max_retries and not success:
+            try:
+                logger.info(f"Retry {retries+1/{max_retries} for sign {num}")
+                data = fetch_astro_data(num, cache)
+                if data:
+                    cache[str(num)] = data
+                    updated = True
+                    success = True
+                else:
+                    raise Exception(f"Failed to fetch data for sign {num}")
+            except Exception as e:
+                retries += 1
+                if retries < max_retries:
+                    logger.warning(f"Error during retry for sign {num} (attempt {retries}/{max_retries}): {e}")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to update sign {num} after {max_retries} retries")
+                    still_failed.append(num)
+    
+    # Save cache if any updates were made
+    if updated:
+        logger.info("Updates found during retries, saving cache")
+        save_cache(cache)
+        
+    return still_failed
 
 if __name__ == "__main__":
     try:
-        update_all_astro_data()
+        # Initial update attempt
+        cache = load_cache()
+        failed_signs = update_all_astro_data()
+        
+        # If there are failed signs, retry them
+        if failed_signs:
+            logger.info(f"Initial update had {len(failed_signs)} failed signs. Retrying...")
+            still_failed = retry_failed_signs(failed_signs, cache)
+            
+            if still_failed:
+                logger.warning(f"Could not update {len(still_failed)} signs after retries: {still_failed}")
+                sys.exit(1)
+        
         logger.info("Update process completed successfully")
     except Exception as e:
         logger.error(f"Error in update process: {e}")
