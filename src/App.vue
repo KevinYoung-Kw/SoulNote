@@ -75,7 +75,7 @@ onMounted(async () => {
   }
 
   // 注册快捷键监听
-  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown, { passive: true });
 });
 
 onUnmounted(() => {
@@ -88,6 +88,10 @@ onUnmounted(() => {
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s;
+}
+
+.fixed-page-layout {
+  background-color: var(--bg-color);
 }
 
 .fade-enter-from,

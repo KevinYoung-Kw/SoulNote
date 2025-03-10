@@ -126,7 +126,7 @@ function getThemePrompt(theme, savageMode = false) {
       basePrompt.examples = [
         '会议迟到了\n领导刚好看过来\n找个借口说',
         '外卖点太多\n冰箱堆满剩饭菜\n懒得去扔掉',
-        `健身环躺着\n购买已三个月\n从未拆封过`,
+        `健身环躺着\n购买已经三个月\n从未拆封过`,
         `辞职几个月\n遇见前司同组人\n都没有班上`,
         `工资刚到手\n一觉醒来全没了\n购物车清空`
       ];

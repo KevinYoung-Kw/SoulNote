@@ -40,12 +40,13 @@ function getTimeContext(savageMode = false) {
   let festivals = [];
   let isHoliday = false;
   let holidayName = '';
+  let lunar = null;
   
   // 尝试获取农历信息
   try {
     if (Solar && Lunar && HolidayUtil) {
       const solar = Solar.fromDate(now);
-      const lunar = solar.getLunar();
+      lunar = solar.getLunar(); 
       
       // 农历日期
       lunarDate = `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;

@@ -296,6 +296,17 @@
         </div>
       </div>
     </transition>
+      <div>
+        <transition name="fade">
+          <ImagePreviewModel
+            v-if="showImagePreview"
+            :imageUrl="previewImageUrl"
+            :onDownload="saveToDevice"
+            :onShare="handleSystemShare"
+            @close="closeImagePreview"
+        />
+        </transition>
+      </div>
   </div>
 </template>
 
@@ -304,12 +315,14 @@ import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick } 
 import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
 import LoadingIndicator from '../components/LoadingIndicator.vue';
+import ImagePreviewModel from '../components/ImagePreviewModel.vue';
 // 修改回原来的导入方式，确保代码可以正常运行
 import { generateNote, getEstimatedResponseTime } from '../services/aiService';
 import { saveUserPreferences, getUserPreferences, saveNote as saveNoteToStorage } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
 // 导入日志工具
 import logger from '../utils/logger';
+
 
 const router = useRouter();
 const noteContainerRef = ref(null);
@@ -365,6 +378,9 @@ const fortuneAspects = [
   { label: '事业', value: 'career', icon: 'fas fa-briefcase' },
   { label: '财运', value: 'wealth', icon: 'fas fa-coins' }
 ];
+
+const showImagePreview = ref(false);
+const previewImageUrl = ref('');
 
 // 数据源
 const zodiacs = [
@@ -913,28 +929,26 @@ async function exportNote() {
 }
 
 
+// 修改shareNote方法以引入新的预览功能
 async function shareNote() {
   if (!noteCardRef.value || !noteContent.value) return;
   
   try {
     const imageUrl = await exportAsImage(noteCardRef.value.$el);
     if (imageUrl) {
-      const shared = await shareImage(imageUrl);
-      if (!shared) {
-        // 如果原生分享API不可用，提供备用方案
-        await saveToDevice(imageUrl);
-        alert('图片已保存，您可以手动分享');
-      }
+      // 设置预览图片URL并显示预览模态框
+      previewImageUrl.value = imageUrl;
+      showImagePreview.value = true;
     }
   } catch (error) {
     logger.error('SHARE', '分享失败:', error);
     alert('分享失败，请重试');
   }
 }
-
 function goToSavedNotes() {
   router.push('/saved');
 }
+
 
 // 导航到设置页
 function goToSettings() {
@@ -1257,6 +1271,19 @@ function getFortuneAspectLabel() {
   return aspect ? aspect.label : '整体';
 }
 
+// Inside your script setup section, add or update these functions:
+function closeImagePreview() {
+  showImagePreview.value = false;
+  previewImageUrl.value = '';
+}
+
+
+function handleSystemShare(imageUrl) {
+  if (shareImage) {
+    shareImage(imageUrl);
+  }
+}
+
 </script>
 
 <style scoped>
@@ -1397,11 +1424,12 @@ function getFortuneAspectLabel() {
 /* 调整生成按钮上方间距，为加载指示器留出空间 */
 .generate-btn {
   width: 100%;
-  padding: var(--spacing-md) 0;
-  font-size: 18px;
-  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) 0; /* 减小上下内边距 */
+  font-size: 16px; /* 略微减小字体大小 */
+  margin-bottom: var(--spacing-sm); /* 减小下边距 */
   position: relative; /* 添加相对定位 */
   z-index: 1; /* 确保按钮在上层 */
+  min-height: 42px; /* 设置最小高度确保按钮不会太小 */
 }
 
 .generate-btn i {
@@ -2234,6 +2262,13 @@ function getFortuneAspectLabel() {
   background-color: rgba(0, 0, 0, 0.03);
 }
 
+/* 在<style>部分末尾添加 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
 
 /* ...existing code... */
 </style>

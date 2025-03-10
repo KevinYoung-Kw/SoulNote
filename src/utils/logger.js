@@ -10,7 +10,7 @@ class Logger {
       if (event.key === 'debug') {
         this.debugMode = event.newValue === 'true';
       }
-    });
+    }, { passive: true });
   }
   
   /**

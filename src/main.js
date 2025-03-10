@@ -3,8 +3,6 @@ import App from './App.vue';
 import router from './router';
 import './styles/main.css';
 import './styles/dark-mode.css'; // 添加暗黑模式专用样式
-import 'social-share.js/dist/js/social-share.min.js';
-import 'social-share.js/dist/css/share.min.css';
 import logger from './utils/logger';
 
 // 初始化应用
