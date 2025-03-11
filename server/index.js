@@ -159,6 +159,21 @@ async function getStats() {
   }
 }
 
+// 记录生成的纸条
+async function recordGeneratedNote() {
+  try {
+    const stats = await getStats();
+    stats.totalGeneratedNotes = (stats.totalGeneratedNotes || 0) + 1;
+    await saveStats(stats);
+    logger.debug('STATS', '记录生成的纸条', { totalNotes: stats.totalGeneratedNotes });
+    return stats.totalGeneratedNotes;
+  } catch (error) {
+    logger.error('STATS', '记录生成的纸条失败', { error: error.message });
+    return null;
+  }
+}
+
+
 // 保存统计数据
 async function saveStats(statsData) {
   try {
@@ -479,7 +494,10 @@ app.get('/api/stats', async (req, res) => {
     const userTrends = generateUserTrends(userData.users);
     
     return res.status(200).json({
-      systemStats: stats,
+      systemStats: {
+        ...stats,
+        totalUniqueUsers: userData.users.length, // 确保使用实际用户数量
+      },
       inviteCodeStats: codeStats,
       userCount: userData.users.length,
       userTrends
@@ -612,6 +630,19 @@ app.post('/api/edit-invite-code', async (req, res) => {
     });
   } catch (error) {
     console.error('编辑邀请码时出错:', error);
+    return res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 在API路由部分添加新端点
+app.post('/api/record-generation', async (req, res) => {
+  try {
+    await recordGeneratedNote();
+    return res.status(200).json({ 
+      success: true
+    });
+  } catch (error) {
+    logger.error('API', '记录生成失败', { error: error.message });
     return res.status(500).json({ error: '服务器内部错误' });
   }
 });

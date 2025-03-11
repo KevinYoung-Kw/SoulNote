@@ -93,19 +93,32 @@ export const communityService = {
     return { show: false };
   },
   
-  /**
-   * 记录生成次数
-   */
+// 修改recordGeneration函数
+
   async recordGeneration() {
-    const userPrefs = await getUserPreferences();
-    const generateCount = (userPrefs?.generateCount || 0) + 1;
-    
-    await saveUserPreferences({
-      ...userPrefs,
-      generateCount
-    });
-    
-    return generateCount;
+    try {
+      const userPrefs = await getUserPreferences();
+      const generateCount = (userPrefs?.generateCount || 0) + 1;
+      
+      // 保存本地记录
+      await saveUserPreferences({
+        ...userPrefs,
+        generateCount
+      });
+      
+      // 向后端报告生成事件
+      try {
+        await axios.post(`${API_BASE_URL}/api/record-generation`);
+      } catch (error) {
+        console.error('记录生成事件到服务器失败:', error);
+        // 失败时不阻止用户操作，静默失败
+      }
+      
+      return generateCount;
+    } catch (error) {
+      console.error('记录生成次数失败:', error);
+      return 0;
+    }
   },
   
   /**

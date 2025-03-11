@@ -58,6 +58,12 @@
           </div>
           
           <div class="stat-card">
+            <h3>纸条生成数</h3>
+            <div class="stat-number">{{ systemStats.totalGeneratedNotes || 0 }}</div>
+            <p class="stat-desc">用户生成的纸条总数</p>
+          </div>
+          
+          <div class="stat-card">
             <h3>邀请码数量</h3>
             <div class="stat-number">{{ inviteCodes.length }}</div>
             <p class="stat-desc">已创建的邀请码总数</p>
@@ -406,6 +412,7 @@ function processStatsData(data) {
   if (data.systemStats) {
     systemStats.totalVerifications = data.systemStats.totalVerifications || 0;
     systemStats.totalUniqueUsers = data.systemStats.totalUniqueUsers || 0;
+    systemStats.totalGeneratedNotes = data.systemStats.totalGeneratedNotes || 0;
     systemStats.lastUpdated = data.systemStats.lastUpdated;
   }
   

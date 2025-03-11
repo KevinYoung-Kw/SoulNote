@@ -113,7 +113,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { saveUserPreferences } from '../services/storageService';
+import { saveUserPreferences, getUserPreferences } from '../services/storageService';
 
 const props = defineProps({
   visible: {
@@ -305,24 +305,46 @@ function close() {
   }
 }
 
-function remindLater() {
-  // 设置半天后再次提醒
-  const nextRemindDate = new Date();
-  nextRemindDate.setDate(nextRemindDate.getDate() + 0.5);
-  
-  saveUserPreferences({
-    communityRemindAt: nextRemindDate.toISOString()
-  });
-  
-  emit('later');
+async function remindLater() {
+  try {
+    // 设置3分钟后再次提醒
+    const nextRemindDate = new Date();
+    nextRemindDate.setMinutes(nextRemindDate.getMinutes() + 3);
+    
+    // 先获取当前用户偏好设置
+    const currentPrefs = await getUserPreferences();
+    
+    // 合并偏好设置，保留现有设置同时更新提醒时间
+    await saveUserPreferences({
+      ...currentPrefs,
+      communityRemindAt: nextRemindDate.toISOString()
+    });
+    
+    console.log('已设置3分钟后提醒');
+    emit('later');
+  } catch (error) {
+    console.error('设置提醒时间失败:', error);
+    emit('later'); // 即使出错也关闭弹窗
+  }
 }
 
-function neverRemind() {
-  saveUserPreferences({
-    neverRemindCommunity: true
-  });
-  
-  emit('never');
+async function neverRemind() {
+  try {
+    // 先获取当前用户偏好设置
+    const currentPrefs = await getUserPreferences();
+    
+    // 合并偏好设置，保留现有设置同时添加不再提醒标记
+    await saveUserPreferences({
+      ...currentPrefs,
+      neverRemindCommunity: true
+    });
+    
+    console.log('已设置永不提醒');
+    emit('never');
+  } catch (error) {
+    console.error('设置永不提醒失败:', error);
+    emit('never'); // 即使出错也关闭弹窗
+  }
 }
 
 function handleOutsideClick() {
