@@ -289,11 +289,13 @@
             </div>
           </div>
         </div>
-        
-        <div class="params-panel-footer">
-          <button class="btn btn-secondary" @click="closeParamsPanel">取消</button>
-          <button class="btn btn-primary" @click="saveAndClosePanel">确定</button>
-        </div>
+      <div class="params-panel-footer">
+        <button class="btn btn-secondary" @click="closeParamsPanel">取消</button>
+        <button class="btn btn-random" @click="randomizeParams">
+          <i class="fas fa-dice"></i> 随机
+        </button>
+        <button class="btn btn-primary" @click="saveAndClosePanel">确定</button>
+      </div>
       </div>
     </transition>
       <div>
@@ -758,6 +760,50 @@ const collapsedSections = reactive({
 // 切换区域的折叠状态
 function toggleSection(section) {
   collapsedSections[section] = !collapsedSections[section];
+}
+
+// 添加随机参数生成功能
+function randomizeParams() {
+  // 1. 随机选择1-5个表情
+  const randomEmojiCount = Math.floor(Math.random() * 5) + 1; // 生成1到5的随机数
+  const allEmojis = emojiCategories.flatMap(category => category.emojis.map(emoji => emoji.symbol));
+  
+  // 清空当前表情
+  params.moods = [];
+  
+  // 添加随机表情
+  const shuffledEmojis = [...allEmojis].sort(() => 0.5 - Math.random());
+  for (let i = 0; i < randomEmojiCount; i++) {
+    if (i < shuffledEmojis.length) {
+      params.moods.push(shuffledEmojis[i]);
+    }
+  }
+  
+  // 2. 随机选择主题
+  const randomThemeIndex = Math.floor(Math.random() * themeOptions.length);
+  params.theme = themeOptions[randomThemeIndex].value;
+  
+  // 3. 随机选择情感风格 (暖心/毒舌)
+  params.savageMode = Math.random() > 0.5;
+  
+  // 4. 随机运势设置
+  params.enableFortune = Math.random() > 0.3; // 70%概率启用运势
+  if (params.enableFortune) {
+    const randomFortuneIndex = Math.floor(Math.random() * fortuneAspects.length);
+    params.fortuneAspect = fortuneAspects[randomFortuneIndex].value;
+  }
+  
+  // 提示用户参数已随机生成
+  const message = `已随机生成：
+    • ${params.moods.length}个表情
+    • 主题：${themeOptions.find(t => t.value === params.theme).label}
+    • 情感风格：${params.savageMode ? '毒舌' : '暖心'}
+    • 运势：${params.enableFortune ? fortuneAspects.find(a => a.value === params.fortuneAspect).label : '已关闭'}
+  `;
+  
+  // 使用Toast提示而不是alert，避免阻塞UI
+  // 如果没有Toast组件，可以用alert或console.log
+  console.log(message);
 }
 
 // 添加一个方法来缓存生成的内容
@@ -2268,6 +2314,49 @@ function handleSystemShare(imageUrl) {
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
+}
+
+/* 随机按钮样式 */
+.btn-random {
+  background-color: #8e44ad; /* 紫色 - 代表随机/神秘 */
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  transition: all var(--transition-fast);
+  flex-shrink: 0; /* 防止按钮被压缩 */
+}
+
+.btn-random:hover {
+  background-color: #9b59b6;
+  transform: scale(1.05);
+}
+
+.btn-random i {
+  font-size: 16px;
+}
+
+/* 调整按钮组布局 */
+.params-panel-footer {
+  gap: var(--spacing-sm); /* 减小按钮间隔 */
+  justify-content: space-between; /* 平均分配空间 */
+}
+
+.params-panel-footer button {
+  flex: 1; /* 按钮平均分配空间 */
+  max-width: 33%; /* 限制最大宽度 */
+}
+
+@media (max-width: 480px) {
+  .btn-random {
+    font-size: 13px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
 }
 
 /* ...existing code... */
