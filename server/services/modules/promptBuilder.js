@@ -188,6 +188,11 @@ async function buildPrompt(params, debugLog = () => {}) {
      '如何将今日运势中的信息转化为犀利的调侃' : 
      '如何将今日运势的建议融入到关怀中，以符合对方性格特点的方式表达'}`;
   }
+  // 为haiku主题添加额外的检查步骤
+  if (params.theme === 'haiku') {
+    basePrompt += `
+  6. 最后，需要检查生成的俳句是否符合5-7-5，即17音的结构，如果不是，则需要调整。`;
+  }
   
   basePrompt += `
   

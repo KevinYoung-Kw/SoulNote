@@ -150,7 +150,7 @@ function getThemePrompt(theme, savageMode = false) {
       basePrompt.limits = [
         '不需要强行融入自然意象',
         '避免过于晦涩的表达',
-        '严格遵循5-7-5音节结构，共17字',
+        '严格遵循5-7-5音节结构，共17音',
         '重点是人的情感和生活体验'
       ];
     }
