@@ -33,6 +33,14 @@ router.get('/status', noteController.getStatus);
  * @desc 获取估计响应时间
  * @access Public
  */
+
 router.get('/estimated-time', noteController.getEstimatedTime);
+
+/**
+ * @route GET /api/config
+ * @desc 获取应用配置，包括社群信息
+ * @access Public
+ */
+router.get('/config', noteController.getAppConfig);
 
 module.exports = router;

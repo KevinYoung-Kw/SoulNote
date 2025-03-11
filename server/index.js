@@ -14,7 +14,7 @@ const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger'); // 引入增强的logger
 
 // 导入路由
-const noteRoutes = require('./routes/noteRoutes.js');
+const noteRoutes = require('./routes/noteRoutes');
 
 // 输出环境变量是否成功读取
 logger.system('ENV', '环境变量加载状态', {
@@ -365,6 +365,7 @@ const loginLimiter = rateLimit({
 // 应用限流中间件
 app.use('/api/', apiLimiter);
 app.use('/api/generate-invite-code', loginLimiter);
+
 
 // 注册noteRoutes路由
 app.use('/api/note', noteRoutes);

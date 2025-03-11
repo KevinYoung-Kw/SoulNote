@@ -309,6 +309,16 @@
         />
         </transition>
       </div>
+    <CommunityPrompt
+      v-model:visible="showCommunityPrompt"
+      :title="communityPromptData.title"
+      :message="communityPromptData.message"
+      :qrcodeUrl="communityPromptData.qrcodeUrl"
+      :compact="communityPromptData.reason === 'generation_threshold'"
+      @close="handleCommunityPromptClose"
+      @later="handleCommunityPromptClose"
+      @never="handleCommunityPromptClose"
+    />
   </div>
 </template>
 
@@ -318,10 +328,12 @@ import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
 import LoadingIndicator from '../components/LoadingIndicator.vue';
 import ImagePreviewModel from '../components/ImagePreviewModel.vue';
+import CommunityPrompt from '../components/CommunityPrompt.vue';
 // 修改回原来的导入方式，确保代码可以正常运行
 import { generateNote, getEstimatedResponseTime } from '../services/aiService';
 import { saveUserPreferences, getUserPreferences, saveNote as saveNoteToStorage } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
+import { communityService } from '../services/communityService';
 // 导入日志工具
 import logger from '../utils/logger';
 
@@ -750,6 +762,14 @@ const animationDuration = computed(() => {
   return baseDuration;
 });
 
+const showCommunityPrompt = ref(false);
+const communityPromptData = reactive({
+  title: '',
+  message: '',
+  qrcodeUrl: '',
+  reason: ''
+});
+
 const collapsedSections = reactive({
   moods: false,
   theme: true,  // 默认折叠主题
@@ -889,6 +909,32 @@ async function generateNoteContent() {
       // 更新UI状态
       hasGeneratedContent.value = true;
       isAnimating.value = true;
+      
+      // ===== 新增部分：记录生成次数并可能显示社群提示 =====
+      try {
+        // 记录生成成功
+        const generateCount = await communityService.recordGeneration();
+        
+        // 检查是否应该在生成成功后提示加入社群（30%几率，且生成次数达到3次以上）
+        if (generateCount >= 3 && Math.random() < 0.3 && !showCommunityPrompt.value) {
+          // 延迟检查以确保用户先看到生成的内容
+          setTimeout(async () => {
+            const shouldShow = await communityService.shouldShowPrompt();
+            if (shouldShow.show) {
+              Object.assign(communityPromptData, {
+                ...shouldShow,
+                message: '内容生成成功！喜欢这种体验吗？加入社群获取更多创作技巧～'
+              });
+              showCommunityPrompt.value = true;
+            }
+          }, 1500);
+        }
+      } catch (socialError) {
+        // 社交功能失败不应影响主要功能
+        logger.error('SOCIAL', '社群功能调用失败:', socialError);
+      }
+      // ===== 新增部分结束 =====
+      
     } else {
       // 处理API返回数据格式不正确的情况
       throw new Error('服务器返回数据格式不正确，请稍后重试');
@@ -906,6 +952,11 @@ async function generateNoteContent() {
     }
     isGenerating.value = false;
   }
+}
+
+// 添加社群提示关闭处理函数
+function handleCommunityPromptClose() {
+  showCommunityPrompt.value = false;
 }
 
 function regenerateNote() {
@@ -1007,13 +1058,7 @@ function increaseFontSize() {
     // 先更新状态
     fontSize.value += 2;
     // 立即应用到组件
-    if (noteCardRef.value) {
-      // 通过$el.querySelector直接修改DOM元素，确保立即生效
-      const contentEl = noteCardRef.value.$el.querySelector('.note-content');
-      if (contentEl) {
-        contentEl.style.fontSize = `${fontSize.value}px`;
-      }
-    }
+    applyFontSize();
     // 将变更保存到本地
     updateLocalPreferences();
     logger.info('FONT_SIZE', 'Increased font size to:', fontSize.value);
@@ -1025,18 +1070,30 @@ function decreaseFontSize() {
     // 先更新状态
     fontSize.value -= 2;
     // 立即应用到组件
-    if (noteCardRef.value) {
-      // 通过$el.querySelector直接修改DOM元素，确保立即生效
-      const contentEl = noteCardRef.value.$el.querySelector('.note-content');
-      if (contentEl) {
-        contentEl.style.fontSize = `${fontSize.value}px`;
-      }
-    }
+    applyFontSize();
     // 将变更保存到本地
     updateLocalPreferences();
     logger.info('FONT_SIZE', 'Decreased font size to:', fontSize.value);
   }
 }
+
+// 新增一个安全的应用字体大小的函数
+function applyFontSize() {
+  nextTick(() => {
+    try {
+      if (noteCardRef.value && noteCardRef.value.$el) {
+        const contentEl = noteCardRef.value.$el.querySelector('.note-content');
+        if (contentEl) {
+          contentEl.style.fontSize = `${fontSize.value}px`;
+          logger.info('FONT_SIZE', '直接通过DOM更新字体大小:', fontSize.value);
+        }
+      }
+    } catch (error) {
+      logger.error('FONT_SIZE', '应用字体大小失败:', error);
+    }
+  });
+}
+
 
 // 添加一个方法来更新本地偏好设置
 async function updateLocalPreferences() {
@@ -1069,18 +1126,11 @@ async function updateLocalPreferences() {
 // 监听字体大小变化，确保视图更新
 watch(fontSize, (newSize) => {
   logger.info('FONT_SIZE', 'Font size changed in HomePage:', newSize);
-  
-  // 确保DOM更新，不仅仅依赖于组件刷新
+  // 使用更安全的方法应用字体大小
   nextTick(() => {
-    if (noteCardRef.value && noteCardRef.value.$el) {
-      const contentEl = noteCardRef.value.$el.querySelector('.note-content');
-      if (contentEl) {
-        contentEl.style.fontSize = `${newSize}px`;
-        logger.info('FONT_SIZE', '直接通过DOM更新字体大小:', newSize);
-      }
-    }
+    applyFontSize();
   });
-}, { immediate: true });
+}, { immediate: false });  // 移除immediate参数，避免组件未加载时执行
 
 // 选择emoji
 function selectEmoji(symbol) {
@@ -1225,7 +1275,28 @@ onMounted(async () => {
       params.gender = preferences.gender;
       params.age = preferences.age;
       params.relationship = preferences.relationship;
+
+      const appVersion = '1.3.0'; // 当前应用版本，实际中可从环境变量获取
+      const updatePrompt = await communityService.checkUpdatePrompt(appVersion);     
+
+      if (updatePrompt.show) {
+        Object.assign(communityPromptData, updatePrompt);
+        setTimeout(() => {
+          showCommunityPrompt.value = true;
+        }, 1000); // 页面加载1秒后显示
+        return;
+      }
       
+      // 检查其他常规社群提示
+      const shouldShow = await communityService.shouldShowPrompt();
+      if (shouldShow.show) {
+        Object.assign(communityPromptData, shouldShow);
+        // 延迟显示，避免页面加载时立即弹出
+        setTimeout(() => {
+          showCommunityPrompt.value = true;
+        }, 2000);
+      }
+
       // 从缓存恢复生成的内容
       await restoreFromCache();
     }

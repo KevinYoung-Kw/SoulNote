@@ -119,6 +119,54 @@ class NoteController {
       });
     }
   }
+
+  /**
+   * 获取应用配置信息
+   * @param {Object} req - Express请求对象
+   * @param {Object} res - Express响应对象
+   */
+  async getAppConfig(req, res) {
+    try {
+      // 获取当前应用版本和社群相关配置
+      const appConfig = {
+        version: process.env.APP_VERSION || '1.0.0',
+        community: {
+          enable: true, // 控制是否启用社群功能
+          qrcode: process.env.COMMUNITY_QRCODE_URL || '/assets/community-qr.png',
+          title: '星语心笺体验群',
+          description: '获取最新功能更新、交流使用心得、提出产品建议',
+          showAfterGenerations: 3, // 生成几次后提示
+          showForNewUsers: true,
+          showAfterUpdate: true,
+          prompts: [
+            '喜欢这个应用？加入体验群一起交流～',
+            '有任何建议？开发者就在群里等你！',
+            '新功能抢先体验，加入星语心笺社群'
+          ]
+        }
+      };
+      
+      logger.debug('APP_CONFIG', '返回应用配置', { version: appConfig.version });
+      
+      res.status(200).json({
+        success: true,
+        config: appConfig
+      });
+    } catch (error) {
+      logger.error('APP_CONFIG_ERROR', '获取应用配置错误', {
+        message: error.message,
+        stack: process.env.DEBUG_MODE === 'true' ? error.stack : undefined
+      });
+      
+      res.status(500).json({
+        success: false,
+        error: '获取配置信息失败'
+      });
+    }
+  }
+
 }
+
+
 
 module.exports = new NoteController();
