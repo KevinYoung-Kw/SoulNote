@@ -62,7 +62,21 @@
           :animation-duration="animationDuration"
           ref="noteCardRef"
         />
-        
+
+        <!-- 添加可关闭的感谢文本，移到HomePage中 -->
+        <div class="appreciation-container" v-if="showAppreciation">
+          <div class="appreciation-text">
+            <p>
+              喜欢这个应用？
+              <a href="#" @click.prevent="navigateToAbout">请作者喝杯咖啡</a>
+              支持独立开发者 ☕️
+            </p>
+          </div>
+          <button class="close-appreciation" @click="hideAppreciation">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
         <!-- 背景选择器和字号调整保持不变 -->
         <div class="background-selector">
           <span 
@@ -349,6 +363,7 @@ const showEmojiPicker = ref(false);
 const currentEmojiCategory = ref(0);
 const isGenerating = ref(false);
 const isAnimating = ref(false);
+const isLoading = ref(false);
 const noteContent = ref('点击下方"生成心语"按钮，开始您的心灵之旅...');
 const currentBackground = ref('paper-1');
 const fontSize = ref(24);
@@ -356,6 +371,7 @@ const darkMode = ref(false);
 const loadingMessage = ref(''); 
 const hasGeneratedContent = ref(false); // 添加判断是否已生成内容的状态
 const errorMessage = ref(''); // 添加错误消息状态
+const showAppreciation = ref(true);
 
 // 导出功能
 const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
@@ -1080,21 +1096,22 @@ async function exportNote() {
   
   // 先检测是否是微信浏览器
   if (isWechatBrowser()) {
-    // 使用自定义对话框而非alert
     const confirmed = confirm('检测到您正在使用微信浏览器，微信限制了保存图片功能。\n\n建议您：\n1. 点击右上角"..."，选择"在浏览器中打开"\n2. 或使用Chrome/Safari等系统浏览器访问');
     
     if (!confirmed) return;
   }
   
   try {
-    isLoading.value = true; // 添加一个加载状态
+    isLoading.value = true;
     loadingMessage.value = "正在准备图片...";
     
     // 确保在导出前DOM已完全渲染
     await nextTick();
     
-    // 获取实际DOM元素而非组件实例
-    const element = noteCardRef.value?.$el || noteCardRef.value;
+    // 获取实际DOM元素
+    const element = noteCardRef.value.$el;
+    console.log("获取导出元素:", element); // 添加调试信息
+    
     if (!element) {
       throw new Error("找不到要导出的DOM元素");
     }
@@ -1103,22 +1120,23 @@ async function exportNote() {
     if (imageUrl) {
       try {
         await saveToDevice(imageUrl, `心语_${new Date().toISOString().slice(0,10)}.png`);
-        // 成功保存
+        console.log("导出成功"); // 添加调试信息
       } catch (downloadError) {
-        // 保存失败处理
         if (isWechatBrowser()) {
           alert('保存失败。由于微信浏览器限制，无法直接保存图片。\n\n请点击右上角"..."，选择"在浏览器中打开"后重试。');
         } else {
           alert('保存图片失败。您可以尝试右键点击图片，选择"图片另存为"保存。');
         }
-        logger.error('EXPORT', '保存设备失败:', downloadError);
+        console.error('保存设备失败:', downloadError);
       }
+    } else {
+      throw new Error("导出图片URL为空");
     }
   } catch (error) {
-    logger.error('EXPORT', '导出失败:', error);
+    console.error('导出失败:', error);
     alert('导出图片失败，请重试或尝试分享功能');
   } finally {
-    isLoading.value = false; // 确保加载状态重置
+    isLoading.value = false;
   }
 }
 
@@ -1127,14 +1145,16 @@ async function shareNote() {
   if (!noteCardRef.value || !noteContent.value) return;
   
   try {
-    isLoading.value = true; // 添加一个加载状态
+    isLoading.value = true;
     loadingMessage.value = "正在准备分享...";
     
     // 确保在导出前DOM已完全渲染
     await nextTick();
     
     // 获取实际DOM元素
-    const element = noteCardRef.value?.$el || noteCardRef.value;
+    const element = noteCardRef.value.$el;
+    console.log("获取分享元素:", element); // 添加调试信息
+    
     if (!element) {
       throw new Error("找不到要导出的DOM元素");
     }
@@ -1144,32 +1164,18 @@ async function shareNote() {
       // 设置预览图片URL并显示预览模态框
       previewImageUrl.value = imageUrl;
       showImagePreview.value = true;
+      console.log("分享图片准备完成"); // 添加调试信息
+    } else {
+      throw new Error("导出图片URL为空");
     }
   } catch (error) {
-    logger.error('SHARE', '分享失败:', error);
+    console.error('分享失败:', error);
     alert('准备分享图片失败，请稍后重试');
   } finally {
-    isLoading.value = false; // 确保加载状态重置
+    isLoading.value = false;
   }
 }
 
-
-// 修改shareNote方法以引入新的预览功能
-async function shareNote() {
-  if (!noteCardRef.value || !noteContent.value) return;
-  
-  try {
-    const imageUrl = await exportAsImage(noteCardRef.value.$el);
-    if (imageUrl) {
-      // 设置预览图片URL并显示预览模态框
-      previewImageUrl.value = imageUrl;
-      showImagePreview.value = true;
-    }
-  } catch (error) {
-    logger.error('SHARE', '分享失败:', error);
-    alert('分享失败，请重试');
-  }
-}
 function goToSavedNotes() {
   router.push('/saved');
 }
@@ -1389,6 +1395,9 @@ onMounted(async () => {
       fontSize.value = preferences.fontSize || 24;
       currentBackground.value = preferences.background || 'paper-1';
       params.savageMode = preferences.savageMode || false;
+
+      // 显示感谢文本
+      showAppreciation.value = !preferences.hideAppreciation;
       
       // 加载运势偏好
       if (preferences.mood) {
@@ -1526,6 +1535,27 @@ function closeImagePreview() {
 function handleSystemShare(imageUrl) {
   if (shareImage) {
     shareImage(imageUrl);
+  }
+}
+
+// 跳转到关于页面
+function navigateToAbout() {
+  router.push('/about-us');
+}
+
+// 隐藏感谢文本并记住用户选择
+async function hideAppreciation() {
+  showAppreciation.value = false;
+  
+  // 保存用户偏好，记住用户选择隐藏感谢文本
+  try {
+    const userPrefs = await getUserPreferences();
+    await saveUserPreferences({
+      ...userPrefs,
+      hideAppreciation: true
+    });
+  } catch (error) {
+    console.error('保存用户偏好失败:', error);
   }
 }
 
@@ -2555,6 +2585,89 @@ function handleSystemShare(imageUrl) {
   .btn-random {
     font-size: 13px;
     padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+/* 感谢文本样式 */
+.appreciation-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: var(--spacing-sm) auto; /* 上下间距减小，左右居中 */
+  max-width: 90%; /* 限制最大宽度 */
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: rgba(123, 158, 137, 0.05); /* 与主题色协调的浅色背景 */
+  border-radius: var(--radius-md);
+}
+
+.appreciation-text {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  opacity: 0.9;
+}
+
+.appreciation-text p {
+  margin: 0;
+}
+
+.appreciation-text a {
+  color: var(--primary-color);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.appreciation-text a:hover {
+  color: var(--primary-color-dark);
+}
+
+.close-appreciation {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.close-appreciation:hover {
+  opacity: 1;
+}
+
+/* 毒舌模式下的感谢文本 */
+.savage-mode .appreciation-container {
+  background-color: rgba(255, 82, 82, 0.05);
+}
+
+.savage-mode .appreciation-text a {
+  color: var(--savage-primary-color, #ff5252);
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .appreciation-container {
+    margin: var(--spacing-xs) auto;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .appreciation-text {
+    font-size: 12px;
+  }
+  
+  .close-appreciation {
+    padding: 3px;
   }
 }
 

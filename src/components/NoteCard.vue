@@ -24,29 +24,15 @@
     </div>
   </div>
 
-  <!-- 添加可关闭的感谢文本 -->
-  <div class="appreciation-container" v-if="showAppreciation">
-    <div class="appreciation-text">
-      <p>
-        喜欢这个应用？
-        <a href="#" @click.prevent="navigateToAbout">请作者喝杯咖啡</a>
-        支持独立开发者 ☕️
-      </p>
-    </div>
-    <button class="close-appreciation" @click="hideAppreciation">
-      <i class="fas fa-times"></i>
-    </button>
-  </div>
+
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useNoteAnimation } from '../composables/useNoteAnimation';
 import { useRouter } from 'vue-router'; // 添加导入
-import { getUserPreferences, saveUserPreferences } from '../services/storageService'; // 添加导入
 
 const router = useRouter(); // 初始化router
-const showAppreciation = ref(true); // 初始化showAppreciation
 
 const props = defineProps({
   content: {
@@ -208,22 +194,6 @@ function navigateToAbout() {
   router.push('/about-us');
 }
 
-// 新增：隐藏感谢文本并记住用户选择
-async function hideAppreciation() {
-  showAppreciation.value = false;
-  
-  // 保存用户偏好，记住用户选择隐藏感谢文本
-  try {
-    const userPrefs = await getUserPreferences();
-    await saveUserPreferences({
-      ...userPrefs,
-      hideAppreciation: true
-    });
-  } catch (error) {
-    console.error('保存用户偏好失败:', error);
-  }
-}
-
 // 修改 onMounted 方法，添加 async 修饰符
 onMounted(async () => { // 添加 async
   noteRef.value = noteCardRef.value;
@@ -244,15 +214,6 @@ onMounted(async () => { // 添加 async
     }, 1000);
   }
 
-  // 获取用户偏好设置
-  try {
-    const userPrefs = await getUserPreferences();
-    if (userPrefs?.hideAppreciation) {
-      showAppreciation.value = false;
-    }
-  } catch (error) {
-    console.error('获取用户偏好失败:', error);
-  }
 });
 
 // 监听内容变化，触发动画
@@ -442,72 +403,4 @@ watch(() => props.animationDuration, (newDuration) => {
 }
 
 
-/* 修改感谢文本容器样式，添加关闭按钮 */
-.appreciation-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: var(--spacing-md);
-}
-
-.appreciation-text {
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-secondary);
-  opacity: 0.8;
-}
-
-.appreciation-text p {
-  margin: 0;
-}
-
-.appreciation-text a {
-  color: var(--primary-color);
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  font-weight: 500;
-  transition: color 0.2s ease;
-}
-
-.appreciation-text a:hover {
-  color: var(--primary-color-dark);
-}
-
-.close-appreciation {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  opacity: 0.6;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.2s ease;
-}
-
-.close-appreciation:hover {
-  opacity: 1;
-}
-
-/* 响应式调整 */
-@media (max-width: 480px) {
-  .appreciation-container {
-    margin-top: var(--spacing-sm);
-  }
-  
-  .appreciation-text {
-    font-size: 12px;
-  }
-  
-  .close-appreciation {
-    padding: 3px;
-  }
-}
 </style>
