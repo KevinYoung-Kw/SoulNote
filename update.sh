@@ -1,5 +1,4 @@
 #!/bin/bash
-# filepath: d:\Github Project\SoulNote\server\update.sh
 
 # 服务器自动更新脚本 - 从GitHub拉取最新代码并重启服务
 
@@ -8,6 +7,13 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # 无颜色
+
+# 检查是否使用强制更新标志
+FORCE_UPDATE=0
+if [ "$1" == "--force" ] || [ "$1" == "-f" ]; then
+    FORCE_UPDATE=1
+    log_warn "已启用强制更新模式!"
+fi
 
 # 日志函数
 log_info() {
@@ -67,8 +73,27 @@ if [ -d ".git" ]; then
 
     # 拉取最新代码
     log_info "从GitHub拉取最新代码..."
-    git pull origin ${CURRENT_BRANCH}
-    if [ $? -ne 0 ]; then
+    
+    # 设置合并策略为merge
+    git config pull.rebase false
+    
+    # 根据是否强制更新选择不同的拉取策略
+    if [ ${FORCE_UPDATE} -eq 1 ]; then
+        log_warn "使用强制更新模式拉取代码..."
+        git fetch origin ${CURRENT_BRANCH}
+        git reset --hard origin/${CURRENT_BRANCH}
+        PULL_RESULT=$?
+    else
+        git pull origin ${CURRENT_BRANCH}
+        PULL_RESULT=$?
+        
+        # 如果普通拉取失败，提示用户使用强制更新
+        if [ ${PULL_RESULT} -ne 0 ]; then
+            log_error "拉取代码失败。如需强制更新（丢弃本地更改），请使用: ./update.sh --force"
+        fi
+    fi
+    
+    if [ ${PULL_RESULT} -ne 0 ]; then
         log_error "拉取代码失败，尝试恢复..."
         if [ "${STASHED}" == "1" ]; then
             git stash pop
