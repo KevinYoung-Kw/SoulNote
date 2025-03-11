@@ -4,6 +4,7 @@
     ref="noteCardRef" 
     :class="{'savage-note': isSavageMode, 'font-loaded': fontLoaded}"
     :style="cardStyle"
+    data-v-notecard
   >
     <!-- 修改mood展示区域，创建水平排列的表情容器 -->
     <div class="note-mood-container" v-if="moodsArray.length > 0" :style="moodContainerStyle">
