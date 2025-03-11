@@ -309,16 +309,17 @@
         />
         </transition>
       </div>
-    <CommunityPrompt
-      v-model:visible="showCommunityPrompt"
-      :title="communityPromptData.title"
-      :message="communityPromptData.message"
-      :qrcodeUrl="communityPromptData.qrcodeUrl"
-      :compact="communityPromptData.reason === 'generation_threshold'"
-      @close="handleCommunityPromptClose"
-      @later="handleCommunityPromptClose"
-      @never="handleCommunityPromptClose"
-    />
+      <CommunityPrompt
+        v-model:visible="showCommunityPrompt"
+        :title="communityPromptData.title"
+        :message="communityPromptData.message"
+        :qrcodeUrl="communityPromptData.qrcodeUrl"
+        :compact="communityPromptData.reason === 'generation_threshold'"
+        :updateLogs="communityPromptData.updateLogs"
+        @close="handleCommunityPromptClose"
+        @later="handleCommunityPromptClose"
+        @never="handleCommunityPromptClose"
+      />
   </div>
 </template>
 
@@ -764,10 +765,94 @@ const animationDuration = computed(() => {
 
 const showCommunityPrompt = ref(false);
 const communityPromptData = reactive({
-  title: '',
+  title: '星语心笺社群',
   message: '',
-  qrcodeUrl: '',
-  reason: ''
+  qrcodeUrl: '/assets/community-qr.png',
+  reason: '',
+  updateLogs: [
+    {
+      number: '1.4.0',
+      date: '2025-03-12T01:50:00',
+      updates: [
+      {
+        type: 'feature',
+        items: [
+          '新增社群功能，方便用户交流讨论',
+          '添加更新日志面板，实时跟踪应用变化',
+          '支持多种表情符号组合，丰富表达方式',
+          '加入开发者支持选项，可请作者喝咖啡'
+        ]
+      },
+      {
+        type: 'improvement',
+        items: [
+          '优化移动端页面显示，特别针对小屏设备',
+          '改进页脚高度设计，提升操作舒适度',
+          '增强社区弹窗交互，支持标签切换',
+          '调整感谢文本样式与位置，体验更佳'
+        ]
+      },
+      {
+        type: 'fix',
+        items: [
+          '修复二维码图片路径问题',
+          '解决API配置加载失败问题',
+          '修正部分组件在小屏幕上的显示异常'
+        ]
+      }
+    ]
+  },
+  {
+    number: '1.3.1',
+    date: '2025-03-11T18:45:00',
+    updates: [
+      {
+        type: 'feature',
+        items: [
+          '新增社群入口，连接用户与开发者',
+          '实现笔记卡片尺寸优化，适配更多设备'
+        ]
+      },
+      {
+        type: 'improvement',
+        items: [
+          '优化加载指示器样式，提升用户体验',
+          '完善页面布局结构，解决样式冲突'
+        ]
+      },
+      {
+        type: 'fix',
+        items: [
+          '修复笔记卡片在iPhone SE上的显示问题',
+          '解决字体加载延迟导致的布局抖动'
+        ]
+      }
+    ]
+  },
+  {
+    number: '1.3.0',
+    date: '2025-03-09T10:15:00',
+    updates: [
+      {
+        type: 'feature',
+        items: [
+          '首次发布星语心笺Web应  用',
+          '支持多种心情表情选择',
+          '提供5种卡片背景样式'
+        ]
+      },
+      {
+        type: 'improvement',
+        items: [
+          '实现流畅的生成动画效果',
+          '支持暗黑模式切换',
+          '优化图片保存与分享功能'
+        ]
+      }
+      ]
+    },
+    // 更多版本...
+  ]
 });
 
 const collapsedSections = reactive({

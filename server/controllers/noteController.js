@@ -133,15 +133,15 @@ class NoteController {
         community: {
           enable: true, // 控制是否启用社群功能
           qrcode: process.env.COMMUNITY_QRCODE_URL || '/assets/community-qr.png',
-          title: '星语心笺体验群',
-          description: '获取最新功能更新、交流使用心得、提出产品建议',
-          showAfterGenerations: 3, // 生成几次后提示
+          title: '星语心笺反馈群',
+          description: '分享您的使用体验、提出产品建议、获取最新功能更新',
+          showAfterGenerations: 3, // 减少触发次数以获取更多反馈
           showForNewUsers: true,
           showAfterUpdate: true,
           prompts: [
-            '喜欢这个应用？加入体验群一起交流～',
-            '有任何建议？开发者就在群里等你！',
-            '新功能抢先体验，加入星语心笺社群'
+            '有任何使用建议？开发者期待您的反馈！',
+            '您的意见对我们至关重要，加入反馈群直接交流',
+            '想要更好的使用体验？加入群聊分享您的想法'
           ]
         }
       };

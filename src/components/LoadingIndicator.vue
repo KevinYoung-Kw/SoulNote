@@ -8,7 +8,7 @@
 </template>
 
 <script setup>
-import { defineProps, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
   isLoading: {

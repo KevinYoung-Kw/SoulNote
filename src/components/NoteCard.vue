@@ -29,7 +29,7 @@
       <p>
         喜欢这个应用？
         <a href="#" @click.prevent="navigateToAbout">请作者喝杯咖啡</a>
-        支持独立开发者 ❤️
+        支持独立开发者 ☕️
       </p>
     </div>
     <button class="close-appreciation" @click="hideAppreciation">
@@ -407,17 +407,17 @@ watch(() => props.animationDuration, (newDuration) => {
 /* 媒体查询，在小屏幕上调整内边距 */
 @media (max-width: 480px) {
   .note-card {
-    padding: var(--spacing-lg) var(--spacing-md);
-    min-height: 250px; /* 小屏幕上稍微减小最小高度 */
+    padding: var(--spacing-md) var(--spacing-sm);
+    min-height: 200px; /* 小屏幕上进一步减小最小高度 */
   }
   
   .note-mood-container {
-    padding: 3px 6px; /* 小屏幕上减少内边距 */
-    gap: 4px; /* 减少表情间距 */
+    padding: 2px 4px; /* 小屏幕上进一步减少内边距 */
+    gap: 2px; /* 进一步减少表情间距 */
   }
   
   .note-mood-item {
-    font-size: 18px !important; /* 在小屏幕上统一字体大小 */
+    font-size: 16px !important; /* 在小屏幕上进一步减小字体大小 */
   }
 }
 

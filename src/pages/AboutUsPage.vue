@@ -26,7 +26,7 @@
               <p class="qr-label">请作者喝杯咖啡</p>
             </div>
             <div class="qr-item">
-              <img src="../assets/group-qr.png" alt="加入体验群" class="qr-code" />
+              <img src="../../public/assets/community-qr.png" alt="加入体验群" class="qr-code" />
               <p class="qr-label">扫码加入产品体验群</p>
             </div>
           </div>

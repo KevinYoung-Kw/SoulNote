@@ -479,7 +479,26 @@ body.savage-mode {
   background-color: var(--card-bg);
   box-shadow: var(--shadow-sm-reverse);
   padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-top: var(--spacing-xs); /* 减少顶部内边距 */
+  padding-bottom: var(--spacing-xs); /* 减少底部内边距 */
+  height: auto; /* 自适应内容高度 */
+  min-height: 50px; /* 设置最小高度 */
 }
+
+/* 调整页脚内部元素间距 */
+.fixed-footer .btn {
+  padding-top: var(--spacing-xs);
+  padding-bottom: var(--spacing-xs);
+  /* 减小按钮的上下内边距 */
+}
+
+/* 调整页脚内部图标大小 */
+.fixed-footer i.fas, 
+.fixed-footer i.far, 
+.fixed-footer i.fab {
+  font-size: 0.9em; /* 稍微缩小图标 */
+}
+
 
 /* 添加底部阴影，用于固定页眉 */
 .shadow-sm-reverse {
