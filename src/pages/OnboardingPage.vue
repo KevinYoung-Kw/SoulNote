@@ -209,9 +209,50 @@
           </div>
         </div>
       </div>
+
+      <!-- 新增步骤: 设置个人称呼 (新增为步骤9) -->
+      <div class="onboarding-step" v-if="currentStep === 9">
+        <h1 class="step-title">您希望如何被称呼？</h1>
+        <p class="step-desc">设置一个专属称呼，让心语纸条更有温度</p>
+        
+        <div class="nickname-container">
+          <div class="nickname-input">
+            <input 
+              type="text" 
+              v-model="userPreferences.nickname" 
+              placeholder="请输入您喜欢的称呼"
+              maxlength="12"
+            />
+            <p class="input-desc">最多12个字符</p>
+          </div>
+
+          <p class="suggestion-title">
+            <i class="fas fa-lightbulb"></i> 称呼建议
+          </p>
+          
+          <div class="nickname-suggestions">
+            <button 
+              v-for="(name, index) in nameSuggestions" 
+              :key="index"
+              class="nickname-suggestion"
+              :class="{ active: userPreferences.nickname === name }"
+              @click="selectNickname(name)"
+            >
+              {{ name }}
+            </button>
+            
+            <button 
+              class="nickname-suggestion refresh-btn"
+              @click="refreshSuggestions"
+            >
+              <i class="fas fa-sync-alt"></i> 换一批
+            </button>
+          </div>
+        </div>
+      </div>
       
-      <!-- 步骤7: 语言偏好 (现在是步骤9) -->
-      <div class="onboarding-step" v-else-if="currentStep === 9">
+      <!-- 步骤7: 语言偏好 (现在是步骤10) -->
+      <div class="onboarding-step" v-else-if="currentStep === 10">
         <h1 class="step-title">语言偏好</h1>
         <p class="step-desc">选择您希望生成的心语纸条的语言类型</p>
         
@@ -242,8 +283,8 @@
         </div>
       </div>
       
-      <!-- 步骤8: 完成设置 (现在是步骤10) -->
-      <div class="onboarding-step" v-else-if="currentStep === 10">
+      <!-- 步骤8: 完成设置 (现在是步骤11) -->
+      <div class="onboarding-step" v-else-if="currentStep === 11">
         <h1 class="step-title">设置完成！</h1>
         <p class="step-desc">现在开始享受您的专属心灵纸条吧</p>
         
@@ -255,7 +296,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="onboarding-actions fixed-footer">
       <button 
         class="btn btn-secondary" 
@@ -283,10 +324,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { saveUserPreferences, setOnboardingCompleted, getInviteCodeVerified, setInviteCodeVerified } from '../services/storageService';
 import { sanitizeContent } from '../utils/contentUtils';
+import { generateRandomNames, generatePersonalizedName } from '../utils/nameGeneratorUtil';
 import welcomeSvg from '../assets/onboarding-welcome.svg';
 import completeSvg from '../assets/onboarding-complete.svg';
 import axios from 'axios';
@@ -310,8 +353,8 @@ const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
 onMounted(async () => {
   // 检查是否已存在验证过的邀请码
   const hasVerified = await checkExistingInviteCode();
-  // 如果是邀请码步骤且已经验证过，可以自动前进
 
+  // 如果是邀请码步骤且已经验证过，可以自动前进
   if (currentStep.value === 2 && hasVerified) {
     console.log('邀请码已验证，自动跳到下一步');
   }
@@ -337,9 +380,14 @@ onMounted(async () => {
   checkExistingInviteCode();
 });
 
-const router = useRouter();
+
 const currentStep = ref(1); // 保持初始步骤为1
-const totalSteps = 10; // 增加为11，因为新增了称呼设置步骤
+const totalSteps = 11; // 增加为11，因为新增了称呼设置步骤
+
+// 名字推荐列表
+const nameSuggestions = ref([]);
+
+const router = useRouter();
 
 const userPreferences = reactive({
   gender: null,
@@ -347,11 +395,56 @@ const userPreferences = reactive({
   relationship: null,
   zodiac: null,
   mbti: null,
+  nickname: '', // 新增称呼字段
   language: 'zh',
   theme: 'light',
   fontSize: 24,
   background: 'paper-1'
 });
+
+// 监听星座和MBTI变化，尝试生成个性化名字建议
+watch([
+  () => userPreferences.gender, 
+  () => userPreferences.age,
+  () => userPreferences.zodiac,
+  () => userPreferences.mbti
+], () => {
+  // 只有当必要信息齐全时，才尝试生成个性化名字
+  if (userPreferences.gender && userPreferences.age) {
+    updateNameSuggestions();
+  }
+});
+
+// 更新名字建议列表
+function updateNameSuggestions() {
+  // 基于性别和年龄生成随机名字
+  const randomNames = generateRandomNames(
+    userPreferences.gender, 
+    userPreferences.age
+  );
+  
+  // 如果有星座和MBTI，则添加一个个性化名字
+  if (userPreferences.zodiac && userPreferences.mbti) {
+    const personalizedName = generatePersonalizedName(
+      userPreferences.zodiac, 
+      userPreferences.mbti
+    );
+    randomNames.unshift(personalizedName); // 将个性化名字放在首位
+  }
+  
+  // 更新名字建议列表
+  nameSuggestions.value = [...new Set(randomNames)].slice(0, 4); // 去重并保留最多4个
+}
+
+// 刷新名字建议
+function refreshSuggestions() {
+  updateNameSuggestions();
+}
+
+// 选择一个名字
+function selectNickname(name) {
+  userPreferences.nickname = name;
+}
 
 
 // 性别选择函数
@@ -447,22 +540,22 @@ const mbtiGroups = [
   }
 ];
 
-// 示例纸条内容 - 更新为使用用户名
+// 示例纸条内容 - 更新为使用新昵称
 const sampleNote = computed(() => {
-  const name = userPreferences.displayName || '朋友';
-  const zodiacLabel = zodiacs.find(z => z.value === userPreferences.zodiac)?.label || '';
-  const mbtiLabel = mbtiGroups.flatMap(g => g.types).find(m => m.value === userPreferences.mbti)?.value || '';
+  // 如果设置了昵称，就直接使用
+  if (userPreferences.nickname) {
+    return `亲爱的${userPreferences.nickname}，你内心的宁静是最强大的力量源泉。今天，尝试放下担忧，拥抱自己的独特，你将发现生命中最美好的可能性。`;
+  } 
   
-  let personalizedPrefix = name;
-  if (zodiacLabel) {
-    personalizedPrefix += `，${zodiacLabel}的`;
-  }
-  if (mbtiLabel) {
-    personalizedPrefix += `${mbtiLabel}`;
-  }
+  // 否则回退到之前的生成方式
+  const zodiacLabel = zodiacs.find(z => z.value === userPreferences.zodiac)?.label || '星座';
+  const mbtiLabel = mbtiGroups.flatMap(g => g.types).find(m => m.value === userPreferences.mbti)?.value || 'MBTI';
+  const genderLabel = userPreferences.gender === 'male' ? '先生' : 
+                     userPreferences.gender === 'female' ? '女士' : '';
   
-  return `亲爱的${personalizedPrefix}，你内心的宁静是最强大的力量源泉。今天，尝试放下担忧，拥抱自己的独特，你将发现生命中最美好的可能性。`;
+  return `亲爱的${zodiacLabel}${mbtiLabel}${genderLabel}，你内心的宁静是最强大的力量源泉。今天，尝试放下担忧，拥抱自己的独特，你将发现生命中最美好的可能性。`;
 });
+
 
 
 // 添加经过清理的示例笔记内容
@@ -477,6 +570,8 @@ function prevStep() {
     currentStep.value--;
   }
 }
+
+
 
 function nextStep() {
   if (currentStep.value < totalSteps) {
@@ -523,11 +618,23 @@ function nextStep() {
       return;
     }
     
+    // 如果是称呼步骤，检查是否设置了称呼
+    if (currentStep.value === 9) {
+      // 当用户进入到这一步时，如果还没有名字建议，则生成
+      if (nameSuggestions.value.length === 0 && userPreferences.gender && userPreferences.age) {
+        updateNameSuggestions();
+      }
+      
+      // 如果没有填写昵称，继续进入下一步，但不强制要求
+      // 这里可以选择不做强制验证，让用户自愿填写
+    }
+    
     currentStep.value++;
   } else {
     completeOnboarding();
   }
 }
+
 
 // 检查是否已验证过邀请码
 async function checkExistingInviteCode() {
@@ -589,10 +696,10 @@ async function verifyInviteCode() {
   }
 }
 
-// 修改completeOnboarding函数，移除生成笔记的逻辑
+// 修改completeOnboarding函数，添加对称呼字段的保存
 async function completeOnboarding() {
   try {
-    // 直接保存用户偏好设置，不再生成样例纸条
+    // 保存用户偏好设置，添加nickname字段
     const prefsToSave = {
       zodiac: userPreferences.zodiac,
       mbti: userPreferences.mbti,
@@ -602,6 +709,7 @@ async function completeOnboarding() {
       gender: userPreferences.gender,
       age: userPreferences.age,
       relationship: userPreferences.relationship,
+      nickname: userPreferences.nickname || '', // 添加称呼字段
       language: userPreferences.language || 'zh',
       fontSize: userPreferences.fontSize || 24,
       background: userPreferences.background || 'paper-1',
@@ -609,7 +717,7 @@ async function completeOnboarding() {
       fortuneAspect: 'overall' // 默认运势方面
     };
     
-    // 移除生成笔记的代码，直接保存用户偏好
+    // 保存用户偏好
     await saveUserPreferences(prefsToSave);
     
     // 设置引导完成标志
@@ -624,10 +732,6 @@ async function completeOnboarding() {
     // 显示错误信息给用户
     alert('无法完成设置: ' + error.message);
   }
-}
-
-function openMBTITest() {
-  window.open('https://www.16personalities.com/zh', '_blank');
 }
 
 function navigateTo(path) {
@@ -1246,6 +1350,145 @@ function navigateTo(path) {
   color: var(--success-color);
   font-size: 14px;
   margin-top: var(--spacing-xs);
+}
+
+.nickname-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  max-width: 400px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+  width: 100%; /* 确保充分利用最大宽度 */
+}
+
+.nickname-input {
+  width: 100%;
+  position: relative;
+  margin-bottom: var(--spacing-md);
+  text-align: center; /* 增加文本居中对齐 */
+}
+
+
+.nickname-input input {
+  width: 100%;
+  max-width: 320px; /* 限制输入框最大宽度，使其在更大屏幕上不会过宽 */
+  margin: 0 auto; /* 输入框居中 */
+  padding: var(--spacing-md);
+  font-size: 18px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  text-align: center;
+  transition: border-color var(--transition-fast);
+  display: block; /* 确保块级显示以便应用margin */
+}
+
+.nickname-input input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-sm);
+}
+
+
+.input-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center; /* 改为居中对齐 */
+  margin-top: var(--spacing-xs);
+  width: 100%; /* 确保充分利用宽度 */
+}
+
+.suggestion-title {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: var(--spacing-lg) 0 var(--spacing-md); /* 调整上下间距 */
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 使图标和文字整体居中 */
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+
+.nickname-suggestions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 360px; /* 限制最大宽度 */
+  margin: 0 auto; /* 居中显示 */
+}
+
+
+.nickname-suggestion {
+  padding: var(--spacing-md);
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  font-size: 15px;
+  text-align: center;
+}
+
+.nickname-suggestion:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.nickname-suggestion.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.refresh-btn {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  background-color: rgba(123, 158, 137, 0.1);
+  color: var(--primary-color);
+}
+
+.refresh-btn:hover {
+  background-color: rgba(123, 158, 137, 0.2);
+}
+
+/* 响应式调整优化 */
+@media (max-width: 480px) {
+  .nickname-container {
+    padding: var(--spacing-md);
+  }
+  
+  .nickname-input input {
+    font-size: 16px;
+    padding: var(--spacing-sm);
+  }
+  
+  .nickname-suggestion {
+    padding: var(--spacing-sm);
+    font-size: 14px;
+  }
+  
+  .nickname-suggestions {
+    gap: var(--spacing-sm); /* 在小屏幕上减小间距 */
+  }
+}
+
+/* 在极小屏幕上的额外优化 */
+@media (max-width: 350px) {
+  .nickname-suggestions {
+    grid-template-columns: 1fr; /* 在非常小的屏幕上改为单列显示 */
+  }
+  
+  .refresh-btn {
+    grid-column: span 1; /* 调整为单列 */
+  }
 }
 
 </style>

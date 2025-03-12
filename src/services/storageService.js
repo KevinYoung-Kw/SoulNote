@@ -78,6 +78,7 @@ function getDefaultPreferences() {
     relationship: null,
     zodiac: null,
     mbti: null,
+    nickname: '', // 添加默认的昵称字段，默认为空字符串
     language: 'zh',
     theme: 'light',
     fontSize: 24,
