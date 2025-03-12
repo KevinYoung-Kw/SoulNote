@@ -7,6 +7,12 @@
         </div>
         <h1 class="app-title">星语心笺</h1>
         <p class="app-slogan">心笺一瞬，暖意自生</p>
+        
+        <!-- 移动按钮到此处 -->
+        <button class="btn btn-primary start-btn" @click="startExperience">
+          开始体验
+          <i class="fas fa-arrow-right"></i>
+        </button>
       </div>
       
       <div class="feature-slides">
@@ -20,11 +26,6 @@
           </div>
         </div>
       </div>
-      
-      <button class="btn btn-primary start-btn" @click="startExperience">
-        开始体验
-        <i class="fas fa-arrow-right"></i>
-      </button>
     </div>
     
     <div class="decoration-stars">
@@ -90,6 +91,10 @@ function startExperience() {
 .logo-container {
   text-align: center;
   margin-bottom: var(--spacing-xl);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .app-logo {
@@ -118,11 +123,36 @@ function startExperience() {
 .app-slogan {
   color: var(--text-secondary);
   font-size: 16px;
+  margin-bottom: var(--spacing-lg);
+}
+
+/* 优化后的按钮样式 */
+.start-btn {
+  width: 80%;
+  max-width: 280px;
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.start-btn i {
+  margin-left: var(--spacing-sm);
 }
 
 .feature-slides {
   width: 100%;
-  margin-bottom: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
 }
 
 .feature-slide {
@@ -160,19 +190,6 @@ function startExperience() {
   font-size: 14px;
   color: var(--text-secondary);
   margin: 0;
-}
-
-.start-btn {
-  width: 100%;
-  padding: var(--spacing-md);
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.start-btn i {
-  margin-left: var(--spacing-sm);
 }
 
 .decoration-stars {

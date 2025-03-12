@@ -1,21 +1,32 @@
 <template>
   <div class="home-page fixed-page-layout" :class="{'savage-mode': params.savageMode}">
     <!-- 固定在顶部的页眉 -->
-    <header class="header fixed-header">
-      <button class="icon-btn" @click="goToSettings">
-        <i class="fas fa-cog"></i>
+    <div class="header-wrapper">
+      <button 
+        class="header-toggle-btn" 
+        @click="toggleHeader" 
+        :class="{'header-collapsed': headerCollapsed}"
+        aria-label="折叠标题栏"
+      >
+        <div class="toggle-bar"></div>
       </button>
-      <h1 class="app-title">星语心笺</h1>
-      <div class="header-right">
-        <!-- 添加清除按钮 -->
-        <button class="icon-btn" @click="clearGeneratedContent" v-if="hasGeneratedContent">
-          <i class="fas fa-times"></i>
+
+      <header class="header fixed-header" :class="{'header-collapsed': headerCollapsed}">
+        <button class="icon-btn" @click="goToSettings">
+          <i class="fas fa-cog"></i>
         </button>
-        <button class="icon-btn" @click="goToSavedNotes">
-          <i class="fas fa-bookmark"></i>
-        </button>
-      </div>
-    </header>
+        <h1 class="app-title">星语心笺</h1>
+        <div class="header-right">
+          <!-- 添加清除按钮 -->
+          <button class="icon-btn" @click="clearGeneratedContent" v-if="hasGeneratedContent">
+            <i class="fas fa-times"></i>
+          </button>
+          <button class="icon-btn" @click="goToSavedNotes">
+            <i class="fas fa-bookmark"></i>
+          </button>
+        </div>
+      </header>
+    </div>
     
     <!-- 可滚动的主内容区 -->
     <div class="scrollable-content">
@@ -51,7 +62,20 @@
             </button>
           </div>
         </div>
-        
+
+        <!-- 添加可关闭的感谢文本，移到HomePage中 -->
+        <div class="appreciation-container" v-if="showAppreciation">
+          <div class="appreciation-text">
+            <p>
+              喜欢这个应用？
+              <a href="#" @click.prevent="navigateToAbout">请作者喝杯咖啡☕️</a>
+              支持一下！
+            </p>
+          </div>
+          <button class="close-appreciation" @click="hideAppreciation">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
         <!-- NoteCard 修改传入的mood参数 -->
         <NoteCard 
           :content="noteContent" 
@@ -63,20 +87,6 @@
           ref="noteCardRef"
         />
 
-        <!-- 添加可关闭的感谢文本，移到HomePage中 -->
-        <div class="appreciation-container" v-if="showAppreciation">
-          <div class="appreciation-text">
-            <p>
-              喜欢这个应用？
-              <a href="#" @click.prevent="navigateToAbout">请作者喝杯咖啡</a>
-              支持独立开发者 ☕️
-            </p>
-          </div>
-          <button class="close-appreciation" @click="hideAppreciation">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-
         <!-- 背景选择器和字号调整保持不变 -->
         <div class="background-selector">
           <span 
@@ -86,12 +96,13 @@
             @click="currentBackground = bg.value"
           ></span>
         </div>
-        
+
         <div class="font-size-control">
           <button class="icon-btn" @click="decreaseFontSize">
             <i class="fas fa-font"></i>-
           </button>
           <span class="font-size-indicator">{{ fontSize }}px</span>
+          
           <button class="icon-btn" @click="increaseFontSize">
             <i class="fas fa-font"></i>+
           </button>
@@ -372,6 +383,7 @@ const loadingMessage = ref('');
 const hasGeneratedContent = ref(false); // 添加判断是否已生成内容的状态
 const errorMessage = ref(''); // 添加错误消息状态
 const showAppreciation = ref(true);
+const headerCollapsed = ref(false);
 
 // 导出功能
 const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
@@ -884,6 +896,29 @@ function toggleSection(section) {
   collapsedSections[section] = !collapsedSections[section];
 }
 
+// 添加切换页眉函数
+function toggleHeader() {
+  headerCollapsed.value = !headerCollapsed.value;
+  
+  // 保存用户偏好
+  try {
+    const currentPrefs = getUserPreferences();
+    saveUserPreferences({
+      ...currentPrefs,
+      headerCollapsed: headerCollapsed.value
+    });
+    
+    // 优化：折叠后调整内容容器高度
+    nextTick(() => {
+      if (noteCardRef.value) {
+        noteCardRef.value.$forceUpdate();
+      }
+    });
+  } catch (error) {
+    logger.error('HEADER', '保存页眉折叠状态失败:', error);
+  }
+}
+
 // 添加随机参数生成功能
 function randomizeParams() {
   // 1. 随机选择1-5个表情
@@ -1186,9 +1221,12 @@ function goToSettings() {
   router.push('/settings');
 }
 
-// 修复字体大小调整功能
+// 修改字体大小调整函数，考虑屏幕大小
 function increaseFontSize() {
-  if (fontSize.value < 36) {
+  // 小屏幕上的最大字体限制更小
+  const maxSize = window.innerWidth <= 375 ? 30 : 36;
+  
+  if (fontSize.value < maxSize) {
     // 先更新状态
     fontSize.value += 2;
     // 立即应用到组件
@@ -1199,8 +1237,12 @@ function increaseFontSize() {
   }
 }
 
+
 function decreaseFontSize() {
-  if (fontSize.value > 16) {
+  // 小屏幕上的最小字体可以更小
+  const minSize = window.innerWidth <= 375 ? 14 : 16;
+  
+  if (fontSize.value > minSize) {
     // 先更新状态
     fontSize.value -= 2;
     // 立即应用到组件
@@ -1211,13 +1253,14 @@ function decreaseFontSize() {
   }
 }
 
-// 新增一个安全的应用字体大小的函数
+// 改进applyFontSize函数，增加对小屏幕的检测
 function applyFontSize() {
   nextTick(() => {
     try {
       if (noteCardRef.value && noteCardRef.value.$el) {
         const contentEl = noteCardRef.value.$el.querySelector('.note-content');
         if (contentEl) {
+          // 应用字体大小
           contentEl.style.fontSize = `${fontSize.value}px`;
           logger.info('FONT_SIZE', '直接通过DOM更新字体大小:', fontSize.value);
         }
@@ -1380,6 +1423,23 @@ onMounted(async () => {
   // 加载用户偏好设置
   try {
     const preferences = await getUserPreferences();
+    const isSmallScreen = window.innerWidth <= 375;
+
+    // 添加屏幕大小变化监听
+    const handleResize = () => {
+      const isSmallScreen = window.innerWidth <= 375;
+      const defaultSize = isSmallScreen ? 18 : 24;
+      
+      // 如果当前字体大小是默认值的情况下，根据屏幕大小自动调整
+      if (fontSize.value === 24 || fontSize.value === 18) {
+        fontSize.value = defaultSize;
+        applyFontSize();
+        updateLocalPreferences();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
     if (preferences) {
       params.zodiac = preferences.zodiac;
       params.mbti = preferences.mbti;
@@ -1389,6 +1449,21 @@ onMounted(async () => {
       // darkMode 是控制界面暗色模式的
       darkMode.value = preferences.darkMode === true;
       
+      // 加载页眉折叠状态
+      headerCollapsed.value = preferences.headerCollapsed || false;
+    
+      // 小屏幕设备(≤375px)默认使用18px字体，除非用户显式设置了不同的大小
+      if (isSmallScreen && (!preferences.fontSize || preferences.fontSize === 24)) {
+        fontSize.value = 18;
+      } else {
+        fontSize.value = preferences.fontSize || 24;
+      }
+      
+      // 确保立即应用字体大小
+      nextTick(() => {
+        applyFontSize();
+      });
+
       // 而 theme 是控制内容生成主题的，默认为 'chat'
       params.theme = preferences.theme || 'chat';
       
@@ -1447,6 +1522,7 @@ onBeforeUnmount(() => {
   if (loadingInterval) {
     clearInterval(loadingInterval);
     loadingInterval = null;
+    window.removeEventListener('resize', handleResize);
   }
 });
 
@@ -1718,8 +1794,8 @@ async function hideAppreciation() {
 
 .action-btn {
   font-size: 20px;
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background-color: var(--card-bg);
   box-shadow: var(--shadow-sm);
@@ -1740,13 +1816,58 @@ async function hideAppreciation() {
   --primary-color: #8DB39E;
 }
 
+/* 针对较小屏幕的优化 */
 @media (max-width: 480px) {
-  .action-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
+
+  .header-toggle-btn {
+    width: 30px;
+    height: 3px;
+    bottom: -4px;
+  }
+  
+  .toggle-bar {
+    height: 3px;
+  }
+  
+  .scrollable-content.header-collapsed-content {
+    padding-top: 12px;
+  }
+  
+  /* 优化控制区域高度 */
+  .control-section {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .generate-btn {
+    min-height: 38px;
+    font-size: 15px;
   }
 }
+
+/* 特别针对iPhone SE及小型设备的优化 */
+@media (max-width: 375px) {
+  .note-container {
+    margin: 0 var(--spacing-xs);
+    min-height: 300px; /* 降低最小高度 */
+  }
+  
+  .generate-btn {
+    min-height: 36px;
+    font-size: 14px;
+    padding: var(--spacing-xs) 0;
+  }
+  
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .control-section {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
 
 /* 参数面板媒体查询优化 */
 @media (min-width: 768px) {
@@ -2588,16 +2709,16 @@ async function hideAppreciation() {
   }
 }
 
-/* 感谢文本样式 */
+/* 感谢文本样式优化，解决感叹号与关闭按钮重叠问题 */
 .appreciation-container {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: var(--spacing-sm) auto; /* 上下间距减小，左右居中 */
-  max-width: 90%; /* 限制最大宽度 */
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background-color: rgba(123, 158, 137, 0.05); /* 与主题色协调的浅色背景 */
+  margin: var(--spacing-sm) auto;
+  max-width: 90%;
+  padding: var(--spacing-xs) var(--spacing-md); /* 增加水平内边距 */
+  background-color: rgba(123, 158, 137, 0.05);
   border-radius: var(--radius-md);
 }
 
@@ -2606,7 +2727,9 @@ async function hideAppreciation() {
   font-size: 13px;
   color: var(--text-secondary);
   opacity: 0.9;
+  padding-right: 16px; /* 为关闭按钮留出空间 */
 }
+
 
 .appreciation-text p {
   margin: 0;
@@ -2671,5 +2794,96 @@ async function hideAppreciation() {
   }
 }
 
+/* 替换页眉折叠按钮样式，改为横条 */
+.header-toggle-btn {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--card-bg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 21;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  padding: 0;
+}
+
+.header-toggle-btn:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+/* 添加横条内部样式 */
+.toggle-bar {
+  width: 100%;
+  height: 4px;
+  background-color: var(--border-color);
+  border-radius: 2px;
+}
+
+/* 鼠标悬停时改变颜色 */
+.header-toggle-btn:hover .toggle-bar {
+  background-color: var(--primary-color);
+}
+
+/* 移除不再需要的图标相关样式 */
+.header-toggle-btn.header-collapsed i {
+  transform: none;
+}
+
+/* 调整页眉包装器样式 */
+.header-wrapper {
+  position: relative;
+  z-index: 20;
+  height: auto;
+  transition: height var(--transition-normal);
+}
+
+/* 页头折叠时，包装器高度调整为只包含按钮高度 */
+.header-wrapper .header-collapsed {
+  margin-top: -100%;
+}
+
+/* 适配暗色模式 */
+:global(.dark-mode) .header-toggle-btn {
+  background-color: var(--card-bg);
+}
+
+:global(.dark-mode) .toggle-bar {
+  background-color: var(--text-secondary);
+}
+
+:global(.dark-mode) .header-toggle-btn:hover .toggle-bar {
+  background-color: var(--primary-color);
+}
+
+/* 针对较小屏幕的优化 */
+@media (max-width: 480px) {
+  .header-toggle-btn {
+    width: 30px;
+    height: 3px;
+    bottom: -4px;
+  }
+  
+  .toggle-bar {
+    height: 3px;
+  }
+  
+  .scrollable-content.header-collapsed-content {
+    padding-top: 12px;
+  }
+}
+
+/* 毒舌模式样式适配 */
+.savage-mode .header-toggle-btn:hover .toggle-bar {
+  background-color: var(--savage-primary-color, #ff5252);
+}
 /* ...existing code... */
 </style>

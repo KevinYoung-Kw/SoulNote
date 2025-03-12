@@ -2,9 +2,11 @@ import userIdentifierService from './userIdentifierService';
 
 // 存储键基础名称（无用户标识）
 const BASE_KEYS = {
-  USER_PREFERENCES: 'preferences',
-  SAVED_NOTES: 'saved-notes',
-  ONBOARDING_COMPLETED: 'onboarding-completed'
+  PREFERENCES: 'preferences',
+  NOTES: 'notes',
+  ONBOARDING_COMPLETED: 'onboarding-completed',
+  INVITE_CODE_VERIFIED: 'invite-code-verified',
+  INVITE_CODE: 'invite-code'
 };
 
 /**
@@ -238,6 +240,55 @@ export async function resetUserData() {
     return success;
   } catch (error) {
     console.error('重置用户数据失败:', error);
+    return false;
+  }
+}
+
+/**
+ * 获取邀请码验证状态
+ * @returns {Promise<boolean>} 是否已验证邀请码
+ */
+export async function getInviteCodeVerified() {
+  try {
+    const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.INVITE_CODE_VERIFIED);
+    // 检查用户特定设置
+    const userVerified = localStorage.getItem(storageKey) === 'true';
+    
+    // 检查全局设置（兼容旧版）
+    const globalVerified = localStorage.getItem('soul-note-invite-verified') === 'true';
+    
+    return userVerified || globalVerified;
+  } catch (error) {
+    console.error('获取邀请码验证状态失败:', error);
+    return false;
+  }
+}
+
+/**
+ * 设置邀请码验证状态
+ * @param {string} inviteCode 邀请码
+ * @param {boolean} verified 是否已验证
+ * @returns {Promise<boolean>} 是否设置成功
+ */
+export async function setInviteCodeVerified(inviteCode, verified = true) {
+  try {
+    // 保存验证状态
+    const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.INVITE_CODE_VERIFIED);
+    localStorage.setItem(storageKey, verified ? 'true' : 'false');
+    
+    // 同时设置全局状态以兼容旧版
+    localStorage.setItem('soul-note-invite-verified', verified ? 'true' : 'false');
+    
+    // 保存已验证的邀请码
+    if (verified && inviteCode) {
+      const codeStorageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.INVITE_CODE);
+      localStorage.setItem(codeStorageKey, inviteCode);
+      localStorage.setItem('soul-note-invite-code', inviteCode);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('设置邀请码验证状态失败:', error);
     return false;
   }
 }

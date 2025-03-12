@@ -39,7 +39,7 @@
         </div>
       </div>
 
-      <!-- 步骤2: 邀请码验证 (原步骤2) -->
+      <!-- 步骤2: 邀请码验证 -->
       <div class="onboarding-step" v-else-if="currentStep === 2">
         <h1 class="step-title">欢迎内测</h1>
         <p class="step-desc">请输入您的邀请码继续使用</p>
@@ -50,11 +50,14 @@
               type="text" 
               v-model="inviteCode" 
               placeholder="请输入邀请码"
-              :class="{ 'error': inviteCodeError }"
+              :class="{ 'error': inviteCodeError, 'verified': inviteCodeVerified }"
+              :disabled="inviteCodeVerified"
             />
             <p class="error-message" v-if="inviteCodeError">{{ inviteCodeErrorMessage }}</p>
+            <p class="success-message" v-if="inviteCodeVerified">邀请码已验证 ✓</p>
           </div>
           <button 
+            v-if="!inviteCodeVerified"
             class="btn verify-btn" 
             :class="{ 'btn-primary': !isVerifying, 'btn-disabled': isVerifying }" 
             @click="verifyInviteCode"
@@ -62,6 +65,13 @@
           >
             <span v-if="!isVerifying">验证</span>
             <span v-else><i class="fas fa-spinner fa-spin"></i></span>
+          </button>
+          <button 
+            v-else
+            class="btn btn-success verify-btn"
+            disabled
+          >
+            <i class="fas fa-check"></i> 已验证
           </button>
         </div>
         
@@ -249,8 +259,15 @@
     <div class="onboarding-actions fixed-footer">
       <button 
         class="btn btn-secondary" 
+        @click="goToWelcomePage" 
+        v-if="currentStep === 1"
+      >
+        返回
+      </button>
+      <button 
+        class="btn btn-secondary" 
         @click="prevStep" 
-        v-if="currentStep > 1"
+        v-else-if="currentStep > 1"
       >
         上一步
       </button>
@@ -268,13 +285,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { saveUserPreferences, setOnboardingCompleted } from '../services/storageService';
-import { sanitizeContent } from '../utils/contentUtils'; // 引入新的工具函数
+import { saveUserPreferences, setOnboardingCompleted, getInviteCodeVerified, setInviteCodeVerified } from '../services/storageService';
+import { sanitizeContent } from '../utils/contentUtils';
 import welcomeSvg from '../assets/onboarding-welcome.svg';
 import completeSvg from '../assets/onboarding-complete.svg';
-// 导入axios用于API调用
 import axios from 'axios';
-import { generateNote } from '../services/aiService.js';
 
 // 预加载字体
 const fontPreloaded = ref(false);
@@ -286,12 +301,21 @@ const isVerifying = ref(false);
 const inviteCodeError = ref(false);
 const inviteCodeErrorMessage = ref('');
 
+
 const errorMessage = ref(''); // 添加这一行到其他ref变量附近
 
 // 后端API URL - 应该从环境变量获取
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
-onMounted(() => {
+onMounted(async () => {
+  // 检查是否已存在验证过的邀请码
+  const hasVerified = await checkExistingInviteCode();
+  // 如果是邀请码步骤且已经验证过，可以自动前进
+
+  if (currentStep.value === 2 && hasVerified) {
+    console.log('邀请码已验证，自动跳到下一步');
+  }
+
   // 尝试预加载字体
   if ('fonts' in document) {
     Promise.all([
@@ -315,7 +339,7 @@ onMounted(() => {
 
 const router = useRouter();
 const currentStep = ref(1); // 保持初始步骤为1
-const totalSteps = 10; // 保持总步骤数
+const totalSteps = 10; // 增加为11，因为新增了称呼设置步骤
 
 const userPreferences = reactive({
   gender: null,
@@ -329,9 +353,14 @@ const userPreferences = reactive({
   background: 'paper-1'
 });
 
+
 // 性别选择函数
 function selectGender(value) {
   userPreferences.gender = value;
+}
+
+function goToWelcomePage() {
+  router.push('/');
 }
 
 // 年龄段数据
@@ -418,15 +447,23 @@ const mbtiGroups = [
   }
 ];
 
-// 示例纸条内容
+// 示例纸条内容 - 更新为使用用户名
 const sampleNote = computed(() => {
-  const zodiacLabel = zodiacs.find(z => z.value === userPreferences.zodiac)?.label || '星座';
-  const mbtiLabel = mbtiGroups.flatMap(g => g.types).find(m => m.value === userPreferences.mbti)?.value || 'MBTI';
-  const genderLabel = userPreferences.gender === 'male' ? '先生' : 
-                     userPreferences.gender === 'female' ? '女士' : '';
+  const name = userPreferences.displayName || '朋友';
+  const zodiacLabel = zodiacs.find(z => z.value === userPreferences.zodiac)?.label || '';
+  const mbtiLabel = mbtiGroups.flatMap(g => g.types).find(m => m.value === userPreferences.mbti)?.value || '';
   
-  return `亲爱的${zodiacLabel}${mbtiLabel}${genderLabel}，你内心的宁静是最强大的力量源泉。今天，尝试放下担忧，拥抱自己的独特，你将发现生命中最美好的可能性。`;
+  let personalizedPrefix = name;
+  if (zodiacLabel) {
+    personalizedPrefix += `，${zodiacLabel}的`;
+  }
+  if (mbtiLabel) {
+    personalizedPrefix += `${mbtiLabel}`;
+  }
+  
+  return `亲爱的${personalizedPrefix}，你内心的宁静是最强大的力量源泉。今天，尝试放下担忧，拥抱自己的独特，你将发现生命中最美好的可能性。`;
 });
+
 
 // 添加经过清理的示例笔记内容
 const sanitizedSampleNote = computed(() => sanitizeContent(sampleNote.value));
@@ -445,8 +482,16 @@ function nextStep() {
   if (currentStep.value < totalSteps) {
     // 如果是邀请码验证步骤，验证邀请码
     if (currentStep.value === 2) {
-      // 如果没有验证过邀请码，则先验证
-      if (!inviteCodeVerified.value) {
+      // 如果已验证过邀请码，直接进入下一步
+      if (inviteCodeVerified.value) {
+        currentStep.value++;
+        return;
+      } else if (!inviteCode.value) {
+        // 提示用户输入邀请码
+        alert('请输入邀请码');
+        return;
+      } else {
+        // 尝试验证邀请码
         verifyInviteCode();
         return;
       }
@@ -484,6 +529,24 @@ function nextStep() {
   }
 }
 
+// 检查是否已验证过邀请码
+async function checkExistingInviteCode() {
+  // 从服务获取验证状态
+  inviteCodeVerified.value = await getInviteCodeVerified();
+  
+  if (inviteCodeVerified.value) {
+    // 获取存储的邀请码
+    const storedCode = localStorage.getItem('soul-note-invite-code');
+    if (storedCode) {
+      inviteCode.value = storedCode;
+      console.log('已存在验证过的邀请码:', storedCode);
+    }
+  }
+  
+  return inviteCodeVerified.value;
+}
+
+// 验证邀请码
 async function verifyInviteCode() {
   if (!inviteCode.value || isVerifying.value) return;
   
@@ -507,10 +570,10 @@ async function verifyInviteCode() {
     });
     
     if (response.data.valid) {
+      // 设置验证状态
+      await setInviteCodeVerified(inviteCode.value, true);
       inviteCodeVerified.value = true;
-      // 存储验证结果和邀请码
-      localStorage.setItem('soul-note-invite-code', inviteCode.value);
-      localStorage.setItem('soul-note-invite-verified', 'true');
+      
       // 进入下一步
       currentStep.value++;
     } else {
@@ -523,17 +586,6 @@ async function verifyInviteCode() {
     inviteCodeErrorMessage.value = '网络错误，请稍后再试';
   } finally {
     isVerifying.value = false;
-  }
-}
-
-// 检查是否已验证过邀请码 - 修改函数以适应新的步骤顺序
-function checkExistingInviteCode() {
-  const storedCode = localStorage.getItem('soul-note-invite-code');
-  const verified = localStorage.getItem('soul-note-invite-verified') === 'true';
-  
-  if (storedCode && verified) {
-    inviteCode.value = storedCode;
-    inviteCodeVerified.value = true;
   }
 }
 
@@ -1184,4 +1236,16 @@ function navigateTo(path) {
   margin-right: var(--spacing-sm);
   margin-top: 3px;
 }
+
+.invite-code-input input.verified {
+  border-color: var(--success-color);
+  background-color: rgba(76, 175, 80, 0.05);
+}
+
+.success-message {
+  color: var(--success-color);
+  font-size: 14px;
+  margin-top: var(--spacing-xs);
+}
+
 </style>

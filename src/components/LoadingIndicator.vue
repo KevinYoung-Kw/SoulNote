@@ -109,6 +109,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: var(--spacing-xs) 0;
   width: 100%;
+  height: 28px; /* 添加固定高度 */
 }
 
 .loading-spinner {

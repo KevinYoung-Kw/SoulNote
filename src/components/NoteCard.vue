@@ -132,6 +132,7 @@ const getBackgroundVariable = computed(() => {
 const cardStyle = computed(() => {
   // 获取背景
   const background = getBackgroundVariable.value;
+  const isSmallScreen = window.innerWidth <= 375;
   
   // 基础样式
   const style = {
@@ -140,39 +141,56 @@ const cardStyle = computed(() => {
     boxShadow: 'var(--shadow-md)',
   };
   
+  // 小屏幕特殊处理，调整纵横比
+  if (isSmallScreen) {
+    style.aspectRatio = '5 / 6'; // 更紧凑的卡片比例
+    style.minHeight = '180px'; // 减小最小高度
+    style.padding = 'var(--spacing-sm) var(--spacing-xs)'; // 减小内边距
+  }
+  
   // 根据内容长度动态调整高度
   const contentLength = props.content ? props.content.length : 0;
   if (contentLength > 100) {
-    // 如果内容超过100个字符，调整高度比例
-    const heightRatio = Math.min(6, 5 + (contentLength - 100) / 200); // 最多增加到6:5的比例
-    style.aspectRatio = `4 / ${heightRatio}`;
+    // 如果内容超过100个字符，调整高度比例，但要考虑屏幕大小
+    const heightRatio = Math.min(6, 5 + (contentLength - 100) / 200);
+    if (!isSmallScreen) { // 仅在非小屏幕上应用这个比例
+      style.aspectRatio = `4 / ${heightRatio}`;
+    }
   }
   
   // 毒舌模式下的特殊样式
   if (isSavageMode.value) {
     // 根据是否暗黑模式选择文本颜色
     if (isDarkMode.value) {
-      style.color = 'var(--savage-text)'; // 暗黑毒舌模式下使用浅色文本
+      style.color = 'var(--savage-text)';
     } else {
-      style.color = '#333333'; // 亮色毒舌模式下使用深色文本
+      style.color = '#333333';
     }
     style.boxShadow = 'var(--savage-shadow)';
-    style.fontWeight = '500'; // 稍微加粗以增强扎心感
+    style.fontWeight = '500';
   }
   
   return style;
 });
 
-// 创建内容样式的计算属性，确保字体大小变化时能够正确更新
+
+// 修改contentStyle计算属性
 const contentStyle = computed(() => {
+  // 获取适当的字体大小 - 在小屏幕上使用更小的默认值，但允许props覆盖
+  const fontSize = props.fontSize;
+  
   return {
-    fontSize: `${props.fontSize}px`,
-    fontFamily: 'var(--font-note)', // 确保使用正确的字体变量
-    lineHeight: 1.6,
+    fontSize: `${fontSize}px`, // 直接使用props中的字体大小
+    fontFamily: 'var(--font-note)',
+    lineHeight: window.innerWidth <= 375 ? 1.5 : 1.6, // 小屏幕降低行高
     // 添加上边距，为多个emoji腾出空间
-    paddingTop: moodsArray.value.length > 1 ? 'calc(var(--spacing-xl) + 8px)' : 'var(--spacing-md)'
+    paddingTop: moodsArray.value.length > 1 ? 
+      (window.innerWidth <= 375 ? 'calc(var(--spacing-md) + 6px)' : 'calc(var(--spacing-xl) + 8px)') : 
+      (window.innerWidth <= 375 ? 'var(--spacing-sm)' : 'var(--spacing-md)')
   };
 });
+
+
 
 // 表情符号样式
 const moodStyle = computed(() => {
@@ -194,8 +212,8 @@ function navigateToAbout() {
   router.push('/about-us');
 }
 
-// 修改 onMounted 方法，添加 async 修饰符
-onMounted(async () => { // 添加 async
+// 修改onMounted方法，增加对小屏幕默认字体大小的初始化
+onMounted(async () => {
   noteRef.value = noteCardRef.value;
   if (props.animate) {
     playGenerateAnimation();
@@ -214,7 +232,21 @@ onMounted(async () => { // 添加 async
     }, 1000);
   }
 
+  // 添加窗口大小变化监听
+  window.addEventListener('resize', () => {
+    if (noteCardRef.value) {
+      nextTick(() => {
+        const contentEl = noteCardRef.value?.querySelector('.note-content');
+        if (contentEl) {
+          // 应用props中的字体大小
+          contentEl.style.fontSize = `${props.fontSize}px`;
+        }
+      });
+    }
+  });
 });
+
+
 
 // 监听内容变化，触发动画
 watch(() => props.content, (newContent, oldContent) => {
@@ -223,7 +255,7 @@ watch(() => props.content, (newContent, oldContent) => {
   }
 });
 
-// 监听字体大小变化，强制更新DOM
+// 修改监听字体大小变化的处理方法
 watch(() => props.fontSize, (newSize) => {
   // 确保DOM更新
   nextTick(() => {
@@ -382,6 +414,38 @@ watch(() => props.animationDuration, (newDuration) => {
     font-size: 16px !important; /* 在小屏幕上进一步减小字体大小 */
   }
 }
+
+/* 特别针对iPhone SE及小型设备的优化 */
+@media (max-width: 385px) {
+  .note-card {
+    padding: var(--spacing-sm) var(--spacing-xs);
+    min-height: 200px; /* 小屏幕上进一步减小最小高度 */
+    min-width: 200px; /* 进一步减小最小宽度 */
+    max-width: 285px;
+    aspect-ratio: 5/6; /* 调整长宽比，使卡片更紧凑 */
+  }
+  
+  /* 移除!important，避免强制覆盖内联样式 */
+  .note-content {
+    line-height: 1.5; /* 稍微减少行高 */
+    padding: 0 var(--spacing-xs); /* 减小左右内边距 */
+  }
+  
+  .note-mood-container {
+    top: var(--spacing-sm) !important; /* 减少顶部距离 */
+  }
+  
+  .note-mood-item {
+    font-size: 14px; /* 进一步减小表情大小，移除!important */
+  }
+  
+  .note-watermark {
+    bottom: 8px;
+    right: 8px;
+    font-size: 10px; /* 缩小水印字体 */
+  }
+}
+
 
 /* 添加平板和桌面设备的居中样式 */
 @media (min-width: 768px) {
