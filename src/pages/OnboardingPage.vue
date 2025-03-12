@@ -215,7 +215,7 @@
         <h1 class="step-title">您希望如何被称呼？</h1>
         <p class="step-desc">设置一个专属称呼，让心语纸条更有温度</p>
         
-        <div class="nickname-container">
+        <div class="nickname-container" :class="{ 'nolan-fan-mode': isNolanFanMode }">
           <div class="nickname-input">
             <input 
               type="text" 
@@ -325,7 +325,7 @@
 
 <script setup>
 
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount  } from 'vue';
 import { useRouter } from 'vue-router';
 import { saveUserPreferences, setOnboardingCompleted, getInviteCodeVerified, setInviteCodeVerified } from '../services/storageService';
 import { sanitizeContent } from '../utils/contentUtils';
@@ -343,6 +343,10 @@ const inviteCodeVerified = ref(false);
 const isVerifying = ref(false);
 const inviteCodeError = ref(false);
 const inviteCodeErrorMessage = ref('');
+const keySequence = ref('');
+const keySequenceTimeout = ref(null);
+const isNolanFanMode = ref(false);
+const audioPlayer = ref(null);
 
 
 const errorMessage = ref(''); // 添加这一行到其他ref变量附近
@@ -375,11 +379,32 @@ onMounted(async () => {
     console.warn('浏览器不支持字体API，跳过字体预加载');
     fontPreloaded.value = true;
   }
+  // 添加键盘事件监听
+  document.addEventListener('keydown', handleKeyPress);
+  
+  // 创建音频元素但不自动播放
+  audioPlayer.value = new Audio();
+  audioPlayer.value.loop = true;
 
   // 检查已存在的邀请码
   checkExistingInviteCode();
 });
 
+// 在 onBeforeUnmount 钩子中清理事件监听和音频
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handleKeyPress);
+  
+  // 停止并清理音频播放
+  if (audioPlayer.value) {
+    audioPlayer.value.pause();
+    audioPlayer.value.src = '';
+  }
+  
+  // 清除可能存在的超时
+  if (keySequenceTimeout.value) {
+    clearTimeout(keySequenceTimeout.value);
+  }
+});
 
 const currentStep = ref(1); // 保持初始步骤为1
 const totalSteps = 11; // 增加为11，因为新增了称呼设置步骤
@@ -415,6 +440,143 @@ watch([
   }
 });
 
+// 添加处理按键的函数
+function handleKeyPress(event) {
+  // 仅在称呼设置步骤（步骤9）激活彩蛋检测
+  if (currentStep.value !== 9) return;
+  
+  // 将按键添加到序列中
+  keySequence.value += event.key.toLowerCase();
+  
+  // 检查是否包含秘钥
+  if (keySequence.value.includes('nuolanwoshiwangtongqi')) {
+    activateNolanFanMode();
+    keySequence.value = '';  // 重置序列
+  }
+  
+  // 清除之前的超时并设置新的
+  if (keySequenceTimeout.value) {
+    clearTimeout(keySequenceTimeout.value);
+  }
+  
+  // 设置30秒后重置序列
+  keySequenceTimeout.value = setTimeout(() => {
+    keySequence.value = '';
+  }, 30000);
+}
+
+function activateNolanFanMode() {
+  isNolanFanMode.value = true;
+  
+  // 诺兰电影经典台词
+  const nolanQuotes = [
+    "不要温和地走入那个良夜",
+    "爱是唯一能超越时空的力量",
+    "有些人只想看到世界燃烧",
+    "我们是无止境探索的先驱",
+    "我们创造的世界并非真实"
+  ];
+  
+  // 随机选择一句台词
+  const randomQuote = nolanQuotes[Math.floor(Math.random() * nolanQuotes.length)];
+  
+  // 显示提示消息
+  alert(`好的，我的影迷\n\n"${randomQuote}"`);
+  
+  // 更新昵称建议为诺兰IP - 随机选择一组
+  const nolanNicknamePool = [
+    ['库珀', '墨菲', 'Amelia', 'Cobb'],
+    ['特斯', '爱因斯坦', '布兰德', 'Mann'],
+    ['Bruce Wayne', 'Joker', 'Bane', 'Alfred'],
+    ['Gargantua', 'Endurance', 'TARS', 'CASE']
+  ];
+  
+  const randomGroupIndex = Math.floor(Math.random() * nolanNicknamePool.length);
+  nameSuggestions.value = nolanNicknamePool[randomGroupIndex];
+  
+  // 播放星际穿越音乐
+  playNolanMusic();
+}
+
+
+// 播放诺兰电影音乐
+function playNolanMusic() {
+  // 主要路径
+  let musicUrl = '/assets/music/cornfield-chase.mp3';
+  
+  // 备用远程路径 - 使用可靠的CDN托管的音频
+  const fallbackUrl = 'https://assets.codepen.io/123456/cornfield-chase.mp3'; // 替换为实际可用的URL
+  
+  if (audioPlayer.value) {
+    // 添加错误处理，如果主要路径失败，尝试备用路径
+    audioPlayer.value.onerror = () => {
+      console.warn('主要音频源加载失败，尝试备用源');
+      audioPlayer.value.src = fallbackUrl;
+      audioPlayer.value.play().catch(err => {
+        console.error('备用音频源也失败:', err);
+        showPlayMusicButton(true);
+      });
+    };
+    
+    audioPlayer.value.src = musicUrl;
+    audioPlayer.value.volume = 0.5;
+    audioPlayer.value.play().catch(err => {
+      console.warn('无法自动播放音频:', err);
+      showPlayMusicButton();
+    });
+  }
+}
+
+
+// 如果自动播放失败，显示播放按钮
+function showPlayMusicButton(hasError = false) {
+  // 创建一个悬浮播放按钮
+  const playButton = document.createElement('button');
+  
+  if (hasError) {
+    playButton.textContent = '🎵 尝试播放星际穿越 (资源可能不可用)';
+  } else {
+    playButton.textContent = '🎵 播放星际穿越';
+  }
+  
+  playButton.className = 'nolan-music-button';
+  playButton.onclick = () => {
+    // 如果是错误状态，尝试使用备选路径
+    if (hasError) {
+      // 尝试另一个可能的路径
+      audioPlayer.value.src = '/cornfield-chase.mp3';
+    }
+    
+    audioPlayer.value.play().catch(e => {
+      alert('抱歉，无法播放音频。请确保音频文件已正确放置。');
+      console.error('播放失败:', e);
+    });
+    
+    document.body.removeChild(playButton);
+  };
+  
+  // 样式
+  playButton.style.position = 'fixed';
+  playButton.style.bottom = '20px';
+  playButton.style.right = '20px';
+  playButton.style.zIndex = '9999';
+  playButton.style.background = 'var(--primary-color)';
+  playButton.style.color = 'white';
+  playButton.style.border = 'none';
+  playButton.style.borderRadius = 'var(--radius-md)';
+  playButton.style.padding = '10px 15px';
+  playButton.style.cursor = 'pointer';
+  playButton.style.boxShadow = 'var(--shadow-md)';
+  
+  // 检查是否已存在按钮
+  const existingButton = document.querySelector('.nolan-music-button');
+  if (existingButton) {
+    document.body.removeChild(existingButton);
+  }
+  
+  document.body.appendChild(playButton);
+}
+
 // 更新名字建议列表
 function updateNameSuggestions() {
   // 基于性别和年龄生成随机名字
@@ -422,7 +584,18 @@ function updateNameSuggestions() {
     userPreferences.gender, 
     userPreferences.age
   );
-  
+
+  // 如果是诺兰粉丝模式，固定显示诺兰电影角色
+  if (isNolanFanMode.value) {
+    nameSuggestions.value = [
+      '库珀',
+      '墨菲',
+      'Cobb',
+      'Amelia Brand'
+    ];
+    return;
+  }  
+
   // 如果有星座和MBTI，则添加一个个性化名字
   if (userPreferences.zodiac && userPreferences.mbti) {
     const personalizedName = generatePersonalizedName(
@@ -444,8 +617,44 @@ function refreshSuggestions() {
 // 选择一个名字
 function selectNickname(name) {
   userPreferences.nickname = name;
+  
+  // 诺兰模式下，为特定角色添加小彩蛋提示
+  if (isNolanFanMode.value) {
+    const characterInfo = {
+      '库珀': '星际穿越中的前NASA宇航员，穿越黑洞回到过去。',
+      '墨菲': '星际穿越中库珀的女儿，成为解决引力方程的物理学家。',
+      'Cobb': '盗梦空间中的主角，能进入他人梦境窃取或植入思想。',
+      'Amelia Brand': '星际穿越中的宇航员科学家，前往可能宜居的星球。',
+      'TARS': '星际穿越中幽默的机器人助手，有着90%的诚实度设置。',
+      'Bruce Wayne': '蝙蝠侠三部曲中的主角，高谭市的黑暗骑士。'
+    };
+    
+    if (characterInfo[name]) {
+      // 创建一个悬浮提示
+      const infoToast = document.createElement('div');
+      infoToast.textContent = characterInfo[name];
+      infoToast.className = 'nolan-character-toast';
+      infoToast.style.position = 'fixed';
+      infoToast.style.bottom = '60px';
+      infoToast.style.left = '50%';
+      infoToast.style.transform = 'translateX(-50%)';
+      infoToast.style.background = 'rgba(0, 0, 0, 0.8)';
+      infoToast.style.color = 'white';
+      infoToast.style.padding = '10px 15px';
+      infoToast.style.borderRadius = '4px';
+      infoToast.style.zIndex = '9999';
+      infoToast.style.maxWidth = '300px';
+      infoToast.style.textAlign = 'center';
+      
+      document.body.appendChild(infoToast);
+      
+      // 3秒后移除提示
+      setTimeout(() => {
+        document.body.removeChild(infoToast);
+      }, 3000);
+    }
+  }
 }
-
 
 // 性别选择函数
 function selectGender(value) {
@@ -1489,6 +1698,32 @@ function navigateTo(path) {
   .refresh-btn {
     grid-column: span 1; /* 调整为单列 */
   }
+}
+
+/* 诺兰模式特效 */
+.nolan-fan-mode .nickname-container {
+  animation: space-time-ripple 8s infinite alternate;
+}
+
+@keyframes space-time-ripple {
+  0% {
+    box-shadow: 0 0 5px 2px rgba(0, 0, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px 5px rgba(0, 0, 255, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 5px 2px rgba(0, 0, 255, 0.2);
+  }
+}
+
+.nolan-music-button {
+  transition: all 0.3s ease;
+}
+
+.nolan-music-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 </style>
