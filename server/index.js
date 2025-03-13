@@ -74,7 +74,7 @@ async function initDataFiles() {
       const defaultInviteCodes = {
         codes: [
           {
-            code: 'SOULNOTE2023',  // 示例邀请码
+            code: 'SOULNOTE2025',  // 示例邀请码
             createdAt: new Date().toISOString(),
             maxUses: 100,           // 最大使用次数
             usedCount: 0,           // 当前使用次数

@@ -19,7 +19,19 @@
       @update-note-class="nolanNoteClass = $event"
       ref="nolanEasterEgg"
     />
-    
+
+    <!-- 添加赛博朋克边缘行者彩蛋组件 -->
+    <CyberpunkEdgerunnersEasterEgg
+      :is-active="isCyberpunkMode"
+      :current-step="currentStep"
+      :target-step="9"
+      @activate="activateCyberpunkMode"
+      @update-suggestions="updateCyberpunkNameSuggestions"
+      @update-note-content="updateCyberpunkNoteContent"
+      @update-note-class="cyberpunkNoteClass = $event"
+      ref="cyberpunkEasterEgg"
+    />
+
     <div class="onboarding-content scrollable-content">
       <!-- 步骤1: 使用须知 (原步骤3) -->
       <div class="onboarding-step" v-if="currentStep === 1">
@@ -296,17 +308,23 @@
         </div>
       </div>
       
-      <!-- 步骤8: 完成设置 (现在是步骤11) -->
+    <!-- 步骤11: 完成设置 -->
       <div class="onboarding-step" v-else-if="currentStep === 11">
         <h1 class="step-title">设置完成！</h1>
-        <p class="step-desc" :class="{ [nolanWelcomeClass]: isNolanFanMode }">
-          {{ isNolanFanMode ? '你的星际之旅即将开始' : '现在开始享受您的专属心灵纸条吧' }}
+        <p class="step-desc" :class="{ 
+          [nolanWelcomeClass]: isNolanFanMode,
+          'cyberpunk-welcome': isCyberpunkMode 
+        }">
+          {{ getWelcomeMessage() }}
         </p>
         
         <div class="completion-image">
           <img :src="completeSvg" alt="Complete" />
-          <div class="sample-note" :class="{ [nolanNoteClass]: isNolanFanMode }">
-            <p>{{ isNolanFanMode ? nolanNoteContent : sanitizedSampleNote }}</p>
+          <div class="sample-note" :class="{ 
+            [nolanNoteClass]: isNolanFanMode,
+            [cyberpunkNoteClass]: isCyberpunkMode 
+          }">
+            <p>{{ getFinalNoteContent() }}</p>
           </div>
         </div>
       </div>
@@ -339,7 +357,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
+
 import { useRouter } from 'vue-router';
 import { saveUserPreferences, setOnboardingCompleted, getInviteCodeVerified, setInviteCodeVerified } from '../services/storageService';
 import { sanitizeContent } from '../utils/contentUtils';
@@ -349,6 +368,7 @@ import completeSvg from '../assets/onboarding-complete.svg';
 import axios from 'axios';
 // 导入诺兰粉丝彩蛋组件
 import NolanFanEasterEgg from '../components/easterEggs/NolanFanEasterEgg.vue';
+import CyberpunkEdgerunnersEasterEgg from '../components/easterEggs/CyberpunkEdgerunnersEasterEgg.vue';
 
 // 预加载字体
 const fontPreloaded = ref(false);
@@ -359,12 +379,19 @@ const inviteCodeVerified = ref(false);
 const isVerifying = ref(false);
 const inviteCodeError = ref(false);
 const inviteCodeErrorMessage = ref('');
+
 // 诺兰彩蛋相关状态 - 只保留必要的状态变量
 const isNolanFanMode = ref(false);
 const currentNolanMovie = ref(''); // 当前选中的诺兰电影类型
 const nolanNoteContent = ref(''); // 诺兰风格下的纸条内容
 const nolanNoteClass = ref(''); // 诺兰风格下的纸条样式类
 const nolanWelcomeClass = ref(''); // 诺兰风格下的欢迎信息样式类
+
+// 赛博朋克彩蛋相关状态
+const isCyberpunkMode = ref(false);
+const cyberpunkNoteContent = ref('');
+const cyberpunkNoteClass = ref('');
+const cyberpunkEasterEgg = ref(null);
 
 const errorMessage = ref(''); // 添加这一行到其他ref变量附近
 
@@ -402,17 +429,91 @@ onMounted(async () => {
 
   // 检查已存在的邀请码
   checkExistingInviteCode();
+
+  nextTick(() => {
+    applyCyberpunkTextEffects();
+  });
 });
 
-// 在组件卸载前清理事件监听和音频
+// 应用赛博朋克文本效果
+function applyCyberpunkTextEffects() {
+  if (isCyberpunkMode.value) {
+    // 获取欢迎消息元素
+    const welcomeElement = document.querySelector('.cyberpunk-welcome');
+    if (welcomeElement) {
+      // 保存原始文本
+      const originalText = welcomeElement.textContent;
+      // 设置data-text属性
+      welcomeElement.setAttribute('data-text', originalText);
+      
+      // 添加故障文本效果
+      addGlitchTextEffect(welcomeElement);
+    }
+  }
+}
+
+// 添加故障文本效果
+function addGlitchTextEffect(element) {
+  // 创建故障层
+  const glitchLayers = document.createElement('div');
+  glitchLayers.className = 'cp77-text-layers';
+  
+  // 创建前层
+  const frontLayer = document.createElement('div');
+  frontLayer.className = 'cp77-text-layer cp77-text-layer-front';
+  frontLayer.textContent = element.textContent;
+  
+  // 创建中层
+  const middleLayer = document.createElement('div');
+  middleLayer.className = 'cp77-text-layer cp77-text-layer-middle';
+  middleLayer.textContent = element.textContent;
+  
+  // 创建后层
+  const backLayer = document.createElement('div');
+  backLayer.className = 'cp77-text-layer cp77-text-layer-back';
+  backLayer.textContent = element.textContent;
+  
+  // 组装层
+  glitchLayers.appendChild(backLayer);
+  glitchLayers.appendChild(middleLayer);
+  glitchLayers.appendChild(frontLayer);
+  
+  // 清空原始内容并添加层
+  element.textContent = '';
+  element.appendChild(glitchLayers);
+  
+  // 添加动画
+  animateGlitchText(element);
+}
+
+// 动画故障文本
+function animateGlitchText(element) {
+  // 随机触发故障效果
+  setInterval(() => {
+    if (Math.random() > 0.7 && isCyberpunkMode.value) {
+      element.classList.add('cp77-text-glitching');
+      setTimeout(() => {
+        element.classList.remove('cp77-text-glitching');
+      }, 200);
+    }
+  }, 2000);
+}
+
 // 在组件卸载前清理
 onBeforeUnmount(() => {
-  // 如果彩蛋模式处于激活状态，执行清理
+  // 如果诺兰彩蛋模式处于激活状态，执行清理
   if (isNolanFanMode.value && nolanEasterEgg.value) {
     nolanEasterEgg.value.deactivateNolanFanMode();
     isNolanFanMode.value = false;
   }
+  
+  // 如果赛博朋克彩蛋模式处于激活状态，执行清理
+  if (isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+    cyberpunkEasterEgg.value.deactivateCyberpunkMode();
+    isCyberpunkMode.value = false;
+  }
 });
+
 
 const currentStep = ref(1); // 保持初始步骤为1
 const totalSteps = 11; // 增加为11，因为新增了称呼设置步骤
@@ -453,9 +554,20 @@ function activateNolanMode(activated) {
   isNolanFanMode.value = activated;
   console.log('诺兰粉丝模式已激活:', activated);
   
-  // 如果激活，并且引用可用，获取欢迎信息样式类
   if (activated && nolanEasterEgg.value) {
     nolanWelcomeClass.value = nolanEasterEgg.value.getWelcomeClass();
+  }
+}
+
+// 激活赛博朋克模式的处理函数
+function activateCyberpunkMode(activated) {
+  isCyberpunkMode.value = activated;
+  console.log('赛博朋克边缘行者模式已激活:', activated);
+  
+  // 如果诺兰模式已激活，先关闭它
+  if (isNolanFanMode.value && nolanEasterEgg.value) {
+    nolanEasterEgg.value.deactivateNolanFanMode();
+    isNolanFanMode.value = false;
   }
 }
 
@@ -465,10 +577,56 @@ function updateNolanNameSuggestions(characters) {
   console.log('更新诺兰角色名称建议:', characters);
 }
 
+// 更新赛博朋克角色名称建议
+function updateCyberpunkNameSuggestions(characters) {
+  nameSuggestions.value = characters;
+  console.log('更新赛博朋克角色名称建议:', characters);
+}
+
 // 更新诺兰纸条内容
 function updateNolanNoteContent(content) {
   nolanNoteContent.value = content;
   console.log('更新诺兰纸条内容:', content);
+}
+
+// 更新赛博朋克纸条内容
+function updateCyberpunkNoteContent(content) {
+  cyberpunkNoteContent.value = content;
+  console.log('更新赛博朋克纸条内容:', content);
+}
+
+// 获取最终欢迎信息
+function getWelcomeMessage() {
+  if (isNolanFanMode.value) {
+    // 根据当前选中的诺兰电影类型返回不同的欢迎消息
+    switch(currentNolanMovie.value) {
+      case 'interstellar':
+        return '你的星际之旅即将开始';
+      case 'inception':
+        return '梦境与现实的边界已模糊';
+      case 'batman':
+        return '哥谭市需要你的守护';
+      case 'tenet':
+        return '时间的洪流等待着你';
+      default:
+        return '你的星际之旅即将开始'; // 默认使用星际穿越的欢迎语
+    }
+  } else if (isCyberpunkMode.value) {
+    return '欢迎来到夜之城，传奇';
+  } else {
+    return '现在开始享受您的专属心灵纸条吧';
+  }
+}
+
+// 获取最终纸条内容
+function getFinalNoteContent() {
+  if (isNolanFanMode.value) {
+    return nolanNoteContent.value;
+  } else if (isCyberpunkMode.value) {
+    return cyberpunkNoteContent.value;
+  } else {
+    return sanitizedSampleNote.value;
+  }
 }
 
 function updateNameSuggestions() {
@@ -500,18 +658,29 @@ function refreshSuggestions() {
   if (isNolanFanMode.value && nolanEasterEgg.value) {
     // 重新激活诺兰模式以刷新名字，但不播放音乐
     nolanEasterEgg.value.activateNolanFanMode(false);
-  } else {
+  } 
+  // 如果是赛博朋克模式，使用赛博朋克彩蛋组件刷新
+  else if (isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+    // 调用刷新赛博朋克角色函数
+    cyberpunkEasterEgg.value.refreshCyberpunkCharacters();
+  }
+  else {
     updateNameSuggestions();
   }
 }
 
-// 选择昵称处理函数
+// 选择昵称处理函数 - 更新以支持赛博朋克模式
 function selectNickname(name) {
   userPreferences.nickname = name;
   
   // 如果是诺兰粉丝模式，则调用彩蛋组件的角色信息显示函数
   if (isNolanFanMode.value && nolanEasterEgg.value) {
     nolanEasterEgg.value.showCharacterInfo(name);
+  }
+  
+  // 如果是赛博朋克模式，则调用彩蛋组件的角色信息显示函数
+  if (isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+    cyberpunkEasterEgg.value.showCharacterInfo(name);
   }
 }
 
@@ -633,6 +802,29 @@ function selectZodiac(value) {
 
 function prevStep() {
   if (currentStep.value > 1) {
+    // 如果当前是称呼设置步骤(步骤9)，并且赛博朋克模式已激活，
+    // 则在返回上一步前临时清理样式，防止样式混乱
+    if (currentStep.value === 9 && isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+      // 临时清理样式但不完全关闭赛博朋克模式
+      cyberpunkEasterEgg.value.restoreOriginalTextStyles();
+      
+      // 移除可能添加的全局样式
+      const globalStyles = document.querySelectorAll('.cyberpunk-global-style');
+      globalStyles.forEach(style => {
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      });
+      
+      // 移除可能添加的效果元素
+      const effectElements = document.querySelectorAll('.cp77-effect');
+      effectElements.forEach(element => {
+        if (element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
+      });
+    }
+    
     currentStep.value--;
   }
 }
@@ -691,6 +883,29 @@ function nextStep() {
       
       // 如果没有填写昵称，继续进入下一步，但不强制要求
       // 这里可以选择不做强制验证，让用户自愿填写
+      
+      // 如果当前是称呼设置步骤(步骤9)，并且赛博朋克模式已激活，
+      // 则在前进到下一步前临时清理样式，防止样式混乱
+      if (isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+        // 临时清理样式但不完全关闭赛博朋克模式
+        cyberpunkEasterEgg.value.restoreOriginalTextStyles();
+        
+        // 移除可能添加的全局样式
+        const globalStyles = document.querySelectorAll('.cyberpunk-global-style');
+        globalStyles.forEach(style => {
+          if (style.parentNode) {
+            style.parentNode.removeChild(style);
+          }
+        });
+        
+        // 移除可能添加的效果元素
+        const effectElements = document.querySelectorAll('.cp77-effect');
+        effectElements.forEach(element => {
+          if (element.parentNode) {
+            element.parentNode.removeChild(element);
+          }
+        });
+      }
     }
     
     currentStep.value++;
@@ -793,10 +1008,14 @@ async function completeOnboarding() {
 
     // 如果诺兰彩蛋模式已激活，先结束彩蛋
     if (isNolanFanMode.value && nolanEasterEgg.value) {
-      // 调用彩蛋组件的结束函数
       nolanEasterEgg.value.deactivateNolanFanMode();
-      // 保留诺兰主题的昵称，但清除其他诺兰效果
       isNolanFanMode.value = false;
+    }
+    
+    // 如果赛博朋克彩蛋模式已激活，先结束彩蛋
+    if (isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+      cyberpunkEasterEgg.value.deactivateCyberpunkMode();
+      isCyberpunkMode.value = false;
     }
 
   } catch (error) {
@@ -817,26 +1036,55 @@ function openMBTITest() {
   window.open('https://www.16personalities.com/zh-hans/', '_blank');
 }
 
-// 监听步骤变化，当进入最后一步时确保诺兰样式准备好
+// 监听步骤变化 - 更新以支持赛博朋克模式
 watch(() => currentStep.value, (newStep) => {
-  if (newStep === 11 && isNolanFanMode.value && nolanEasterEgg.value) {
-    // 确保样式类已更新
-    nolanWelcomeClass.value = nolanEasterEgg.value.getWelcomeClass();
-    
-    // 如果没有内容，获取默认内容
-    if (!nolanNoteContent.value) {
-      nolanNoteContent.value = nolanEasterEgg.value.getNoteContent();
+  // 如果进入称呼设置步骤(步骤9)，并且赛博朋克模式已激活，重新应用样式
+  if (newStep === 9 && isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+    // 延迟一下，确保DOM已更新
+    nextTick(() => {
+      // 重新创建赛博朋克UI覆盖层
+      cyberpunkEasterEgg.value.createCyberpunkOverlay();
+    });
+  }
+  
+  if (newStep === 11) {
+    // 诺兰模式处理
+    if (isNolanFanMode.value && nolanEasterEgg.value) {
+      // 确保样式类已更新
+      nolanWelcomeClass.value = nolanEasterEgg.value.getWelcomeClass();
+      
+      // 如果没有内容，获取默认内容
+      if (!nolanNoteContent.value) {
+        nolanNoteContent.value = nolanEasterEgg.value.getNoteContent();
+      }
+      
+      // 如果没有样式类，获取默认样式类
+      if (!nolanNoteClass.value) {
+        nolanNoteClass.value = nolanEasterEgg.value.getNoteClass();
+      }
     }
     
-    // 如果没有样式类，获取默认样式类
-    if (!nolanNoteClass.value) {
-      nolanNoteClass.value = nolanEasterEgg.value.getNoteClass();
+    // 赛博朋克模式处理
+    if (isCyberpunkMode.value && cyberpunkEasterEgg.value) {
+      // 如果没有内容，获取默认内容
+      if (!cyberpunkNoteContent.value) {
+        cyberpunkNoteContent.value = cyberpunkEasterEgg.value.getNoteContent();
+      }
+      
+      // 如果没有样式类，获取默认样式类
+      if (!cyberpunkNoteClass.value) {
+        cyberpunkNoteClass.value = cyberpunkEasterEgg.value.getNoteClass();
+      }
     }
   }
 });
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+
 .onboarding-page {
   background-color: var(--bg-color);
 }
@@ -1597,6 +1845,131 @@ watch(() => currentStep.value, (newStep) => {
   }
 }
 
+/* 赛博朋克2077文本效果 */
+.cyberpunk-welcome {
+  position: relative;
+  display: inline-block;
+  color: #ff0054;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(255, 0, 84, 0.7);
+}
+
+.cp77-text-layers {
+  position: relative;
+  display: inline-block;
+}
+
+.cp77-text-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #ff0054;
+}
+
+.cp77-text-layer-front {
+  z-index: 3;
+  color: #ff0054;
+}
+
+.cp77-text-layer-middle {
+  z-index: 2;
+  color: #00ffaa;
+  opacity: 0.8;
+}
+
+.cp77-text-layer-back {
+  z-index: 1;
+  color: #ffffff;
+  opacity: 0.5;
+}
+
+.cp77-text-glitching .cp77-text-layer-front {
+  animation: cp77-text-glitch-front 0.2s steps(1) both;
+}
+
+.cp77-text-glitching .cp77-text-layer-middle {
+  animation: cp77-text-glitch-middle 0.3s steps(1) both;
+}
+
+.cp77-text-glitching .cp77-text-layer-back {
+  animation: cp77-text-glitch-back 0.25s steps(1) both;
+}
+
+@keyframes cp77-text-glitch-front {
+  0% { transform: translate(0); }
+  20% { transform: translate(-3px, 2px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(1px, 2px); }
+  80% { transform: translate(-1px, -1px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes cp77-text-glitch-middle {
+  0% { transform: translate(0); }
+  20% { transform: translate(3px, -2px); }
+  40% { transform: translate(-3px, 2px); }
+  60% { transform: translate(-1px, -2px); }
+  80% { transform: translate(1px, 1px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes cp77-text-glitch-back {
+  0% { transform: translate(0); }
+  20% { transform: translate(2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, -1px); }
+  80% { transform: translate(-2px, 1px); }
+  100% { transform: translate(0); }
+}
+
+/* 添加更多赛博朋克2077特效 */
+.cyberpunk-mode .nickname-container {
+  position: relative;
+  overflow: visible;
+}
+
+.cyberpunk-mode .nickname-container::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  background: linear-gradient(45deg, #ff0054, #00ffaa, #ff0054);
+  background-size: 200% 200%;
+  animation: cp77-border-animate 3s ease infinite;
+  z-index: -1;
+}
+
+@keyframes cp77-border-animate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.cyberpunk-mode .nickname-suggestion {
+  position: relative;
+  overflow: hidden;
+}
+
+.cyberpunk-mode .nickname-suggestion::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 0, 84, 0.2), transparent);
+  animation: cp77-suggestion-scan 2s ease infinite;
+}
+
+@keyframes cp77-suggestion-scan {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
 
 
 </style>
