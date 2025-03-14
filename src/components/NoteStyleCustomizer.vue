@@ -224,26 +224,6 @@
                 <span class="switch-label">{{ currentStyle.textShadow ? '开启' : '关闭' }}</span>
               </div>
             </div>
-            
-            <!-- 表情气泡开关 -->
-            <div class="setting-group" v-if="noteMood && noteMood.trim() !== ''">
-              <div class="setting-header">
-                <i class="fas fa-smile"></i>
-                <span>表情气泡</span>
-              </div>
-              <div class="switch-container">
-                <div class="switch-control">
-                  <input 
-                    type="checkbox" 
-                    id="emoji-bubble-toggle" 
-                    v-model="currentStyle.showEmojiBubble"
-                    @change="updateStyle({ showEmojiBubble: currentStyle.showEmojiBubble })"
-                  />
-                  <label for="emoji-bubble-toggle"></label>
-                </div>
-                <span class="switch-label">{{ currentStyle.showEmojiBubble !== false ? '显示' : '隐藏' }}</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -270,9 +250,9 @@
     </div>
     
     <div class="action-buttons">
-      <button class="btn btn-secondary" @click="resetStyle">
-        <i class="fas fa-undo"></i>
-        <span>重置</span>
+      <button class="btn btn-text" @click="resetStyle">
+        <i class="fas fa-history"></i>
+        <span>恢复默认设置</span>
       </button>
       <button class="btn btn-primary" @click="$emit('close')" v-if="!showPreview">
         <i class="fas fa-check"></i>
@@ -421,6 +401,11 @@ function updateStyle(updates) {
 }
 
 function resetStyle() {
+  // 添加确认对话框
+  if (!confirm('确定要重置所有样式设置吗？这将无法撤销。')) {
+    return;
+  }
+  
   // 重置时保持当前字体大小不变
   const currentFontSize = currentStyle.value.fontSize;
   currentStyle.value = { 
@@ -818,9 +803,12 @@ function handleColorClick(color) {
 
 // 处理滤镜更新
 function handleFilterUpdate(filterData) {
-  console.log('更新滤镜:', filterData); // 添加日志
+  console.log('更新滤镜:', filterData);
   updateStyle({ 
-    imageFilter: filterData
+    imageFilter: {
+      ...filterData,
+      style: filterData.style || ''
+    }
   });
 }
 </script>
@@ -1366,14 +1354,19 @@ function handleFilterUpdate(filterData) {
   background-color: var(--primary-dark);
 }
 
-.btn-secondary {
-  background-color: var(--bg-color);
+.btn-text {
+  background: none;
+  border: none;
   color: var(--text-secondary);
-  border: 1px solid var(--border-color);
+  font-size: 13px;
+  opacity: 0.8;
+  padding: var(--spacing-sm) var(--spacing-md);
 }
 
-.btn-secondary:hover {
-  background-color: var(--border-color);
+.btn-text:hover {
+  color: var(--text-primary);
+  opacity: 1;
+  background-color: var(--bg-color);
 }
 
 .btn-success {
@@ -1441,6 +1434,10 @@ function handleFilterUpdate(filterData) {
   
   .action-buttons .btn {
     margin-bottom: var(--spacing-sm);
+  }
+  
+  .btn-text {
+    order: 2; /* 将重置按钮放到最后 */
   }
   
   .preview-scale-container {
