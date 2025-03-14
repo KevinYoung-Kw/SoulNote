@@ -26,8 +26,8 @@
       <button class="icon-btn action-btn" @click="customizeNote" :disabled="!noteContent || isGenerating">
         <i class="fas fa-palette"></i>
       </button>
-      <button class="icon-btn action-btn" @click="openStore" :disabled="isGenerating">
-        <i class="fas fa-store"></i>
+      <button class="icon-btn action-btn" @click="openAISettings" :disabled="isGenerating">
+        <i class="fas fa-robot"></i>
       </button>
     </div>
   </div>
@@ -67,7 +67,7 @@ const emit = defineEmits([
   'regenerate', 
   'save', 
   'customize', 
-  'store'
+  'openAISettings'
 ]);
 
 // Methods
@@ -93,9 +93,8 @@ function customizeNote() {
   }
 }
 
-function openStore() {
-  alert('商店功能即将开放，敬请期待！');
-  emit('store');
+function openAISettings() {
+  emit('openAISettings');
 }
 </script>
 

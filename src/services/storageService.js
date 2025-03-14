@@ -6,7 +6,8 @@ const BASE_KEYS = {
   NOTES: 'notes',
   ONBOARDING_COMPLETED: 'onboarding-completed',
   INVITE_CODE_VERIFIED: 'invite-code-verified',
-  INVITE_CODE: 'invite-code'
+  INVITE_CODE: 'invite-code',
+  API_SETTINGS: 'api-settings'  // 添加API设置的键
 };
 
 /**
@@ -290,6 +291,52 @@ export async function setInviteCodeVerified(inviteCode, verified = true) {
     return true;
   } catch (error) {
     console.error('设置邀请码验证状态失败:', error);
+    return false;
+  }
+}
+
+/**
+ * 保存API设置
+ * @param {Object} settings API设置对象
+ * @returns {Promise<boolean>} 是否保存成功
+ */
+export async function saveApiSettings(settings) {
+  try {
+    const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.API_SETTINGS);
+    localStorage.setItem(storageKey, JSON.stringify(settings));
+    return true;
+  } catch (error) {
+    console.error('保存API设置失败:', error);
+    return false;
+  }
+}
+
+/**
+ * 获取API设置
+ * @returns {Promise<Object|null>} API设置对象
+ */
+export async function getApiSettings() {
+  try {
+    const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.API_SETTINGS);
+    const data = localStorage.getItem(storageKey);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('获取API设置失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 清除API设置
+ * @returns {Promise<boolean>} 是否清除成功
+ */
+export async function clearApiSettings() {
+  try {
+    const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.API_SETTINGS);
+    localStorage.removeItem(storageKey);
+    return true;
+  } catch (error) {
+    console.error('清除API设置失败:', error);
     return false;
   }
 }

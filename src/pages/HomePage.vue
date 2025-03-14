@@ -47,7 +47,7 @@
       @regenerate="regenerateNote"
       @save="saveNote"
       @customize="openStyleCustomizer"
-      @store="openStore"
+      @openAISettings="openAISettings"
     />
     
     <!-- 参数设置面板 -->
@@ -84,6 +84,12 @@
         />
       </div>
     </div>
+
+    <!-- AI 设置面板 -->
+    <AISetting
+      v-model:visible="showAISettings"
+      @update:apiSettings="updateAPISettings"
+    />
   </div>
 </template>
 
@@ -101,6 +107,7 @@ import NoteDisplay from '../components/NoteDisplay.vue';
 import AppreciationBanner from '../components/AppreciationBanner.vue';
 import CommunityPrompt from '../components/CommunityPrompt.vue';
 import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
+import AISetting from '../components/AISetting.vue';
 
 // 导入服务和工具
 import { generateNote, getEstimatedResponseTime } from '../services/aiService';
@@ -127,7 +134,9 @@ const headerCollapsed = ref(false);
 const showParamsPanel = ref(false);
 const showCommunityPrompt = ref(false);
 const showStyleCustomizer = ref(false);
+const showAISettings = ref(false);
 const customStyle = ref({});
+const apiSettings = ref(null);
 
 // 用户参数
 const params = reactive({
@@ -231,7 +240,7 @@ async function generateNoteContent() {
   loadingInterval = setInterval(() => {
     messageIndex = (messageIndex + 1) % loadingMessagesArray.value.length;
     loadingMessage.value = loadingMessagesArray.value[messageIndex];
-  }, 2000); // 每2秒切换一次消息
+  }, 2000);
   
   try {
     // 获取估计响应时间
@@ -249,7 +258,9 @@ async function generateNoteContent() {
       age: params.age,
       relationship: params.relationship,
       enableFortune: params.enableFortune,
-      fortuneAspect: params.fortuneAspect
+      fortuneAspect: params.fortuneAspect,
+      // 添加自定义 API 设置
+      apiSettings: apiSettings.value
     };
     
     logger.info('REQUEST', '发送生成请求, 请求参数:', requestParams);
@@ -478,6 +489,22 @@ function updateCustomStyle(newStyle) {
   customStyle.value = otherStyles;
 }
 
+// 更新 API 设置
+function updateAPISettings(settings) {
+  apiSettings.value = settings;
+  // 保存到本地存储
+  if (settings) {
+    localStorage.setItem('aiSettings', JSON.stringify(settings));
+  } else {
+    localStorage.removeItem('aiSettings');
+  }
+}
+
+// 打开 AI 设置面板
+function openAISettings() {
+  showAISettings.value = true;
+}
+
 // 生命周期
 onMounted(async () => {
   // 加载用户偏好设置
@@ -554,6 +581,12 @@ onMounted(async () => {
 
       // 从缓存恢复生成的内容
       await restoreFromCache();
+
+      // 加载 AI 设置
+      const savedAISettings = localStorage.getItem('aiSettings');
+      if (savedAISettings) {
+        apiSettings.value = JSON.parse(savedAISettings);
+      }
     }
   } catch (error) {
     logger.error('PREFERENCES', '加载用户偏好设置失败:', error);

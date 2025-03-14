@@ -6,10 +6,10 @@ const logger = require('../../utils/logger'); // 使用增强的logger
  * 后端API服务
  */
 
-// 从环境变量获取API配置
-const API_URL = process.env.VITE_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-const API_KEY = process.env.VITE_API_KEY || '';
-const API_MODEL = process.env.VITE_API_MODEL || 'qwen-max';
+// 从环境变量获取默认API配置
+const DEFAULT_API_URL = process.env.VITE_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+const DEFAULT_API_KEY = process.env.VITE_API_KEY || '';
+const DEFAULT_API_MODEL = process.env.VITE_API_MODEL || 'qwen-max';
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
 // 响应时间历史记录，用于动态调整
@@ -87,11 +87,17 @@ function getEstimatedResponseTime(model) {
  * 调用AI API生成内容
  * @param {string} prompt 提示词
  * @param {boolean} savageMode 是否为毒舌模式
+ * @param {Object} apiConfig API配置
  * @returns {Promise<string>} 生成的内容
  */
-async function callAiApi(prompt, savageMode = false) {
+async function callAiApi(prompt, savageMode = false, apiConfig = {}) {
   const startTime = Date.now();
   const systemPrompt = getSystemPrompt(savageMode);
+  
+  // 使用传入的配置，如果没有则使用默认值
+  const API_URL = apiConfig.endpoint || DEFAULT_API_URL;
+  const API_KEY = apiConfig.apiKey || DEFAULT_API_KEY;
+  const API_MODEL = apiConfig.model || DEFAULT_API_MODEL;
   
   logger.debug('API', `生成系统提示词: ${savageMode ? '毒舌模式' : '普通模式'}`);
   
@@ -113,14 +119,15 @@ async function callAiApi(prompt, savageMode = false) {
     stream: false
   };
   
-  // 记录模型输入 - 使用完整的提示词内容，不要省略
+  // 记录模型输入
   logger.modelInput(API_MODEL, {
     system: systemPrompt,
     user: prompt
   }, {
     max_tokens: 1500,
     temperature: 1.5,
-    model: API_MODEL
+    model: API_MODEL,
+    config: apiConfig // 记录完整的API配置
   });
   
   // 记录API配置
@@ -128,13 +135,14 @@ async function callAiApi(prompt, savageMode = false) {
     url: API_URL,
     model: API_MODEL,
     key_available: !!API_KEY,
-    key_prefix: API_KEY ? `${API_KEY.substring(0, 5)}...${API_KEY.substring(API_KEY.length - 3)}` : 'missing'
+    key_prefix: API_KEY ? `${API_KEY.substring(0, 5)}...${API_KEY.substring(API_KEY.length - 3)}` : 'missing',
+    using_custom_config: !!apiConfig.apiKey
   });
 
   try {
     // 检查API密钥是否存在
     if (!API_KEY) {
-      const error = new Error('API密钥未设置，请检查环境变量VITE_API_KEY');
+      const error = new Error('API密钥未设置');
       logger.error('API', '缺少API密钥', { error: error.message });
       throw error;
     }
@@ -143,7 +151,8 @@ async function callAiApi(prompt, savageMode = false) {
     logger.api('REQUEST', `开始调用${API_MODEL}模型`, {
       endpoint: `${API_URL}/chat/completions`,
       payload_size: JSON.stringify(requestData).length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      using_custom_config: !!apiConfig.apiKey
     });
     
     // 调用API
@@ -161,13 +170,14 @@ async function callAiApi(prompt, savageMode = false) {
     logger.api('RESPONSE', `${API_MODEL}响应成功`, {
       time: `${responseTime}ms`,
       status: response.status,
-      headers: response.headers
+      headers: response.headers,
+      using_custom_config: !!apiConfig.apiKey
     });
     
-    // 记录模型完整输出，确保完整记录响应数据
+    // 记录模型完整输出
     logger.modelOutput(API_MODEL, response.data, responseTime);
     
-    // 解析并返回内容，只保留<content>标签中的内容
+    // 解析并返回内容
     if (response.data && response.data.choices && response.data.choices.length > 0) {
       const fullContent = response.data.choices[0].message.content.trim();
       
@@ -177,7 +187,10 @@ async function callAiApi(prompt, savageMode = false) {
       
       // 分别记录思考过程和内容
       if (thinkMatch && thinkMatch[1]) {
-        logger.debug('MODEL_THINKING', '模型思考过程', { thinking: thinkMatch[1].trim() });
+        logger.debug('MODEL_THINKING', '模型思考过程', { 
+          thinking: thinkMatch[1].trim(),
+          model: API_MODEL
+        });
       }
       
       if (contentMatch && contentMatch[1]) {
@@ -185,7 +198,8 @@ async function callAiApi(prompt, savageMode = false) {
         logger.debug('MODEL_CONTENT', '解析后的内容', { 
           content: finalContent,
           length: finalContent.length,
-          originalLength: fullContent.length
+          originalLength: fullContent.length,
+          model: API_MODEL
         });
         return finalContent;
       } else {
@@ -193,7 +207,8 @@ async function callAiApi(prompt, savageMode = false) {
         const filteredContent = fullContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
         logger.warn('MODEL_PARSING', '未找到<content>标签，使用过滤内容', {
           filtered_content: filteredContent,
-          original_had_think_tag: fullContent.includes('<think>')
+          original_had_think_tag: fullContent.includes('<think>'),
+          model: API_MODEL
         });
         return filteredContent;
       }
@@ -201,7 +216,8 @@ async function callAiApi(prompt, savageMode = false) {
       logger.error('MODEL_PARSING', '无效的API响应结构', { 
         has_data: !!response.data,
         has_choices: !!(response.data && response.data.choices),
-        choices_length: (response.data && response.data.choices) ? response.data.choices.length : 0
+        choices_length: (response.data && response.data.choices) ? response.data.choices.length : 0,
+        model: API_MODEL
       });
       throw new Error('API响应中未包含生成内容');
     }
@@ -217,7 +233,8 @@ async function callAiApi(prompt, savageMode = false) {
       code: error.code,
       response_status: error.response ? error.response.status : undefined,
       response_data: error.response ? error.response.data : undefined,
-      stack: DEBUG_MODE ? error.stack : undefined
+      stack: DEBUG_MODE ? error.stack : undefined,
+      using_custom_config: !!apiConfig.apiKey
     });
     
     throw error;

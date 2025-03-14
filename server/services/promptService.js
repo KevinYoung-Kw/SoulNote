@@ -153,9 +153,10 @@ class PromptService {
   /**
    * 生成心灵纸条内容
    * @param {Object} data 请求数据
+   * @param {Object} apiConfig API配置
    * @returns {Promise<Object>} 包含生成内容的对象
    */
-  async generateNote(data) {
+  async generateNote(data, apiConfig) {
     try {
       // 记录生成请求
       logger.info('GENERATION', '收到生成纸条请求', {
@@ -165,7 +166,8 @@ class PromptService {
         mbti: data.mbti,
         zodiac: data.zodiac,
         enableFortune: data.enableFortune,
-        fortuneAspect: data.fortuneAspect
+        fortuneAspect: data.fortuneAspect,
+        model: apiConfig.model // 记录使用的模型
       });
       
       // 构建提示词
@@ -183,24 +185,26 @@ class PromptService {
       // 尝试使用真实API调用
       try {
         logger.info('API_CALL', '正在调用AI API生成内容', {
-          model: API_MODEL,
+          model: apiConfig.model,
           prompt_length: prompt.length,
           timestamp: new Date().toISOString()
         });
         
         const apiStartTime = Date.now();
-        content = await callAiApi(prompt, data.savageMode);
+        content = await callAiApi(prompt, data.savageMode, apiConfig);
         const apiResponseTime = Date.now() - apiStartTime;
         
         logger.info('API_CALL', 'AI API调用成功', {
           response_time: `${apiResponseTime}ms`,
-          content_length: content.length
+          content_length: content.length,
+          model: apiConfig.model
         });
       } catch (apiError) {
         logger.warn('API_ERROR', `API调用失败，使用备选方案: ${apiError.message}`, {
           error_code: apiError.code,
           statusCode: apiError.response?.status,
-          error_type: apiError.name
+          error_type: apiError.name,
+          model: apiConfig.model
         });
         
         content = await mockCallAiApi(prompt, data.savageMode);
@@ -212,7 +216,8 @@ class PromptService {
         total_time: `${totalTime}ms`,
         content_length: content.length,
         theme: data.theme || 'chat',
-        savageMode: !!data.savageMode
+        savageMode: !!data.savageMode,
+        model: apiConfig.model
       });
       
       // 返回生成结果
@@ -220,7 +225,7 @@ class PromptService {
         content,
         timestamp: new Date().toISOString(),
         metadata: {
-          model: API_MODEL,
+          model: apiConfig.model,
           theme: data.theme || 'chat',
           mood: data.mood || (data.moods ? data.moods.join(',') : '平静'),
           savageMode: !!data.savageMode,
@@ -231,7 +236,8 @@ class PromptService {
       // 记录错误
       logger.error('GENERATION_ERROR', '生成纸条错误', {
         error: error.message,
-        stack: DEBUG_MODE ? error.stack : undefined
+        stack: DEBUG_MODE ? error.stack : undefined,
+        model: apiConfig.model
       });
       
       // 尝试使用本地备用方案
@@ -253,40 +259,39 @@ class PromptService {
   
   /**
    * 获取API服务状态
-   * @returns {Object} API服务状态
+   * @param {Object} apiConfig API配置
+   * @returns {Object} 服务状态信息
    */
-  getStatus() {
-    const status = {
-      apiAvailable: !!process.env.VITE_API_KEY,
-      apiModel: API_MODEL,
-      debugMode: DEBUG_MODE,
+  getStatus(apiConfig) {
+    return {
+      status: 'ok',
+      model: apiConfig.model,
       timestamp: new Date().toISOString()
     };
-    
-    logger.debug('STATUS', '获取API服务状态', status);
-    return status;
   }
   
   /**
    * 获取估计响应时间
-   * @param {string} model - 模型名称
+   * @param {string} model 模型名称
+   * @param {Object} apiConfig API配置
    * @returns {Promise<number>} 估计响应时间(毫秒)
    */
-  async getEstimatedTime(model) {
-    try {
-      const { getEstimatedResponseTime } = require('./modules/apiService');
-      const estimatedTime = getEstimatedResponseTime(model || API_MODEL);
-      
-      logger.debug('RESPONSE_TIME', '估计响应时间', { 
-        model: model || API_MODEL, 
-        estimatedTime 
-      });
-      
-      return estimatedTime;
-    } catch (error) {
-      logger.error('RESPONSE_TIME', '获取估计响应时间失败', error);
-      return 3000; // 默认3秒
-    }
+  async getEstimatedTime(model, apiConfig) {
+    // 根据不同模型返回不同的估计时间
+    const baseTime = 2000;
+    const modelTime = {
+      'gpt-4': 5000,
+      'gpt-4-turbo': 4000,
+      'gpt-3.5-turbo': 2000,
+      'qwen-turbo': 2000,
+      'qwen-plus': 3000,
+      'qwen-max': 4000,
+      'chatglm-turbo': 2000,
+      'chatglm-pro': 3000,
+      'spark-desk': 3000
+    };
+
+    return modelTime[model || apiConfig.model] || baseTime;
   }
 }
 
