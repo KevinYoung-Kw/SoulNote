@@ -1244,13 +1244,62 @@ function handleColorClick(color) {
   display: flex;
   justify-content: center;
   padding: var(--spacing-md) 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .preview-scale-container {
-  transform: scale(1.0);
+  width: 375px; /* 移动端基准宽度 */
+  min-width: 375px;
   transform-origin: top center;
-  width: 100%;
-  max-width: 400px;
+  margin: 0 auto;
+  background: var(--bg-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .preview-scale-container {
+    transform: scale(0.85);
+    margin: -20px auto;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .preview-scale-container {
+    width: 480px;
+    min-width: 480px;
+    transform: scale(0.95);
+    margin: -10px auto;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .preview-scale-container {
+    width: 480px;
+    min-width: 480px;
+    transform: scale(1);
+    margin: 0 auto;
+  }
+}
+
+@media (min-width: 1025px) {
+  .preview-scale-container {
+    width: 540px;
+    min-width: 540px;
+    transform: scale(1);
+    margin: 0 auto;
+  }
+}
+
+/* 导出预览时的特殊样式 */
+.preview-scale-container.export-mode {
+  width: 375px !important;
+  min-width: 375px !important;
+  transform: none !important;
 }
 
 /* 操作按钮样式 */
@@ -1363,6 +1412,18 @@ function handleColorClick(color) {
   
   .action-buttons .btn {
     margin-bottom: var(--spacing-sm);
+  }
+  
+  .preview-scale-container {
+    transform: scale(0.85);
+    margin: -20px auto; /* 补偿缩放造成的空间 */
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .preview-scale-container {
+    transform: scale(0.9);
+    margin: -15px auto;
   }
 }
 

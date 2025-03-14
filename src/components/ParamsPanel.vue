@@ -758,6 +758,8 @@ watch(() => props.initialParams, (newParams) => {
   overflow-x: auto;
   scrollbar-width: thin;
   padding-bottom: var(--spacing-xs);
+  justify-content: center;
+  padding: var(--spacing-xs) var(--spacing-md);
 }
 
 .emoji-tabs::-webkit-scrollbar {

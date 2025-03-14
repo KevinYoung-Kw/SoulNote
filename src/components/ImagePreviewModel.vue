@@ -3,101 +3,110 @@
     <div class="modal-overlay" @click="$emit('close')"></div>
     <div class="image-preview-dialog">
       <div class="preview-header">
-        <h3 class="preview-title">图片预览</h3>
+        <h3 class="preview-title">导出预览</h3>
         <button class="close-btn" @click="$emit('close')">
           <i class="fas fa-times"></i>
         </button>
       </div>
       
-      <!-- 图片预览容器 -->
-      <div class="image-container" ref="imageContainer">
-        <div class="image-wrapper">
-          <img 
-            ref="previewImage" 
-            :src="imageUrl" 
-            alt="预览图片" 
-            class="preview-image" 
-          />
-        </div>
-        
-        <!-- 导出格式选择 -->
-        <div class="export-options">
-          <div class="format-selector">
-            <button 
-              v-for="format in exportFormats" 
-              :key="format.id"
-              :class="['format-btn', { active: selectedFormat === format.id }]"
-              @click="selectedFormat = format.id"
-            >
-              {{ format.label }}
-            </button>
+      <div class="preview-content">
+        <!-- 左侧预览区域 -->
+        <div class="preview-section">
+          <div class="image-container" ref="imageContainer">
+            <div class="image-wrapper">
+              <img 
+                ref="previewImage" 
+                :src="imageUrl" 
+                alt="预览图片" 
+                class="preview-image" 
+              />
+            </div>
           </div>
-          
-          <!-- 图片尺寸选择 -->
-          <div class="size-selector">
-            <label>尺寸:</label>
-            <div class="size-options">
+        </div>
+
+        <!-- 右侧设置区域 -->
+        <div class="settings-section">
+          <!-- 导出格式选择 -->
+          <div class="setting-group">
+            <label class="setting-label">
+              <i class="fas fa-file-image"></i>
+              导出格式
+            </label>
+            <div class="format-buttons">
               <button 
-                v-for="size in pixelSizes" 
-                :key="size.value"
-                :class="['size-btn', { active: selectedSize === size.value }]"
-                @click="selectedSize = size.value"
+                v-for="format in exportFormats" 
+                :key="format.id"
+                :class="['format-btn', { active: selectedFormat === format.id }]"
+                @click="selectedFormat = format.id"
               >
-                {{ size.label }}
+                {{ format.label }}
               </button>
             </div>
           </div>
-          
-          <div class="quality-selector" v-if="selectedFormat === 'jpg'">
-            <label>质量:</label>
-            <input 
-              type="range" 
-              min="0.5" 
-              max="1" 
-              step="0.1" 
-              v-model.number="exportQuality" 
-            />
-            <span>{{ Math.round(exportQuality * 100) }}%</span>
-          </div>
-          
-          <div class="transparent-bg" v-if="selectedFormat === 'png'">
-            <label>
-              <input type="checkbox" v-model="transparentBg" />
-              透明背景
+
+          <!-- 图片质量选择 -->
+          <div class="setting-group" v-if="selectedFormat === 'jpg'">
+            <label class="setting-label">
+              <i class="fas fa-star-half-alt"></i>
+              图片质量
             </label>
-            <div class="bg-note" v-if="transparentBg">
-              <i class="fas fa-info-circle"></i>
-              <span>将保留白色底色以确保最佳显示效果</span>
+            <select v-model="exportQuality" class="quality-select">
+              <option value="1">最佳 (100%)</option>
+              <option value="0.9">优质 (90%)</option>
+              <option value="0.8">良好 (80%)</option>
+              <option value="0.6">普通 (60%)</option>
+            </select>
+          </div>
+
+          <!-- 分辨率选择 -->
+          <div class="setting-group">
+            <label class="setting-label">
+              <i class="fas fa-expand-arrows-alt"></i>
+              分辨率
+            </label>
+            <select v-model="selectedSize" class="size-select">
+              <option v-for="size in pixelSizes" :key="size.value" :value="size.value">
+                {{ size.label }} ({{ size.value }}倍)
+              </option>
+            </select>
+          </div>
+
+          <!-- 透明背景选项 -->
+          <div class="setting-group" v-if="selectedFormat === 'png'">
+            <label class="setting-label">
+              <i class="fas fa-chess-board"></i>
+              背景设置
+            </label>
+            <div class="switch-control">
+              <input 
+                type="checkbox" 
+                id="transparent-bg" 
+                v-model="transparentBg"
+              />
+              <label for="transparent-bg"></label>
+              <span>透明背景</span>
             </div>
           </div>
         </div>
-        
-        <div v-if="isWechat" class="wechat-tip">
-          <i class="fas fa-hand-pointer"></i>
-          <span>长按图片可保存至相册</span>
-        </div>
       </div>
-      
+
+      <!-- 底部操作按钮 -->
       <div class="action-buttons">
-        <button class="action-btn" @click="tryDownload">
-          <i class="fas fa-download"></i>
-          <span>保存图片</span>
+        <button class="btn-secondary" @click="$emit('customize')">
+          <i class="fas fa-arrow-left"></i>
+          <span>返回编辑</span>
         </button>
-        <button class="action-btn" @click="copyImage" v-if="supportClipboard">
+        <button class="btn-primary" @click="copyImage" v-if="supportClipboard">
           <i class="fas fa-copy"></i>
           <span>复制图片</span>
         </button>
-        <button class="action-btn share-btn" @click="nativeShare" v-if="supportShare">
-          <i class="fas fa-share-alt"></i>
-          <span>系统分享</span>
+        <button class="btn-primary" @click="tryDownload">
+          <i class="fas fa-download"></i>
+          <span>保存图片</span>
         </button>
-      </div>
-      
-      <!-- 返回自定义按钮 -->
-      <div class="back-to-customize">
-        <button class="btn-link" @click="backToCustomize">
-          <i class="fas fa-arrow-left"></i>
-          <span>返回自定义</span>
+        <button class="btn-share" @click="nativeShare" v-if="supportShare">
+          <i class="fas fa-share-alt"></i>
+          <span>分享</span>
         </button>
       </div>
     </div>
@@ -156,10 +165,11 @@ const exportFormats = [
 
 // 像素尺寸选项
 const pixelSizes = [
-  { value: 1, label: '1x' },
-  { value: 1.5, label: '1.5x' },
-  { value: 2, label: '2x' },
-  { value: 3, label: '3x' }
+  { value: 4, label: '4x' },
+  { value: 6, label: '6x' },
+  { value: 8, label: '8x' },
+  { value: 12, label: '12x' },
+  { value: 16, label: '16x' }
 ];
 
 // Methods
@@ -299,363 +309,337 @@ onMounted(() => {
 .image-preview-dialog {
   position: relative;
   width: 90%;
-  max-width: 520px;
-  background-color: #ffffff;
-  border-radius: 20px;
+  max-width: 800px;
+  max-height: 90vh;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   z-index: 1001;
   animation: slideUp 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 24px;
-  border-bottom: 1px solid #f0f0f0;
-  background-color: #fafafa;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-color);
 }
 
 .preview-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+.preview-content {
   display: flex;
-  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.preview-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.preview-content::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+.preview-content::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 4px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+.preview-section {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   justify-content: center;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  align-items: center;
 }
 
-.close-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: #333;
-}
-
-/* 图片容器样式 */
 .image-container {
-  position: relative;
-  padding: 24px;
-  text-align: center;
-  background-color: #f9f9f9;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .image-wrapper {
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 8px;
+  padding: var(--spacing-sm);
   background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .preview-image {
-  max-width: 100%;
-  max-height: 50vh;
-  border-radius: 6px;
-  object-fit: contain;
-}
-
-/* 导出选项样式 */
-.export-options {
   width: 100%;
-  margin-top: 20px;
-  padding: 16px;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
 }
 
-.format-selector {
+.settings-section {
+  width: 240px;
+  flex-shrink: 0;
+  padding: var(--spacing-sm);
+  background-color: var(--bg-color);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.setting-group {
+  margin-bottom: var(--spacing-sm);
+}
+
+.setting-label {
+  font-size: 14px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.format-buttons {
   display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--spacing-xs);
 }
 
 .format-btn {
-  padding: 8px 20px;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  background-color: #f8f8f8;
-  color: #555;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-color);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.format-btn:hover {
+  background-color: var(--hover-color);
 }
 
 .format-btn.active {
-  background-color: var(--primary-color, #7B9E89);
+  background-color: var(--primary-color);
   color: white;
-  border-color: var(--primary-color, #7B9E89);
-  box-shadow: 0 2px 8px rgba(123, 158, 137, 0.3);
+  border-color: var(--primary-color);
 }
 
-.size-selector {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 0 8px;
-}
-
-.size-selector label {
-  width: 45px;
-  font-size: 14px;
-  color: #555;
-  font-weight: 500;
-}
-
-.size-options {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.size-btn {
-  padding: 8px 20px;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  background-color: #f8f8f8;
-  color: #555;
-  font-weight: 500;
+.quality-select,
+.size-select {
+  width: 100%;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 13px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
   cursor: pointer;
-  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
 }
 
-.size-btn.active {
-  background-color: var(--primary-color, #7B9E89);
-  color: white;
-  border-color: var(--primary-color, #7B9E89);
-  box-shadow: 0 2px 8px rgba(123, 158, 137, 0.3);
+.quality-select:hover,
+.size-select:hover {
+  border-color: var(--primary-color);
 }
 
-.quality-selector {
+.quality-select:focus,
+.size-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-color-alpha);
+}
+
+.switch-control {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 0 8px;
+  gap: var(--spacing-md);
 }
 
-.quality-selector label {
-  width: 45px;
-  font-size: 14px;
-  color: #555;
-  font-weight: 500;
+.switch-control input {
+  display: none;
 }
 
-.quality-selector input[type="range"] {
-  flex: 1;
-  height: 6px;
-  background-color: #e0e0e0;
-  border-radius: 3px;
-  -webkit-appearance: none;
+.switch-control label {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  background-color: var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.quality-selector input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
+.switch-control label:before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background-color: var(--primary-color, #7B9E89);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
+  background-color: white;
+  top: 2px;
+  left: 2px;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.quality-selector span {
-  width: 45px;
+.switch-control input:checked + label {
+  background-color: var(--primary-color);
+}
+
+.switch-control input:checked + label:before {
+  transform: translateX(20px);
+}
+
+.switch-control span {
   font-size: 14px;
-  text-align: right;
-  color: #555;
-  font-weight: 500;
-}
-
-.transparent-bg {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background-color: #f8f8f8;
-  border-radius: 8px;
-}
-
-.transparent-bg label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: #555;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.transparent-bg input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary-color, #7B9E89);
-}
-
-.bg-note {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-}
-
-.wechat-tip {
-  margin-top: 16px;
-  color: #666;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background-color: rgba(123, 158, 137, 0.1);
-  border-radius: 8px;
-  border-left: 3px solid var(--primary-color, #7B9E89);
+  color: var(--text-secondary);
 }
 
 .action-buttons {
+  padding: var(--spacing-sm) var(--spacing-md);
+  gap: var(--spacing-xs);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-color);
   display: flex;
-  padding: 20px 24px;
-  gap: 16px;
-  border-top: 1px solid #f0f0f0;
-  background-color: #fafafa;
+  flex-wrap: wrap;
 }
 
-.action-btn {
-  flex: 1;
-  display: flex;
+.btn-primary,
+.btn-secondary,
+.btn-share {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 14px;
-  background-color: var(--primary-color, #7B9E89);
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-height: 32px;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 10px;
-  font-weight: 500;
-  font-size: 15px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(123, 158, 137, 0.2);
 }
 
-.action-btn:hover {
-  background-color: #6a8a77;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(123, 158, 137, 0.3);
+.btn-primary:hover {
+  background-color: var(--primary-color-dark);
+  transform: translateY(-1px);
 }
 
-.action-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(123, 158, 137, 0.2);
+.btn-secondary {
+  background-color: var(--bg-color);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
 }
 
-.share-btn {
-  background-color: #4a6fb5;
-  box-shadow: 0 4px 12px rgba(74, 111, 181, 0.2);
+.btn-secondary:hover {
+  background-color: var(--hover-color);
+  border-color: var(--border-color-dark);
+  transform: translateY(-1px);
 }
 
-.share-btn:hover {
-  background-color: #3a5a94;
-  box-shadow: 0 6px 15px rgba(74, 111, 181, 0.3);
-}
-
-.share-btn:active {
-  box-shadow: 0 2px 8px rgba(74, 111, 181, 0.2);
-}
-
-.back-to-customize {
-  padding: 16px 24px;
-  border-top: 1px solid #f0f0f0;
-  text-align: center;
-  background-color: #fff;
-}
-
-.btn-link {
-  background: none;
+.btn-share {
+  background-color: var(--info-color, #4a6fb5);
+  color: white;
   border: none;
-  color: var(--primary-color, #7B9E89);
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 0 auto;
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
 }
 
-.btn-link:hover {
-  background-color: rgba(123, 158, 137, 0.1);
+.btn-share:hover {
+  background-color: var(--info-color-dark, #3a5a94);
+  transform: translateY(-1px);
 }
 
-.save-tip-highlight {
-  position: absolute;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 14px 24px;
-  border-radius: 30px;
-  font-size: 16px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  animation: pulse 1.5s infinite;
-  z-index: 10;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+@media (max-width: 768px) {
+  .image-preview-dialog {
+    width: 95%;
+    height: 95vh;
+  }
+
+  .preview-content {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .image-container {
+    max-width: 100%;
+  }
+  
+  .settings-section {
+    width: 100%;
+  }
+  
+  .action-buttons {
+    padding: var(--spacing-sm);
+  }
+  
+  .btn-primary,
+  .btn-secondary,
+  .btn-share {
+    flex: 1 0 calc(50% - var(--spacing-xs));
+  }
 }
 
-.toast-message {
-  position: fixed;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background-color: rgba(0, 0, 0, 0.85);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 500;
-  opacity: 0;
-  transition: all 0.3s ease;
-  z-index: 1100;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-}
+@media (max-width: 480px) {
+  .image-preview-dialog {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
 
-.toast-message.show {
-  transform: translateX(-50%) translateY(0);
-  opacity: 1;
+  .preview-content {
+    padding: var(--spacing-sm);
+  }
+  
+  .image-wrapper {
+    padding: var(--spacing-xs);
+  }
+  
+  .settings-section {
+    padding: var(--spacing-xs);
+  }
+  
+  .action-buttons {
+    padding: var(--spacing-xs);
+  }
+  
+  .btn-primary,
+  .btn-secondary,
+  .btn-share {
+    flex: 1 0 100%;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  /* 在小屏幕下最后一个按钮不需要底部间距 */
+  .btn-primary:last-child,
+  .btn-secondary:last-child,
+  .btn-share:last-child {
+    margin-bottom: 0;
+  }
 }
 
 @keyframes fadeIn {
@@ -664,96 +648,55 @@ onMounted(() => {
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { 
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-@keyframes pulse {
-  0% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.05); }
-  100% { transform: translate(-50%, -50%) scale(1); }
+/* Toast 消息样式优化 */
+.toast-message {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background-color: var(--toast-bg, rgba(0, 0, 0, 0.85));
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  transition: all var(--transition-fast);
+  z-index: 1100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-@media (max-width: 480px) {
-  .image-preview-dialog {
-    width: 95%;
-    max-height: 90vh;
-    overflow-y: auto;
-    border-radius: 16px;
-  }
-  
-  .preview-header {
-    padding: 16px 20px;
-  }
-  
-  .image-container {
-    padding: 16px;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-    padding: 16px 20px;
-    gap: 12px;
-  }
-  
-  .format-selector {
-    gap: 10px;
-  }
-  
-  .format-btn {
-    padding: 6px 16px;
-    font-size: 14px;
-  }
-  
-  .export-options {
-    padding: 14px;
-  }
-  
-  .quality-selector {
-    gap: 8px;
-  }
-  
-  .quality-selector label {
-    width: 40px;
-    font-size: 12px;
-  }
-  
-  .quality-selector span {
-    width: 40px;
-    font-size: 12px;
-  }
-  
-  .transparent-bg label {
-    font-size: 12px;
-  }
-  
-  .action-btn {
-    padding: 12px;
-    font-size: 14px;
-  }
-  
-  .btn-link {
-    font-size: 14px;
-  }
-  
-  .size-options {
-    gap: 8px;
-  }
-  
-  .size-btn {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-  
-  .size-selector {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .size-selector label {
-    width: auto;
-    margin-bottom: 4px;
-  }
+.toast-message.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* 保存提示样式优化 */
+.save-tip-highlight {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--toast-bg, rgba(0, 0, 0, 0.85));
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>

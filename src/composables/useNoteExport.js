@@ -20,14 +20,85 @@ export function useNoteExport() {
       
       // 设置html2canvas选项
       const html2canvasOptions = {
-        scale: options.pixelSize || 2, // 使用pixelSize选项或默认值2
-        useCORS: true, // 允许跨域图片
+        scale: options.pixelSize || 8, // 默认使用8倍分辨率
+        useCORS: true,
         allowTaint: true,
-        backgroundColor: options.transparentBg && !options.useWhiteBackground ? null : '#ffffff', // 根据选项决定是否使用透明背景
-        logging: true, // 开启日志以便调试
-        imageTimeout: 0, // 不设置图片超时
-        removeContainer: false // 不移除容器
+        backgroundColor: options.transparentBg && !options.useWhiteBackground ? null : '#ffffff',
+        logging: false,
+        imageTimeout: 0,
+        removeContainer: false,
+        
+        // 固定使用375px作为基准宽度
+        width: 375,
+        height: Math.floor(375 * (element.offsetHeight / element.offsetWidth)),
+        
+        // 优化渲染
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 375,
+        windowHeight: Math.floor(375 * (element.offsetHeight / element.offsetWidth)),
+        foreignObjectRendering: true,
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            * {
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+              text-rendering: optimizeLegibility;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            }
+            .note-card {
+              width: 375px !important;
+              height: auto !important;
+              transform: none !important;
+              margin: 0 !important;
+              padding: 20px !important;
+              box-sizing: border-box !important;
+              background-color: #ffffff !important;
+            }
+            .note-content {
+              font-size: inherit !important;
+              line-height: 1.5 !important;
+              letter-spacing: 0.5px !important;
+            }
+            .emoji-bubble {
+              transform: none !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+          
+          // 调整克隆元素的尺寸和样式
+          const noteCard = clonedDoc.querySelector('.note-card');
+          if (noteCard) {
+            noteCard.style.width = '375px';
+            noteCard.style.height = 'auto';
+            noteCard.style.transform = 'none';
+            noteCard.style.backgroundColor = '#ffffff';
+            
+            // 确保所有文本元素使用正确的字体
+            const textElements = noteCard.querySelectorAll('*');
+            textElements.forEach(el => {
+              if (el.textContent && el.textContent.trim()) {
+                el.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+              }
+            });
+          }
+        }
       };
+      
+      // 获取基准宽度的函数
+      function getBaseWidth() {
+        const screenWidth = window.innerWidth;
+        if (screenWidth <= 480) {
+          return 375; // 移动端
+        } else if (screenWidth <= 768) {
+          return 480; // 平板
+        } else if (screenWidth <= 1024) {
+          return 480; // 小屏电脑
+        } else {
+          return 540; // 大屏电脑
+        }
+      }
       
       // 创建canvas
       const canvas = await html2canvas(element, html2canvasOptions);
