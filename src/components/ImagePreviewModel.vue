@@ -33,6 +33,21 @@
             </button>
           </div>
           
+          <!-- 图片尺寸选择 -->
+          <div class="size-selector">
+            <label>尺寸:</label>
+            <div class="size-options">
+              <button 
+                v-for="size in pixelSizes" 
+                :key="size.value"
+                :class="['size-btn', { active: selectedSize === size.value }]"
+                @click="selectedSize = size.value"
+              >
+                {{ size.label }}
+              </button>
+            </div>
+          </div>
+          
           <div class="quality-selector" v-if="selectedFormat === 'jpg'">
             <label>质量:</label>
             <input 
@@ -50,6 +65,10 @@
               <input type="checkbox" v-model="transparentBg" />
               透明背景
             </label>
+            <div class="bg-note" v-if="transparentBg">
+              <i class="fas fa-info-circle"></i>
+              <span>将保留白色底色以确保最佳显示效果</span>
+            </div>
           </div>
         </div>
         
@@ -107,7 +126,8 @@ const props = defineProps({
     default: () => ({
       format: 'png',
       quality: 0.9,
-      transparentBg: false
+      transparentBg: false,
+      pixelSize: 1
     })
   }
 });
@@ -126,11 +146,20 @@ const supportShare = ref('share' in navigator);
 const selectedFormat = ref(props.exportOptions.format || 'png');
 const exportQuality = ref(props.exportOptions.quality || 0.9);
 const transparentBg = ref(props.exportOptions.transparentBg || false);
+const selectedSize = ref(props.exportOptions.pixelSize || 1);
 
 // 导出格式选项
 const exportFormats = [
   { id: 'png', label: 'PNG' },
   { id: 'jpg', label: 'JPG' }
+];
+
+// 像素尺寸选项
+const pixelSizes = [
+  { value: 1, label: '1x' },
+  { value: 1.5, label: '1.5x' },
+  { value: 2, label: '2x' },
+  { value: 3, label: '3x' }
 ];
 
 // Methods
@@ -144,7 +173,9 @@ async function tryDownload() {
   const exportOptions = {
     format: selectedFormat.value,
     quality: exportQuality.value,
-    transparentBg: transparentBg.value
+    transparentBg: transparentBg.value,
+    pixelSize: selectedSize.value,
+    useWhiteBackground: true // 始终使用白色背景，即使是透明PNG
   };
   
   emit('export', exportOptions);
@@ -221,12 +252,13 @@ function backToCustomize() {
 }
 
 // 监听导出选项变化
-watch([selectedFormat, exportQuality, transparentBg], () => {
+watch([selectedFormat, exportQuality, transparentBg, selectedSize], () => {
   // 通知父组件导出选项已更改
   emit('export', {
     format: selectedFormat.value,
     quality: exportQuality.value,
-    transparentBg: transparentBg.value
+    transparentBg: transparentBg.value,
+    pixelSize: selectedSize.value
   });
 });
 
@@ -236,6 +268,7 @@ onMounted(() => {
   selectedFormat.value = props.exportOptions.format || 'png';
   exportQuality.value = props.exportOptions.quality || 0.9;
   transparentBg.value = props.exportOptions.transparentBg || false;
+  selectedSize.value = props.exportOptions.pixelSize || 1;
 });
 </script>
 
@@ -377,6 +410,45 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(123, 158, 137, 0.3);
 }
 
+.size-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 0 8px;
+}
+
+.size-selector label {
+  width: 45px;
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
+}
+
+.size-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.size-btn {
+  padding: 8px 20px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background-color: #f8f8f8;
+  color: #555;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.size-btn.active {
+  background-color: var(--primary-color, #7B9E89);
+  color: white;
+  border-color: var(--primary-color, #7B9E89);
+  box-shadow: 0 2px 8px rgba(123, 158, 137, 0.3);
+}
+
 .quality-selector {
   display: flex;
   align-items: center;
@@ -442,6 +514,15 @@ onMounted(() => {
   width: 16px;
   height: 16px;
   accent-color: var(--primary-color, #7B9E89);
+}
+
+.bg-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
 }
 
 .wechat-tip {
@@ -630,6 +711,49 @@ onMounted(() => {
   
   .quality-selector {
     gap: 8px;
+  }
+  
+  .quality-selector label {
+    width: 40px;
+    font-size: 12px;
+  }
+  
+  .quality-selector span {
+    width: 40px;
+    font-size: 12px;
+  }
+  
+  .transparent-bg label {
+    font-size: 12px;
+  }
+  
+  .action-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .btn-link {
+    font-size: 14px;
+  }
+  
+  .size-options {
+    gap: 8px;
+  }
+  
+  .size-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .size-selector {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .size-selector label {
+    width: auto;
+    margin-bottom: 4px;
   }
 }
 </style>

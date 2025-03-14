@@ -355,13 +355,13 @@ const defaultStyle = {
   imageOpacity: 1,
   imageScale: 1,
   showQrcode: true,  // 二维码始终显示
-  qrcodeSize: 60,
+  qrcodeSize: 50,
   qrcodePosition: 'bottom-left',
-  slogan: '星语心笺',  // 固定的slogan
+  slogan: '',  // 固定的slogan
   showEmojiBubble: true, // 默认显示表情气泡
   exportFormat: 'png',
   transparentBg: false,
-  exportQuality: 0.9
+  exportQuality: 1
 };
 
 // 当前样式
@@ -377,7 +377,7 @@ const showImagePreview = ref(false);
 const capturedImageUrl = ref('');
 const exportOptions = ref({
   format: 'png',
-  quality: 0.9,
+  quality: 1,
   transparentBg: false
 });
 
@@ -390,12 +390,17 @@ function updateStyle(updates) {
   
   // 确保slogan固定
   if (updates.hasOwnProperty('slogan')) {
-    updates.slogan = '星语心笺';
+    updates.slogan = '';
   }
   
   // 如果选择了纸条布局，清除图片URL
   if (updates.layout === 'paper') {
     updates.imageUrl = '';
+  }
+  
+  // 如果切换到上图下文布局，自动将二维码位置设为左下角
+  if (updates.layout === 'image-top') {
+    updates.qrcodePosition = 'bottom-left';
   }
   
   // 确保文本颜色有效
@@ -530,9 +535,108 @@ function handleExportOptions(options) {
   exportOptions.value = options;
 }
 
+// 处理导出
+async function handleExport(style) {
+  if (!noteCardRef.value) return;
+  
+  try {
+    // 显示加载提示
+    showToast('正在生成图片...');
+    
+    // 等待下一个渲染周期，确保DOM已更新
+    await nextTick();
+    
+    // 使用html2canvas捕获预览内容，应用当前的导出选项
+    const noteCardElement = noteCardRef.value.$el;
+    const canvas = await html2canvas(noteCardElement, {
+      useCORS: true, // 允许跨域图片
+      scale: exportOptions.value.pixelSize || 2, // 使用选择的像素大小
+      backgroundColor: exportOptions.value.transparentBg && !exportOptions.value.useWhiteBackground ? null : '#ffffff', // 根据选项决定背景
+      logging: false // 关闭日志
+    });
+    
+    // 根据导出选项处理图片
+    let imageUrl;
+    
+    // 如果需要透明背景但同时需要白色底色（针对PNG格式）
+    if (exportOptions.value.format === 'png' && exportOptions.value.transparentBg && exportOptions.value.useWhiteBackground) {
+      // 创建一个新的canvas，先填充白色背景，再绘制原始canvas内容
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = canvas.width;
+      finalCanvas.height = canvas.height;
+      const ctx = finalCanvas.getContext('2d');
+      
+      // 填充白色背景
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+      
+      // 绘制原始canvas内容
+      ctx.drawImage(canvas, 0, 0);
+      
+      // 更新图片URL
+      imageUrl = finalCanvas.toDataURL('image/png');
+    } else if (exportOptions.value.format === 'jpg') {
+      // 如果是JPG格式，应用质量设置
+      imageUrl = canvas.toDataURL('image/jpeg', exportOptions.value.quality);
+    } else {
+      // PNG格式
+      imageUrl = canvas.toDataURL('image/png');
+    }
+    
+    // 更新图片URL并显示预览
+    if (imageUrl) {
+      capturedImageUrl.value = imageUrl;
+      showImagePreview.value = true;
+    }
+  } catch (error) {
+    console.error('导出失败:', error);
+    showToast('导出图片失败，请重试');
+  }
+}
+
 // 下载图片
 async function handleDownload(imageUrl, options) {
   try {
+    // 重新生成图片，应用新的导出选项
+    if (noteCardRef.value && options.pixelSize) {
+      // 显示加载提示
+      showToast('正在生成图片...');
+      
+      // 使用html2canvas重新捕获预览内容，应用新的像素大小
+      const noteCardElement = noteCardRef.value.$el;
+      const canvas = await html2canvas(noteCardElement, {
+        useCORS: true, // 允许跨域图片
+        scale: options.pixelSize, // 使用选择的像素大小
+        backgroundColor: options.transparentBg && !options.useWhiteBackground ? null : '#ffffff', // 根据选项决定背景
+        logging: false // 关闭日志
+      });
+      
+      // 如果需要透明背景但同时需要白色底色（针对PNG格式）
+      if (options.format === 'png' && options.transparentBg && options.useWhiteBackground) {
+        // 创建一个新的canvas，先填充白色背景，再绘制原始canvas内容
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = canvas.width;
+        finalCanvas.height = canvas.height;
+        const ctx = finalCanvas.getContext('2d');
+        
+        // 填充白色背景
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+        
+        // 绘制原始canvas内容
+        ctx.drawImage(canvas, 0, 0);
+        
+        // 更新图片URL
+        imageUrl = finalCanvas.toDataURL(options.format === 'jpg' ? 'image/jpeg' : 'image/png', options.quality);
+      } else if (options.format === 'jpg') {
+        // 如果是JPG格式，应用质量设置
+        imageUrl = canvas.toDataURL('image/jpeg', options.quality);
+      } else {
+        // PNG格式
+        imageUrl = canvas.toDataURL('image/png');
+      }
+    }
+    
     // 创建下载链接
     const link = document.createElement('a');
     link.href = imageUrl;
@@ -661,7 +765,7 @@ watch(() => props.initialStyle, (newStyle) => {
       ...defaultStyle, 
       ...newStyle,
       showQrcode: true,  // 确保二维码始终显示
-      slogan: '星语心笺'  // 确保slogan固定
+      slogan: ''  // 确保slogan固定
     };
   }
 }, { deep: true, immediate: true });
@@ -674,7 +778,7 @@ onMounted(() => {
       ...defaultStyle, 
       ...props.initialStyle,
       showQrcode: true,
-      slogan: '星语心笺'
+      slogan: ''
     };
   }
   

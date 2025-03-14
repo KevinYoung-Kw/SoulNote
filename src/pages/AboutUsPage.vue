@@ -15,7 +15,7 @@
         </div>
         <h2 class="app-name">星语心笺</h2>
         <p class="app-slogan">心笺一瞬，暖意自生</p>
-        <p class="app-version">版本: 1.4.0</p>
+        <p class="app-version">版本: {{ APP_VERSION }}</p>
         
         <!-- 新增支持卡片部分 -->
         <div class="support-card">
@@ -72,6 +72,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { APP_VERSION } from '../config/version';
 
 const router = useRouter();
 

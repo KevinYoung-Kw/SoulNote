@@ -1,5 +1,5 @@
 <template>
-  <div class="params-card">
+  <div class="params-card" :class="{'savage-panel': params.savageMode}">
     <div class="params-preview" @click="openParamsPanel">
       <!-- 修改心情参数预览，只显示第一个心情 -->
       <div class="params-item mood-container">
@@ -58,6 +58,9 @@ const fortuneAspects = [
   { label: '事业', value: 'career', icon: 'fas fa-briefcase' },
   { label: '财运', value: 'wealth', icon: 'fas fa-coins' }
 ];
+
+// Computed
+const isSavageMode = computed(() => props.params.savageMode);
 
 // Methods
 function openParamsPanel() {
@@ -151,12 +154,43 @@ function getFortuneAspectLabel() {
   margin-left: 2px;
 }
 
-/* 毒舌模式样式 */
-:global(.savage-mode) .params-item i {
+/* 毒舌模式样式 - 直接应用而不是使用全局选择器 */
+.savage-panel .params-item i {
   color: var(--savage-primary-color, #ff5252);
 }
 
-:global(.savage-mode) .mood-counter-preview {
+.savage-panel .mood-counter-preview {
   background-color: var(--savage-primary-color, #ff5252);
+}
+
+/* 媒体查询优化 */
+@media (max-width: 480px) {
+  .params-item {
+    padding: var(--spacing-xs) var(--spacing-xs);
+    font-size: 12px;
+    margin-right: var(--spacing-xs);
+  }
+  
+  .params-item i {
+    font-size: 12px;
+  }
+  
+  .mood-emoji {
+    font-size: 14px;
+  }
+  
+  .mood-counter-preview {
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+  }
+  
+  .params-edit-btn {
+    font-size: 12px;
+  }
+  
+  .params-edit-btn i {
+    font-size: 12px;
+  }
 }
 </style>

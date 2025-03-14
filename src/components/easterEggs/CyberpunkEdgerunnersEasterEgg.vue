@@ -83,7 +83,7 @@ function handleKeyPress(event) {
   keySequence.value += event.key.toLowerCase();
   
   // 检查是否包含秘钥 - 使用"edgerunner"作为激活词
-  if (keySequence.value.includes('yezhichengmeiyouhuodechuanqi')) {
+  if (keySequence.value.includes(import.meta.env.VITE_CYBERPUNK_HOTKEY)) {
     activateCyberpunkMode();
     keySequence.value = '';  // 重置序列
   }

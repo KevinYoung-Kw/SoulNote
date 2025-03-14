@@ -1,7 +1,7 @@
 <template>
   <div class="modal-overlay" v-if="visible" @click="closePanel"></div>
   <transition name="slide-up">
-    <div class="params-panel" v-if="visible">
+    <div class="params-panel" v-if="visible" :class="{'savage-panel': params.savageMode}">
       <div class="params-panel-header">
         <h2>心语参数设置</h2>
         <button class="icon-btn close-btn" @click="closePanel">
@@ -115,7 +115,7 @@
               <div 
                 class="style-option"
                 :class="{active: !params.savageMode}"
-                @click="params.savageMode = false"
+                @click="setSavageMode(false)"
               >
                 <i class="fas fa-smile"></i>
                 <span>暖心</span>
@@ -123,7 +123,7 @@
               <div 
                 class="style-option"
                 :class="{active: params.savageMode}"
-                @click="params.savageMode = true"
+                @click="setSavageMode(true)"
               >
                 <i class="fas fa-fire"></i>
                 <span>毒舌</span>
@@ -209,6 +209,9 @@ const collapsedSections = reactive({
   style: true,
   fortune: true
 });
+
+// Computed
+const isPanelSavageMode = computed(() => params.savageMode);
 
 // Data
 const themeOptions = [
@@ -573,7 +576,13 @@ function randomizeParams() {
   params.theme = themeOptions[randomThemeIndex].value;
   
   // 3. 随机选择情感风格 (暖心/毒舌)
+  const previousSavageMode = params.savageMode;
   params.savageMode = Math.random() > 0.5;
+  
+  // 如果毒舌模式状态改变，立即更新body类
+  if (previousSavageMode !== params.savageMode) {
+    document.body.classList.toggle('savage-mode', params.savageMode);
+  }
   
   // 4. 随机运势设置
   params.enableFortune = Math.random() > 0.3; // 70%概率启用运势
@@ -596,6 +605,14 @@ function saveAndClosePanel() {
   // 保存参数并关闭面板
   emit('save-params', { ...params });
   emit('update:visible', false);
+  
+  // 立即更新body类，确保样式立即生效
+  document.body.classList.toggle('savage-mode', params.savageMode);
+}
+
+function setSavageMode(mode) {
+  params.savageMode = mode;
+  document.body.classList.toggle('savage-mode', mode);
 }
 
 // 监听visible变化，当打开面板时重置参数
@@ -607,6 +624,9 @@ watch(() => props.visible, (newVisible) => {
     if (props.initialParams.moods) {
       params.moods = [...props.initialParams.moods];
     }
+    
+    // 确保面板打开时应用正确的savage模式样式
+    document.body.classList.toggle('savage-mode', params.savageMode);
   }
 });
 
@@ -1037,12 +1057,6 @@ watch(() => props.initialParams, (newParams) => {
   border-color: var(--primary-color);
 }
 
-/* 毒舌模式下的运势选择器样式 */
-:global(.savage-mode) .fortune-option.active {
-  background-color: var(--savage-primary-color, #ff5252);
-  border-color: var(--savage-primary-color, #ff5252);
-}
-
 /* 随机按钮样式 */
 .btn-random {
   background-color: #8e44ad;
@@ -1104,12 +1118,18 @@ watch(() => props.initialParams, (newParams) => {
 /* 媒体查询优化 */
 @media (max-width: 480px) {
   .emoji-list {
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-sm);
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--spacing-xs);
   }
   
   .emoji-item {
-    font-size: 22px;
+    font-size: 18px;
+    height: 32px;
+  }
+  
+  .selected-emoji-item {
+    font-size: 18px;
+    width: 36px;
     height: 36px;
   }
   
@@ -1155,5 +1175,22 @@ watch(() => props.initialParams, (newParams) => {
     width: 60%;
     top: 15%;
   }
+}
+
+/* 毒舌模式样式 */
+.savage-panel .style-option:last-child.active {
+  background-color: var(--savage-primary-color, #ff5252);
+  color: white;
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.savage-panel .style-option:last-child.active i {
+  color: white;
+}
+
+.savage-panel .fortune-option.active {
+  background-color: var(--savage-primary-color, #ff5252);
+  border-color: var(--savage-primary-color, #ff5252);
 }
 </style>

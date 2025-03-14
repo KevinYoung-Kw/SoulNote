@@ -124,6 +124,7 @@ import { saveUserPreferences, getUserPreferences, saveNote as saveNoteToStorage 
 import { useNoteExport } from '../composables/useNoteExport';
 import { communityService } from '../services/communityService';
 import logger from '../utils/logger';
+import { APP_VERSION } from '../config/version';
 
 const router = useRouter();
 const noteDisplayRef = ref(null);
@@ -704,7 +705,7 @@ onMounted(async () => {
       params.age = preferences.age;
       params.relationship = preferences.relationship;
 
-      const appVersion = '1.3.0'; // 当前应用版本，实际中可从环境变量获取
+      const appVersion = APP_VERSION; // 当前应用版本，实际中可从环境变量获取
       const updatePrompt = await communityService.checkUpdatePrompt(appVersion);     
 
       if (updatePrompt.show) {

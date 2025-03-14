@@ -153,7 +153,7 @@
         </div>
         
         <div class="app-version">
-          版本: 1.4.0
+          版本: {{ APP_VERSION }}
         </div>
       </section>
       
@@ -356,6 +356,7 @@ import { ref, reactive, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserPreferences, saveUserPreferences, resetUserData } from '../services/storageService';
 import logger from '../utils/logger';
+import { APP_VERSION } from '../config/version';
 
 const router = useRouter();
 const showZodiacSelector = ref(false);

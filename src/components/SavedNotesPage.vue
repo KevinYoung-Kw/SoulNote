@@ -183,6 +183,22 @@ async function handleExport(style) {
 // 处理下载
 async function handleDownload(imageUrl, options) {
   try {
+    // 如果有像素大小选项，重新生成图片
+    if (detailNoteRef.value && options?.pixelSize) {
+      // 重新导出图片，应用新的导出选项
+      const newImageUrl = await exportAsImage(detailNoteRef.value.$el, {
+        format: options.format || 'png',
+        quality: options.quality || 0.9,
+        transparentBg: options.transparentBg || false,
+        pixelSize: options.pixelSize || 2,
+        useWhiteBackground: options.useWhiteBackground || false
+      });
+      
+      if (newImageUrl) {
+        imageUrl = newImageUrl;
+      }
+    }
+    
     const format = options?.format || 'png';
     await saveToDevice(imageUrl, `心语_${formatDateForFile(currentNote.value.savedAt)}.${format}`);
     return true;
@@ -195,6 +211,22 @@ async function handleDownload(imageUrl, options) {
 // 处理分享
 async function handleShare(imageUrl) {
   try {
+    // 如果有像素大小选项，重新生成图片
+    if (detailNoteRef.value && exportOptions.value?.pixelSize) {
+      // 重新导出图片，应用新的导出选项
+      const newImageUrl = await exportAsImage(detailNoteRef.value.$el, {
+        format: exportOptions.value.format || 'png',
+        quality: exportOptions.value.quality || 0.9,
+        transparentBg: exportOptions.value.transparentBg || false,
+        pixelSize: exportOptions.value.pixelSize || 2,
+        useWhiteBackground: exportOptions.value.useWhiteBackground || false
+      });
+      
+      if (newImageUrl) {
+        imageUrl = newImageUrl;
+      }
+    }
+    
     const shared = await shareImage(imageUrl);
     if (!shared) {
       await saveToDevice(imageUrl);

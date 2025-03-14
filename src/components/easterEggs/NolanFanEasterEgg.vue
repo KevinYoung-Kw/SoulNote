@@ -103,7 +103,7 @@ function handleKeyPress(event) {
   keySequence.value += event.key.toLowerCase();
   
   // 检查是否包含秘钥
-  if (keySequence.value.includes('nuolanwoshiwangtongqi')) {
+  if (keySequence.value.includes(import.meta.env.VITE_NOLAN_HOTKEY)) {
     activateNolanFanMode();
     keySequence.value = '';  // 重置序列
   }

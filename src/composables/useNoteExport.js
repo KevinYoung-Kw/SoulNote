@@ -20,10 +20,10 @@ export function useNoteExport() {
       
       // 设置html2canvas选项
       const html2canvasOptions = {
-        scale: options.scale || 2, // 提高导出质量
+        scale: options.pixelSize || 2, // 使用pixelSize选项或默认值2
         useCORS: true, // 允许跨域图片
         allowTaint: true,
-        backgroundColor: options.transparentBg ? null : '#ffffff', // 根据选项决定是否使用透明背景
+        backgroundColor: options.transparentBg && !options.useWhiteBackground ? null : '#ffffff', // 根据选项决定是否使用透明背景
         logging: true, // 开启日志以便调试
         imageTimeout: 0, // 不设置图片超时
         removeContainer: false // 不移除容器
@@ -35,6 +35,24 @@ export function useNoteExport() {
       // 根据选项决定导出格式和质量
       const format = options.format || 'png';
       const quality = options.quality || 0.9;
+      
+      // 如果需要透明背景但同时需要白色底色（针对PNG格式）
+      if (format === 'png' && options.transparentBg && options.useWhiteBackground) {
+        // 创建一个新的canvas，先填充白色背景，再绘制原始canvas内容
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = canvas.width;
+        finalCanvas.height = canvas.height;
+        const ctx = finalCanvas.getContext('2d');
+        
+        // 填充白色背景
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+        
+        // 绘制原始canvas内容
+        ctx.drawImage(canvas, 0, 0);
+        
+        return finalCanvas.toDataURL('image/png');
+      }
       
       if (format === 'jpg' || format === 'jpeg') {
         return canvas.toDataURL('image/jpeg', quality);

@@ -73,7 +73,7 @@
     
     <div class="note-glow"></div>
     <div class="note-watermark">
-      <span>@星语心笺</span>
+      <span></span> 
     </div>
   </div>
 </template>
@@ -136,10 +136,11 @@ const moodContainerStyle = computed(() => {
   // 基础样式
   const style = {
     display: 'flex',
-    flexWrap: 'wrap', // 允许换行
-    gap: isVerySmallScreen ? '2px' : isSmallScreen ? '4px' : '4px', // 根据屏幕大小调整表情之间的间距
-    maxWidth: isVerySmallScreen ? '85%' : isSmallScreen ? '80%' : '70%', // 根据屏幕大小调整容器宽度
-    zIndex: 10 // 确保在内容上方
+    flexWrap: moodsArray.value.length > 3 ? 'wrap' : 'nowrap', // 只有超过3个表情时才允许换行
+    gap: isVerySmallScreen ? '1px' : isSmallScreen ? '2px' : '4px', // 根据屏幕大小调整表情之间的间距
+    maxWidth: isVerySmallScreen ? '90%' : isSmallScreen ? '85%' : '70%', // 根据屏幕大小调整容器宽度
+    zIndex: 10, // 确保在内容上方
+    justifyContent: 'center' // 居中显示表情
   };
   
   // 检查是否应该显示emoji气泡
@@ -159,24 +160,24 @@ const moodContainerStyle = computed(() => {
     style.justifyContent = 'center';
     style.position = 'absolute';
     style.width = 'auto';
-    style.maxWidth = isVerySmallScreen ? '85%' : isSmallScreen ? '80%' : '70%'; // 根据屏幕大小调整最大宽度
+    style.maxWidth = isVerySmallScreen ? '90%' : isSmallScreen ? '85%' : '70%'; // 根据屏幕大小调整最大宽度
     style.borderRadius = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '16px'; // 根据屏幕大小调整圆角
-    style.padding = isVerySmallScreen ? '3px 6px' : isSmallScreen ? '4px 8px' : '6px 12px'; // 根据屏幕大小调整内边距
+    style.padding = isVerySmallScreen ? '2px 4px' : isSmallScreen ? '3px 6px' : '6px 12px'; // 根据屏幕大小调整内边距
     style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
     style.zIndex = '20';
   } else if (props.customStyle?.layout === 'image-bottom') {
     // 下图上文布局 - emoji气泡放在上半部分的底部，使用固定像素值
     style.top = 'auto';
-    style.bottom = '50%'; // 放在分界线位置
+    style.bottom = '1'; // 放在分界线位置
     style.marginBottom = isVerySmallScreen ? '3px' : '5px'; // 根据屏幕大小调整边距
     style.left = '50%';
     style.transform = 'translateX(-50%)';
     style.justifyContent = 'center';
     style.position = 'absolute';
     style.width = 'auto';
-    style.maxWidth = isVerySmallScreen ? '85%' : isSmallScreen ? '80%' : '70%'; // 根据屏幕大小调整最大宽度
+    style.maxWidth = isVerySmallScreen ? '90%' : isSmallScreen ? '85%' : '70%'; // 根据屏幕大小调整最大宽度
     style.borderRadius = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '16px'; // 根据屏幕大小调整圆角
-    style.padding = isVerySmallScreen ? '3px 6px' : isSmallScreen ? '4px 8px' : '6px 12px'; // 根据屏幕大小调整内边距
+    style.padding = isVerySmallScreen ? '2px 4px' : isSmallScreen ? '3px 6px' : '6px 12px'; // 根据屏幕大小调整内边距
     style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
     style.zIndex = '20';
   } else {
@@ -480,10 +481,20 @@ const moodStyle = computed(() => {
   const isSmallScreen = window.innerWidth <= 480;
   const isVerySmallScreen = window.innerWidth <= 385;
   
+  // 根据表情数量和屏幕大小动态调整字体大小
+  let fontSize;
+  if (isVerySmallScreen) {
+    fontSize = moodsArray.value.length > 2 ? '14px' : '16px';
+  } else if (isSmallScreen) {
+    fontSize = moodsArray.value.length > 2 ? '16px' : '18px';
+  } else {
+    fontSize = moodsArray.value.length > 3 ? '18px' : '24px';
+  }
+  
   const style = {
-    fontSize: isVerySmallScreen ? '16px' : 
-              isSmallScreen ? '18px' : 
-              moodsArray.value.length > 3 ? '18px' : '24px' // 根据屏幕大小和表情数量调整大小
+    fontSize: fontSize,
+    lineHeight: '1',
+    padding: isVerySmallScreen ? '1px' : '2px'
   };
   
   if (isSavageMode.value) {
@@ -511,8 +522,22 @@ const qrcodeStyle = computed(() => {
     height: `${size}px`
   };
   
-  // 根据位置调整
+  // 根据布局调整位置
   const position = props.customStyle?.qrcodePosition || 'bottom-left';
+  
+  // 特殊处理上图下文布局 - 将二维码放在上图的左下角
+  if (props.customStyle?.layout === 'image-top') {
+    style.top = 'calc(50% - ' + size + 'px - 10px)'; // 放在上半部分的底部，减去二维码尺寸和边距
+    style.left = 'var(--spacing-md)';
+    style.bottom = 'auto';
+    style.right = 'auto';
+    style.zIndex = '15'; // 确保在图片上方
+    style.backgroundColor = 'white'; // 确保背景是白色
+    style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'; // 增强阴影效果
+    return style;
+  }
+  
+  // 其他布局使用常规位置
   if (position === 'bottom-left') {
     style.bottom = 'var(--spacing-md)';
     style.left = 'var(--spacing-md)';
@@ -672,15 +697,19 @@ watch(() => props.customStyle, (newStyle) => {
   flex-direction: column;
   align-items: center;
   transition: all 0.3s ease;
+  background-color: white;
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .note-qrcode img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  border-radius: var(--radius-sm);
-  background-color: white;
-  padding: 2px;
+  image-rendering: -webkit-optimize-contrast; /* 提高图片清晰度 */
+  image-rendering: crisp-edges; /* 提高图片清晰度 */
+  border-radius: var(--radius-xs);
 }
 
 .note-qrcode span {
@@ -746,19 +775,25 @@ watch(() => props.customStyle, (newStyle) => {
   }
   
   .note-mood-container {
-    padding: 4px 8px;
-    gap: 4px;
+    padding: 3px 6px;
+    gap: 2px;
     border-radius: 12px;
-    max-width: 80%; /* 在小屏幕上增加最大宽度比例 */
+    max-width: 85%; /* 在小屏幕上增加最大宽度比例 */
   }
   
   .note-mood-item {
     font-size: 16px;
-    margin: 0 1px; /* 减小间距 */
+    line-height: 1;
+    margin: 0;
   }
   
   .note-qrcode {
-    transform: scale(0.8);
+    transform: scale(0.9);
+    padding: 3px;
+  }
+  
+  .note-qrcode img {
+    image-rendering: -webkit-optimize-contrast;
   }
   
   .note-qrcode span {
@@ -784,14 +819,15 @@ watch(() => props.customStyle, (newStyle) => {
   
   .note-mood-container {
     /* 移除强制定位，使用计算属性中的定位 */
-    padding: 3px 6px; /* 进一步减小内边距 */
-    gap: 2px; /* 减小间距 */
+    padding: 2px 4px; /* 进一步减小内边距 */
+    gap: 1px; /* 减小间距 */
     border-radius: 10px; /* 减小圆角 */
-    max-width: 85%; /* 在超小屏幕上进一步增加最大宽度比例 */
+    max-width: 90%; /* 在超小屏幕上进一步增加最大宽度比例 */
   }
   
   .note-mood-item {
     font-size: 14px; /* 进一步减小表情大小 */
+    line-height: 1;
     margin: 0; /* 移除间距 */
   }
   
@@ -802,7 +838,12 @@ watch(() => props.customStyle, (newStyle) => {
   }
   
   .note-qrcode {
-    transform: scale(0.7);
+    transform: scale(1);
+    padding: 2px;
+  }
+  
+  .note-qrcode img {
+    image-rendering: -webkit-optimize-contrast;
   }
 }
 
@@ -830,7 +871,7 @@ watch(() => props.customStyle, (newStyle) => {
   position: absolute;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
   padding: 6px 12px;
   border-radius: 16px;
   background-color: rgba(255, 255, 255, 0.7);
@@ -840,6 +881,8 @@ watch(() => props.customStyle, (newStyle) => {
   z-index: 20;
   max-width: 70%;
   width: auto;
+  justify-content: center;
+  align-items: center;
 }
 
 /* 暗黑模式下容器背景调整 */
@@ -864,7 +907,8 @@ watch(() => props.customStyle, (newStyle) => {
   opacity: 0.85;
   transition: all 0.2s ease;
   font-size: 20px;
-  margin: 0 2px;
+  line-height: 1;
+  margin: 0;
 }
 
 .note-mood-item:hover {

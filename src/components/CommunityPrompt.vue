@@ -114,6 +114,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { saveUserPreferences, getUserPreferences } from '../services/storageService';
+import { APP_VERSION } from '../config/version';
 
 const props = defineProps({
   visible: {
@@ -158,7 +159,7 @@ const selectedVersion = ref('all');
 // 版本历史数据（如果未提供则使用默认数据）
 const versions = ref(props.updateLogs.length > 0 ? props.updateLogs : [
   {
-    number: '1.4.0',
+    number: APP_VERSION,
     date: '2025-03-12T15:30:00', // 添加时分秒
     updates: [
       {
