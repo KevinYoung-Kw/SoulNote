@@ -122,26 +122,26 @@
               <div class="slider-with-value">
                 <button 
                   class="size-preset-btn" 
-                  @click="updateStyle({ fontSize: Math.max(14, currentStyle.fontSize - 2) })"
+                  @click="updateStyle({ fontSize: Math.max(FONT_SIZE_CONFIG.MIN, currentStyle.fontSize - 2) })"
                 >
                   <i class="fas fa-minus"></i>
                 </button>
                 <div class="slider-container">
                   <input 
                     type="range" 
-                    min="14" 
-                    max="36" 
+                    :min="FONT_SIZE_CONFIG.MIN" 
+                    :max="FONT_SIZE_CONFIG.MAX" 
                     step="1" 
                     v-model.number="currentStyle.fontSize" 
                     @input="updateStyle({ fontSize: currentStyle.fontSize })"
                   />
                   <div class="slider-track">
-                    <div class="slider-fill" :style="{ width: `${(currentStyle.fontSize - 14) / 22 * 100}%` }"></div>
+                    <div class="slider-fill" :style="{ width: `${(currentStyle.fontSize - FONT_SIZE_CONFIG.MIN) / (FONT_SIZE_CONFIG.MAX - FONT_SIZE_CONFIG.MIN) * 100}%` }"></div>
                   </div>
                 </div>
                 <button 
                   class="size-preset-btn" 
-                  @click="updateStyle({ fontSize: Math.min(36, currentStyle.fontSize + 2) })"
+                  @click="updateStyle({ fontSize: Math.min(FONT_SIZE_CONFIG.MAX, currentStyle.fontSize + 2) })"
                 >
                   <i class="fas fa-plus"></i>
                 </button>
@@ -264,32 +264,20 @@
         <i class="fas fa-check"></i>
         <span>保存设置</span>
       </button>
-      <button class="btn btn-success" @click="saveAsImage" v-if="showPreview">
+      <button class="btn btn-success" @click="saveImage" v-if="showPreview">
         <i class="fas fa-image"></i>
         <span>保存图片</span>
       </button>
     </div>
   </div>
-  
-  <!-- 图片预览模态框 -->
-  <ImagePreviewModel
-    v-if="showImagePreview"
-    :image-url="capturedImageUrl"
-    :export-options="exportOptions"
-    :on-download="handleDownload"
-    :on-share="handleShare"
-    @close="showImagePreview = false"
-    @customize="showImagePreview = false"
-    @export="handleExportOptions"
-  />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import NoteCard from './NoteCard.vue';
 import ImageUploader from './ImageUploader.vue';
-import ImagePreviewModel from './ImagePreviewModel.vue';
 import html2canvas from 'html2canvas';
+import { FONT_SIZE_CONFIG } from '../config/style';
 
 // Props
 const props = defineProps({
@@ -304,6 +292,10 @@ const props = defineProps({
   initialStyle: {
     type: Object,
     default: () => ({})
+  },
+  externalFontSize: {
+    type: Number,
+    default: 24
   }
 });
 
@@ -347,18 +339,18 @@ const textColors = [
 const defaultStyle = {
   layout: 'paper',
   background: 'paper-1',
-  fontSize: 24,
+  fontSize: props.externalFontSize,
   textColor: '#000000',
   textShadow: false,
   textPosition: 'center',
   imageUrl: '',
   imageOpacity: 1,
   imageScale: 1,
-  showQrcode: true,  // 二维码始终显示
+  showQrcode: true,
   qrcodeSize: 50,
   qrcodePosition: 'bottom-left',
-  slogan: '',  // 固定的slogan
-  showEmojiBubble: true, // 默认显示表情气泡
+  slogan: '',
+  showEmojiBubble: true,
   exportFormat: 'png',
   transparentBg: false,
   exportQuality: 1
@@ -372,13 +364,10 @@ const showPreview = ref(false);
 const previewContainer = ref(null);
 const noteCardRef = ref(null);
 
-// 图片预览相关
-const showImagePreview = ref(false);
-const capturedImageUrl = ref('');
-const exportOptions = ref({
-  format: 'png',
-  quality: 1,
-  transparentBg: false
+// 添加检测是否为微信环境的方法
+const isWechat = computed(() => {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.indexOf('micromessenger') !== -1;
 });
 
 // 方法
@@ -408,18 +397,23 @@ function updateStyle(updates) {
     updates.textColor = defaultStyle.textColor;
   }
   
-  // 处理表情气泡显示状态
-  if (updates.hasOwnProperty('showEmojiBubble')) {
-    console.log('更新表情气泡显示状态:', updates.showEmojiBubble);
-  }
-  
+  // 更新当前样式
   currentStyle.value = { ...currentStyle.value, ...updates };
-  emit('update:style', currentStyle.value);
+  
+  // 发送更新事件，但不包含字体大小
+  const { fontSize, ...styleWithoutFontSize } = currentStyle.value;
+  emit('update:style', styleWithoutFontSize);
 }
 
 function resetStyle() {
-  currentStyle.value = { ...defaultStyle };
-  emit('update:style', currentStyle.value);
+  // 重置时保持当前字体大小不变
+  const currentFontSize = currentStyle.value.fontSize;
+  currentStyle.value = { 
+    ...defaultStyle,
+    fontSize: currentFontSize // 保持当前字体大小不变
+  };
+  const { fontSize, ...styleWithoutFontSize } = currentStyle.value;
+  emit('update:style', styleWithoutFontSize);
 }
 
 function handleImageSelected(imageUrl) {
@@ -485,204 +479,206 @@ function togglePreview() {
   showPreview.value = !showPreview.value;
 }
 
-function exportNote() {
-  // 确保导出前更新样式
-  emit('update:style', currentStyle.value);
-  
-  // 触发导出事件，传递当前样式
-  emit('export', { ...currentStyle.value });
-  
-  // 显示保存成功提示
-  showToast('样式设置已保存');
-}
-
-// 保存为图片
-async function saveAsImage() {
+// 新的保存图片方法
+async function saveImage() {
   if (!showPreview.value || !noteCardRef.value) {
     showToast('请先显示预览');
     return;
   }
-  
+
   try {
-    // 显示加载提示
     showToast('正在生成图片...');
-    
-    // 等待下一个渲染周期，确保DOM已更新
     await nextTick();
-    
-    // 使用html2canvas捕获预览内容
-    const noteCardElement = noteCardRef.value.$el;
-    const canvas = await html2canvas(noteCardElement, {
-      useCORS: true, // 允许跨域图片
-      scale: 2, // 提高图片质量
-      backgroundColor: null, // 透明背景
-      logging: false // 关闭日志
+
+    // 将二维码图片转换为 base64
+    const qrImageBase64 = await new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+      img.src = '/assets/community-qr.png';
+    }).catch(err => {
+      console.error('二维码图片转换失败:', err);
+      return null;
     });
-    
-    // 将canvas转换为图片URL
-    capturedImageUrl.value = canvas.toDataURL('image/png');
-    
-    // 显示图片预览模态框
-    showImagePreview.value = true;
-  } catch (error) {
-    console.error('生成图片失败:', error);
-    showToast('生成图片失败，请重试');
-  }
-}
 
-// 处理导出选项变更
-function handleExportOptions(options) {
-  exportOptions.value = options;
-}
-
-// 处理导出
-async function handleExport(style) {
-  if (!noteCardRef.value) return;
-  
-  try {
-    // 显示加载提示
-    showToast('正在生成图片...');
-    
-    // 等待下一个渲染周期，确保DOM已更新
-    await nextTick();
-    
-    // 使用html2canvas捕获预览内容，应用当前的导出选项
-    const noteCardElement = noteCardRef.value.$el;
-    const canvas = await html2canvas(noteCardElement, {
-      useCORS: true, // 允许跨域图片
-      scale: exportOptions.value.pixelSize || 2, // 使用选择的像素大小
-      backgroundColor: exportOptions.value.transparentBg && !exportOptions.value.useWhiteBackground ? null : '#ffffff', // 根据选项决定背景
-      logging: false // 关闭日志
-    });
-    
-    // 根据导出选项处理图片
-    let imageUrl;
-    
-    // 如果需要透明背景但同时需要白色底色（针对PNG格式）
-    if (exportOptions.value.format === 'png' && exportOptions.value.transparentBg && exportOptions.value.useWhiteBackground) {
-      // 创建一个新的canvas，先填充白色背景，再绘制原始canvas内容
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = canvas.width;
-      finalCanvas.height = canvas.height;
-      const ctx = finalCanvas.getContext('2d');
-      
-      // 填充白色背景
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-      
-      // 绘制原始canvas内容
-      ctx.drawImage(canvas, 0, 0);
-      
-      // 更新图片URL
-      imageUrl = finalCanvas.toDataURL('image/png');
-    } else if (exportOptions.value.format === 'jpg') {
-      // 如果是JPG格式，应用质量设置
-      imageUrl = canvas.toDataURL('image/jpeg', exportOptions.value.quality);
-    } else {
-      // PNG格式
-      imageUrl = canvas.toDataURL('image/png');
+    // 获取 NoteCard 元素
+    const noteCard = noteCardRef.value.$el;
+    if (!noteCard) {
+      throw new Error('找不到笔记卡片元素');
     }
-    
-    // 更新图片URL并显示预览
-    if (imageUrl) {
-      capturedImageUrl.value = imageUrl;
-      showImagePreview.value = true;
-    }
-  } catch (error) {
-    console.error('导出失败:', error);
-    showToast('导出图片失败，请重试');
-  }
-}
 
-// 下载图片
-async function handleDownload(imageUrl, options) {
-  try {
-    // 重新生成图片，应用新的导出选项
-    if (noteCardRef.value && options.pixelSize) {
-      // 显示加载提示
-      showToast('正在生成图片...');
-      
-      // 使用html2canvas重新捕获预览内容，应用新的像素大小
-      const noteCardElement = noteCardRef.value.$el;
-      const canvas = await html2canvas(noteCardElement, {
-        useCORS: true, // 允许跨域图片
-        scale: options.pixelSize, // 使用选择的像素大小
-        backgroundColor: options.transparentBg && !options.useWhiteBackground ? null : '#ffffff', // 根据选项决定背景
-        logging: false // 关闭日志
-      });
-      
-      // 如果需要透明背景但同时需要白色底色（针对PNG格式）
-      if (options.format === 'png' && options.transparentBg && options.useWhiteBackground) {
-        // 创建一个新的canvas，先填充白色背景，再绘制原始canvas内容
-        const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = canvas.width;
-        finalCanvas.height = canvas.height;
-        const ctx = finalCanvas.getContext('2d');
-        
-        // 填充白色背景
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-        
-        // 绘制原始canvas内容
-        ctx.drawImage(canvas, 0, 0);
-        
-        // 更新图片URL
-        imageUrl = finalCanvas.toDataURL(options.format === 'jpg' ? 'image/jpeg' : 'image/png', options.quality);
-      } else if (options.format === 'jpg') {
-        // 如果是JPG格式，应用质量设置
-        imageUrl = canvas.toDataURL('image/jpeg', options.quality);
-      } else {
-        // PNG格式
-        imageUrl = canvas.toDataURL('image/png');
+    // 创建临时容器
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'fixed';
+    tempContainer.style.top = '0';
+    tempContainer.style.left = '0';
+    tempContainer.style.width = noteCard.offsetWidth + 'px';
+    tempContainer.style.height = 'auto';
+    tempContainer.style.backgroundColor = '#ffffff';
+    tempContainer.style.zIndex = '-1';
+    tempContainer.style.opacity = '0';
+    tempContainer.style.transform = 'none';
+    tempContainer.style.transformOrigin = 'top left';
+    tempContainer.style.overflow = 'hidden';
+    tempContainer.style.padding = '0';
+    tempContainer.style.margin = '0';
+    tempContainer.style.border = 'none';
+    tempContainer.style.borderRadius = '0';
+    
+    // 克隆笔记卡片
+    const clonedCard = noteCard.cloneNode(true);
+    clonedCard.style.transform = 'none';
+    clonedCard.style.margin = '0';
+    clonedCard.style.width = noteCard.offsetWidth + 'px';
+    clonedCard.style.height = 'auto';
+    clonedCard.style.position = 'relative';
+    clonedCard.style.padding = '0';
+    clonedCard.style.border = 'none';
+    clonedCard.style.borderRadius = '0';
+    clonedCard.style.boxShadow = 'none';
+    
+    // 处理克隆卡片中的二维码图片
+    if (qrImageBase64) {
+      const qrCodeImg = clonedCard.querySelector('img[src*="community-qr.png"]');
+      if (qrCodeImg) {
+        qrCodeImg.src = qrImageBase64;
+        qrCodeImg.style.width = '50px';
+        qrCodeImg.style.height = '50px';
+        qrCodeImg.style.objectFit = 'contain';
+        qrCodeImg.style.display = 'block';
       }
     }
     
-    // 创建下载链接
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `星语心笺_${new Date().getTime()}.${options.format}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // 显示成功提示
-    showToast('图片已保存');
-    return true;
-  } catch (error) {
-    console.error('下载图片失败:', error);
-    return Promise.reject(error);
-  }
-}
+    tempContainer.appendChild(clonedCard);
+    document.body.appendChild(tempContainer);
 
-// 分享图片
-async function handleShare(imageUrl) {
-  try {
-    // 获取图片Blob
-    const response = await fetch(imageUrl);
-    const blob = await response.blob();
-    
-    // 使用Web Share API分享
-    if (navigator.share) {
-      await navigator.share({
-        title: '星语心笺',
-        text: '我的心情笔记',
-        files: [new File([blob], `星语心笺_${new Date().getTime()}.${exportOptions.value.format}`, { type: blob.type })]
-      });
-      showToast('分享成功');
-    } else {
-      // 如果不支持Web Share API，尝试复制到剪贴板
-      if (navigator.clipboard && navigator.clipboard.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({ [blob.type]: blob })
-        ]);
-        showToast('图片已复制到剪贴板');
-      } else {
-        showToast('您的浏览器不支持分享功能');
+    // 等待样式和资源加载
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 使用html2canvas生成高清图片
+    const canvas = await html2canvas(clonedCard, {
+      useCORS: true,
+      allowTaint: true,
+      foreignObjectRendering: true,
+      scale: 3,
+      backgroundColor: null,
+      logging: false,
+      width: noteCard.offsetWidth,
+      height: clonedCard.offsetHeight,
+      onclone: (clonedDoc) => {
+        const element = clonedDoc.body.querySelector('.note-card');
+        if (element) {
+          element.style.transform = 'none';
+          element.style.margin = '0';
+          element.style.width = noteCard.offsetWidth + 'px';
+          element.style.height = 'auto';
+          element.style.position = 'relative';
+          element.style.visibility = 'visible';
+          element.style.opacity = '1';
+          element.style.transition = 'none';
+          element.style.transformOrigin = 'top left';
+          element.style.padding = '0';
+          element.style.border = 'none';
+          element.style.borderRadius = '0';
+          element.style.boxShadow = 'none';
+
+          // 确保二维码图片正确加载
+          if (qrImageBase64) {
+            const qrCode = element.querySelector('img[src*="community-qr.png"]');
+            if (qrCode) {
+              qrCode.src = qrImageBase64;
+              qrCode.style.width = '50px';
+              qrCode.style.height = '50px';
+              qrCode.style.objectFit = 'contain';
+              qrCode.style.display = 'block';
+            }
+          }
+        }
       }
+    });
+
+    // 移除临时容器
+    document.body.removeChild(tempContainer);
+
+    // 获取图片URL
+    const imageUrl = canvas.toDataURL('image/png', 1.0);
+
+    // 创建预览界面
+    const imagePreviewContainer = document.createElement('div');
+    imagePreviewContainer.style.position = 'fixed';
+    imagePreviewContainer.style.top = '0';
+    imagePreviewContainer.style.left = '0';
+    imagePreviewContainer.style.width = '100%';
+    imagePreviewContainer.style.height = '100%';
+    imagePreviewContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    imagePreviewContainer.style.zIndex = '10000';
+    imagePreviewContainer.style.display = 'flex';
+    imagePreviewContainer.style.flexDirection = 'column';
+    imagePreviewContainer.style.alignItems = 'center';
+    imagePreviewContainer.style.justifyContent = 'center';
+
+    // 添加提示文本
+    const tipText = document.createElement('div');
+    tipText.textContent = isWechat.value ? '长按图片即可保存' : '点击图片即可保存';
+    tipText.style.color = 'white';
+    tipText.style.padding = '10px 20px';
+    tipText.style.borderRadius = '20px';
+    tipText.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    tipText.style.position = 'fixed';
+    tipText.style.top = '20px';
+    tipText.style.left = '50%';
+    tipText.style.transform = 'translateX(-50%)';
+    tipText.style.zIndex = '10001';
+    tipText.style.fontSize = '15px';
+    tipText.style.fontWeight = '500';
+
+    // 创建图片元素
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.style.maxWidth = '90%';
+    img.style.maxHeight = '80%';
+    img.style.objectFit = 'contain';
+    img.style.userSelect = 'none';
+    img.style.borderRadius = '12px';
+    img.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+
+    // 非微信环境下点击图片下载
+    if (!isWechat.value) {
+      img.style.cursor = 'pointer';
+      img.onclick = () => {
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = `星语心笺_${new Date().getTime()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
     }
+
+    // 点击空白区域关闭预览
+    imagePreviewContainer.onclick = (e) => {
+      if (e.target === imagePreviewContainer) {
+        document.body.removeChild(imagePreviewContainer);
+        document.body.removeChild(tipText);
+      }
+    };
+
+    imagePreviewContainer.appendChild(img);
+    document.body.appendChild(imagePreviewContainer);
+    document.body.appendChild(tipText);
+
+    showToast(isWechat.value ? '请长按图片进行保存' : '点击图片即可保存');
   } catch (error) {
-    console.error('分享图片失败:', error);
-    showToast('分享失败，请重试');
+    console.error('保存图片失败:', error);
+    showToast('保存失败，请重试');
   }
 }
 
@@ -757,15 +753,24 @@ function getPositionIcon(position) {
   return pos ? pos.icon : 'fas fa-align-center';
 }
 
+// 监听外部字体大小变化，仅在初始化时更新
+watch(() => props.externalFontSize, (newSize) => {
+  // 只在组件初始化时更新字体大小
+  if (currentStyle.value.fontSize === defaultStyle.fontSize) {
+    currentStyle.value.fontSize = newSize;
+    defaultStyle.fontSize = newSize; // 同时更新默认样式的字体大小
+  }
+}, { immediate: true });
+
 // 监听初始样式变化
 watch(() => props.initialStyle, (newStyle) => {
   if (newStyle && Object.keys(newStyle).length > 0) {
-    // 合并默认样式和初始样式，确保所有必要的属性都存在
+    // 合并默认样式和初始样式，但保留当前的字体大小
+    const currentFontSize = currentStyle.value.fontSize;
     currentStyle.value = { 
       ...defaultStyle, 
       ...newStyle,
-      showQrcode: true,  // 确保二维码始终显示
-      slogan: ''  // 确保slogan固定
+      fontSize: currentFontSize // 保持当前字体大小不变
     };
   }
 }, { deep: true, immediate: true });

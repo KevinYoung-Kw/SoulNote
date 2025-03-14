@@ -31,7 +31,6 @@
           @update:fontSize="fontSize = $event"
           @update:background="currentBackground = $event"
           @update:customStyle="customStyle = $event"
-          @export="handleExport"
           ref="noteDisplayRef"
         />
       </div>
@@ -48,8 +47,7 @@
       @regenerate="regenerateNote"
       @save="saveNote"
       @customize="openStyleCustomizer"
-      @export="exportNote"
-      @share="shareNote"
+      @store="openStore"
     />
     
     <!-- 参数设置面板 -->
@@ -58,20 +56,6 @@
       :initialParams="params"
       @save-params="updateParams"
     />
-    
-    <!-- 图片预览模态框 -->
-    <transition name="fade">
-      <ImagePreviewModel
-        v-if="showImagePreview"
-        :imageUrl="previewImageUrl"
-        :onDownload="handleDownload"
-        :onShare="handleShare"
-        :export-options="exportOptions"
-        @close="closeImagePreview"
-        @customize="showStyleCustomizer = true; showImagePreview = false"
-        @export="updateExportOptions"
-      />
-    </transition>
     
     <!-- 社区提示 -->
     <CommunityPrompt
@@ -94,9 +78,9 @@
           :note-content="noteContent"
           :note-mood="params.moods && params.moods.length > 0 ? params.moods.join('') : ''"
           :initial-style="customStyle"
+          :external-font-size="fontSize"
           @close="showStyleCustomizer = false"
           @update:style="updateCustomStyle"
-          @export="handleExport"
         />
       </div>
     </div>
@@ -106,6 +90,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import { getDefaultFontSize } from '../config/style';
 
 // 导入组件
 import HeaderComponent from '../components/HeaderComponent.vue';
@@ -114,14 +99,12 @@ import ParamsPreview from '../components/ParamsPreview.vue';
 import ParamsPanel from '../components/ParamsPanel.vue';
 import NoteDisplay from '../components/NoteDisplay.vue';
 import AppreciationBanner from '../components/AppreciationBanner.vue';
-import ImagePreviewModel from '../components/ImagePreviewModel.vue';
 import CommunityPrompt from '../components/CommunityPrompt.vue';
 import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
 
 // 导入服务和工具
 import { generateNote, getEstimatedResponseTime } from '../services/aiService';
 import { saveUserPreferences, getUserPreferences, saveNote as saveNoteToStorage } from '../services/storageService';
-import { useNoteExport } from '../composables/useNoteExport';
 import { communityService } from '../services/communityService';
 import logger from '../utils/logger';
 import { APP_VERSION } from '../config/version';
@@ -134,7 +117,7 @@ const isGenerating = ref(false);
 const isAnimating = ref(false);
 const noteContent = ref('点击下方"生成心语"按钮，开始您的心灵之旅...');
 const currentBackground = ref('paper-1');
-const fontSize = ref(24);
+const fontSize = ref(getDefaultFontSize());
 const darkMode = ref(false);
 const loadingMessage = ref(''); 
 const hasGeneratedContent = ref(false);
@@ -142,19 +125,9 @@ const errorMessage = ref('');
 const showAppreciation = ref(true);
 const headerCollapsed = ref(false);
 const showParamsPanel = ref(false);
-const showImagePreview = ref(false);
-const previewImageUrl = ref('');
 const showCommunityPrompt = ref(false);
 const showStyleCustomizer = ref(false);
 const customStyle = ref({});
-const exportOptions = ref({
-  format: 'png',
-  quality: 0.9,
-  transparentBg: false
-});
-
-// 导出功能
-const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
 
 // 用户参数
 const params = reactive({
@@ -373,94 +346,10 @@ async function saveNote() {
   }
 }
 
-function isWechatBrowser() {
-  const ua = navigator.userAgent.toLowerCase();
-  return ua.indexOf('micromessenger') !== -1;
-}
-
-async function exportNote() {
-  if (!noteDisplayRef.value || !noteContent.value) return;
-  
-  // 先检测是否是微信浏览器
-  if (isWechatBrowser()) {
-    const confirmed = confirm('检测到您正在使用微信浏览器，微信限制了保存图片功能。\n\n建议您：\n1. 点击右上角"..."，选择"在浏览器中打开"\n2. 或使用Chrome/Safari等系统浏览器访问');
-    
-    if (!confirmed) return;
-  }
-  
-  try {
-    loadingMessage.value = "正在准备图片...";
-    
-    // 确保在导出前DOM已完全渲染
-    await nextTick();
-    
-    // 获取实际DOM元素
-    const element = noteDisplayRef.value.noteCardRef.$el;
-    
-    if (!element) {
-      throw new Error("找不到要导出的DOM元素");
-    }
-    
-    const imageUrl = await exportAsImage(element);
-    if (imageUrl) {
-      try {
-        await saveToDevice(imageUrl, `心语_${new Date().toISOString().slice(0,10)}.png`);
-      } catch (downloadError) {
-        if (isWechatBrowser()) {
-          alert('保存失败。由于微信浏览器限制，无法直接保存图片。\n\n请点击右上角"..."，选择"在浏览器中打开"后重试。');
-        } else {
-          alert('保存图片失败。您可以尝试右键点击图片，选择"图片另存为"保存。');
-        }
-        console.error('保存设备失败:', downloadError);
-      }
-    } else {
-      throw new Error("导出图片URL为空");
-    }
-  } catch (error) {
-    console.error('导出失败:', error);
-    alert('导出图片失败，请重试或尝试分享功能');
-  }
-}
-
-async function shareNote() {
-  if (!noteDisplayRef.value || !noteContent.value) return;
-  
-  try {
-    loadingMessage.value = "正在准备分享...";
-    
-    // 确保在导出前DOM已完全渲染
-    await nextTick();
-    
-    // 获取实际DOM元素
-    const element = noteDisplayRef.value.noteCardRef.$el;
-    
-    if (!element) {
-      throw new Error("找不到要导出的DOM元素");
-    }
-    
-    const imageUrl = await exportAsImage(element);
-    if (imageUrl) {
-      // 设置预览图片URL并显示预览模态框
-      previewImageUrl.value = imageUrl;
-      showImagePreview.value = true;
-    } else {
-      throw new Error("导出图片URL为空");
-    }
-  } catch (error) {
-    console.error('分享失败:', error);
-    alert('准备分享图片失败，请稍后重试');
-  }
-}
-
-function closeImagePreview() {
-  showImagePreview.value = false;
-  previewImageUrl.value = '';
-}
-
-function handleSystemShare(imageUrl) {
-  if (shareImage) {
-    shareImage(imageUrl);
-  }
+// 添加商店功能（暂时为空）
+function openStore() {
+  // 商店功能待实现
+  console.log('商店功能开发中...');
 }
 
 // 添加一个方法来缓存生成的内容
@@ -584,72 +473,9 @@ function openStyleCustomizer() {
 
 // 更新自定义样式
 function updateCustomStyle(newStyle) {
-  customStyle.value = { ...newStyle };
-  // 可能需要保存到本地存储
-}
-
-// 处理导出
-async function handleExport(options) {
-  try {
-    const element = options?.element || noteDisplayRef.value?.noteCardRef?.$el;
-    if (!element) {
-      console.error('找不到要导出的元素');
-      return;
-    }
-    
-    const exportOpts = {
-      format: options?.style?.exportFormat || exportOptions.value.format,
-      quality: options?.style?.exportQuality || exportOptions.value.quality,
-      transparentBg: options?.style?.transparentBg || exportOptions.value.transparentBg
-    };
-    
-    const imageUrl = await exportAsImage(element, exportOpts);
-    if (imageUrl) {
-      previewImageUrl.value = imageUrl;
-      showImagePreview.value = true;
-      showStyleCustomizer.value = false;
-    }
-  } catch (error) {
-    console.error('导出失败:', error);
-    alert('导出图片失败，请重试');
-  }
-}
-
-// 处理下载
-async function handleDownload(imageUrl, options) {
-  try {
-    const format = options?.format || 'png';
-    await saveToDevice(imageUrl, `心语_${new Date().toISOString().slice(0, 10)}.${format}`);
-    return true;
-  } catch (error) {
-    console.error('下载失败:', error);
-    return false;
-  }
-}
-
-// 处理分享
-async function handleShare(imageUrl) {
-  try {
-    const shared = await shareImage(imageUrl, {
-      title: '分享心语',
-      text: '我用星语心笺生成了一段心语',
-      format: exportOptions.value.format
-    });
-    
-    if (!shared) {
-      await saveToDevice(imageUrl);
-      alert('图片已保存，您可以手动分享');
-    }
-    return shared;
-  } catch (error) {
-    console.error('分享失败:', error);
-    return false;
-  }
-}
-
-// 更新导出选项
-function updateExportOptions(options) {
-  exportOptions.value = { ...options };
+  // 从新样式中解构出字体大小，其他样式属性保持不变
+  const { fontSize: newFontSize, ...otherStyles } = newStyle;
+  customStyle.value = otherStyles;
 }
 
 // 生命周期
@@ -736,14 +562,7 @@ onMounted(async () => {
 
 // 定义handleResize为组件级别的变量
 const handleResize = () => {
-  const isSmallScreen = window.innerWidth <= 375;
-  const defaultSize = isSmallScreen ? 18 : 24;
-  
-  // 如果当前字体大小是默认值的情况下，根据屏幕大小自动调整
-  if (fontSize.value === 24 || fontSize.value === 18) {
-    fontSize.value = defaultSize;
-    updateLocalPreferences();
-  }
+  fontSize.value = getDefaultFontSize();
 };
 
 onBeforeUnmount(() => {

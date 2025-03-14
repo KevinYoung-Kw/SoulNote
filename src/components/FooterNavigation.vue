@@ -26,8 +26,8 @@
       <button class="icon-btn action-btn" @click="customizeNote" :disabled="!noteContent || isGenerating">
         <i class="fas fa-palette"></i>
       </button>
-      <button class="icon-btn action-btn" @click="shareNote" :disabled="!noteContent || isGenerating">
-        <i class="fas fa-share-alt"></i>
+      <button class="icon-btn action-btn" @click="openStore" :disabled="isGenerating">
+        <i class="fas fa-store"></i>
       </button>
     </div>
   </div>
@@ -67,7 +67,7 @@ const emit = defineEmits([
   'regenerate', 
   'save', 
   'customize', 
-  'share'
+  'store'
 ]);
 
 // Methods
@@ -93,10 +93,9 @@ function customizeNote() {
   }
 }
 
-function shareNote() {
-  if (props.noteContent) {
-    emit('share');
-  }
+function openStore() {
+  alert('商店功能即将开放，敬请期待！');
+  emit('store');
 }
 </script>
 

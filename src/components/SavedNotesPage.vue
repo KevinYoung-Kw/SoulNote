@@ -43,6 +43,7 @@
           :note-content="currentNote?.content || ''"
           :note-mood="currentNote?.mood || ''"
           :initial-style="currentNote?.customStyle || {}"
+          :external-font-size="currentNote?.fontSize || getDefaultFontSize()"
           @close="showStyleCustomizer = false"
           @update:style="updateNoteStyle"
           @export="handleExport"
@@ -75,6 +76,7 @@ import ImagePreviewModel from '../components/ImagePreviewModel.vue';
 import { getSavedNotes, deleteNote, clearSavedNotes, updateSavedNote } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
 import { generateNote } from '../services/aiService.js';
+import { getDefaultFontSize } from '../config/style';
 
 const router = useRouter();
 const savedNotes = ref([]);
@@ -139,9 +141,12 @@ async function updateNoteStyle(newStyle) {
   if (!currentNote.value) return;
   
   try {
+    // 从新样式中解构出字体大小，其他样式属性保持不变
+    const { fontSize: newFontSize, ...otherStyles } = newStyle;
+    
     const updatedNote = {
       ...currentNote.value,
-      customStyle: newStyle
+      customStyle: otherStyles
     };
     
     const success = await updateSavedNote(updatedNote);

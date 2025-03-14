@@ -41,6 +41,7 @@
           :note-content="content"
           :note-mood="mood"
           :initial-style="customStyle"
+          :external-font-size="fontSize"
           @close="showStyleCustomizer = false"
           @update:style="updateCustomStyle"
           @export="handleExport"
@@ -56,6 +57,7 @@ import NoteCard from './NoteCard.vue';
 import NoteStyleCustomizer from './NoteStyleCustomizer.vue';
 import { saveUserPreferences, getUserPreferences } from '../services/storageService';
 import logger from '../utils/logger';
+import { getDefaultFontSize } from '../config/style';
 
 // Props
 const props = defineProps({
@@ -81,7 +83,7 @@ const props = defineProps({
   },
   initialFontSize: {
     type: Number,
-    default: 24
+    default: getDefaultFontSize()
   }
 });
 
@@ -197,7 +199,9 @@ function openStyleCustomizer() {
 }
 
 function updateCustomStyle(newStyle) {
-  customStyle.value = { ...newStyle };
+  // 从新样式中解构出字体大小，其他样式属性保持不变
+  const { fontSize: newFontSize, ...otherStyles } = newStyle;
+  customStyle.value = otherStyles;
   emit('update:customStyle', customStyle.value);
   updateLocalPreferences();
 }
