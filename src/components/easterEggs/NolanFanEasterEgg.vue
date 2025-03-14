@@ -1,11 +1,17 @@
 <template>
-  <div class="nolan-easter-egg">
+  <base-easter-egg
+    :is-active="isActive"
+    :current-step="currentStep"
+    :target-step="targetStep"
+    ref="baseEgg"
+  >
     <!-- 此组件无可视UI，仅提供彩蛋功能 -->
-  </div>
+  </base-easter-egg>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import BaseEasterEgg from './BaseEasterEgg.vue';
 
 const props = defineProps({
   isActive: {
@@ -28,14 +34,39 @@ const emit = defineEmits([
   'update-movie',
   'update-note-content',
   'update-note-class',
-  'deactivate' // 添加新的deactivate事件
+  'deactivate'
 ]);
 
 // 状态变量
+const baseEgg = ref(null);
 const keySequence = ref('');
 const keySequenceTimeout = ref(null);
 const audioPlayer = ref(null);
 const currentNolanMovie = ref('');
+
+// 不同电影风格下的欢迎信息样式和示例纸条内容
+const movieSpecificContent = {
+  interstellar: {
+    welcomeClass: 'interstellar-welcome',
+    noteContent: "在浩瀚宇宙中，时间既是相对的，也是永恒的。当你凝视星空，星空也在凝视着你。今天，让光年外的梦想照亮你前进的道路。",
+    noteClass: 'interstellar-note'
+  },
+  inception: {
+    welcomeClass: 'inception-welcome',
+    noteContent: "现实与梦境的边界，往往只在一念之间。记住，最简单的想法才能在思想中生根。今天，创造你自己的现实。",
+    noteClass: 'inception-note'
+  },
+  batman: {
+    welcomeClass: 'batman-welcome',
+    noteContent: "并非所有英雄都披着斗篷，有时英雄就是每天坚持前行的你。记住，我们跌倒，是为了学会如何站起来。",
+    noteClass: 'batman-note'
+  },
+  tenet: {
+    welcomeClass: 'tenet-welcome',
+    noteContent: "我们生活在一个正在崩溃的世界，没有朋友，没有未来，没有协商的余地。",
+    noteClass: 'tenet-note'
+  }
+};
 
 // 在组件挂载时添加事件监听
 onMounted(() => {
@@ -88,30 +119,6 @@ function handleKeyPress(event) {
   }, 30000);
 }
 
-// 不同电影风格下的欢迎信息样式和示例纸条内容
-const movieSpecificContent = {
-  interstellar: {
-    welcomeClass: 'interstellar-welcome',
-    noteContent: "在浩瀚宇宙中，时间既是相对的，也是永恒的。当你凝视星空，星空也在凝视着你。今天，让光年外的梦想照亮你前进的道路。",
-    noteClass: 'interstellar-note'
-  },
-  inception: {
-    welcomeClass: 'inception-welcome',
-    noteContent: "现实与梦境的边界，往往只在一念之间。记住，最简单的想法才能在思想中生根。今天，创造你自己的现实。",
-    noteClass: 'inception-note'
-  },
-  batman: {
-    welcomeClass: 'batman-welcome',
-    noteContent: "并非所有英雄都披着斗篷，有时英雄就是每天坚持前行的你。记住，我们跌倒，是为了学会如何站起来。",
-    noteClass: 'batman-note'
-  },
-  tenet: {
-    welcomeClass: 'tenet-welcome',
-    noteContent: "过去已成定局，未来可以改变。时间的洪流中，每一个决定都会创造新的可能。今天，不要试图理解它，去感受它。",
-    noteClass: 'tenet-note'
-  }
-};
-
 // 获取当前电影风格的欢迎信息样式类
 function getWelcomeClass() {
   return movieSpecificContent[currentNolanMovie.value]?.welcomeClass || 'interstellar-welcome';
@@ -131,6 +138,11 @@ function getNoteContent() {
 function activateNolanFanMode(playMusic = true) {
   try {
     console.log('激活诺兰粉丝模式', playMusic ? '(包含音乐)' : '(无音乐)');
+    
+    // 使用基础彩蛋组件的激活方法
+    if (baseEgg.value) {
+      baseEgg.value.activateMode(playMusic);
+    }
     
     // 发出激活事件
     emit('activate', true);
@@ -192,13 +204,18 @@ function activateNolanFanMode(playMusic = true) {
         movie: "batman",
         characters: ['Bruce Wayne', 'Joker', 'Bane', 'Alfred']
       },
+      // 信条 - 添加信条角色池
+      {
+        movie: "tenet",
+        characters: ['Protagonist', 'Neil', 'Kat', 'Sator']
+      },
       // 星际概念
       {
         movie: "interstellar",
         characters: ['Gargantua', 'Endurance', 'TARS', 'CASE']
       }
     ];
-  
+      
     // 随机选择一个IP群组
     const randomPoolIndex = Math.floor(Math.random() * nolanCharacterPools.length);
     const selectedPool = nolanCharacterPools[randomPoolIndex];
@@ -220,6 +237,11 @@ function activateNolanFanMode(playMusic = true) {
       
       // 播放星际穿越音乐
       playNolanMusic();
+    }
+    
+    // 使用基础彩蛋组件的方法更新昵称建议
+    if (baseEgg.value) {
+      baseEgg.value.updateSuggestions(selectedPool.characters);
     }
     
     // 更新昵称建议为选中的诺兰IP组
@@ -277,7 +299,7 @@ function playNolanMusic() {
   function tryPlaySource() {
     if (currentSourceIndex >= musicSources.length) {
       console.error('所有音频源都无法播放');
-      showPlayMusicButton(true);
+      // 不再显示播放按钮
       return;
     }
     
@@ -291,8 +313,11 @@ function playNolanMusic() {
         })
         .catch(err => {
           console.warn(`无法自动播放音频源 ${source}:`, err);
-          // 显示自定义播放按钮
-          showPlayMusicButton();
+          // 尝试在用户交互时播放
+          document.addEventListener('click', function playOnInteraction() {
+            audioPlayer.value.play().catch(e => console.warn('交互后仍无法播放:', e));
+            document.removeEventListener('click', playOnInteraction);
+          }, { once: true });
         });
     };
     
@@ -307,47 +332,19 @@ function playNolanMusic() {
   tryPlaySource();
 }
 
-// 如果自动播放失败，显示播放按钮
+// 移除显示播放按钮的函数，改为静默处理
 function showPlayMusicButton(hasError = false) {
-  // 创建一个悬浮播放按钮
-  const playButton = document.createElement('button');
-  
-  playButton.className = 'nolan-music-button';
-  playButton.onclick = () => {
-    // 如果是错误状态，尝试使用备选路径
-    if (hasError) {
-      // 尝试另一个可能的路径
-      audioPlayer.value.src = '/cornfield-chase.mp3';
-    }
-    
-    audioPlayer.value.play().catch(e => {
-      alert('抱歉，无法播放音频。请确保音频文件已正确放置。');
-      console.error('播放失败:', e);
-    });
-    
-    document.body.removeChild(playButton);
-  };
-  
-  // 样式
-  playButton.style.position = 'fixed';
-  playButton.style.bottom = '20px';
-  playButton.style.right = '20px';
-  playButton.style.zIndex = '9999';
-  playButton.style.background = 'var(--primary-color)';
-  playButton.style.color = 'white';
-  playButton.style.border = 'none';
-  playButton.style.borderRadius = 'var(--radius-md)';
-  playButton.style.padding = '10px 15px';
-  playButton.style.cursor = 'pointer';
-  playButton.style.boxShadow = 'var(--shadow-md)';
-  
-  // 检查是否已存在按钮
-  const existingButton = document.querySelector('.nolan-music-button');
-  if (existingButton) {
-    document.body.removeChild(existingButton);
+  // 不再显示按钮，而是在用户下次交互时尝试播放
+  if (hasError) {
+    // 尝试另一个可能的路径
+    audioPlayer.value.src = '/cornfield-chase.mp3';
   }
   
-  document.body.appendChild(playButton);
+  // 添加一次性点击事件监听器，在用户交互时播放
+  document.addEventListener('click', function playOnInteraction() {
+    audioPlayer.value.play().catch(e => console.warn('交互后仍无法播放:', e));
+    document.removeEventListener('click', playOnInteraction);
+  }, { once: true });
 }
 
 // 增强角色选择反馈
@@ -424,6 +421,23 @@ function showCharacterInfo(name) {
     'Endurance': {
       desc: '星际穿越中宇航员驾驶的宇宙飞船。',
       welcome: '持久号已做好跨越虫洞的准备。目的地：另一个星系。'
+    },
+        // 信条角色
+    'Protagonist': {
+      desc: '信条中的无名主角，一名CIA特工，被招募加入神秘组织"信条"。',
+      welcome: '欢迎加入信条。你所看到的一切都已经发生过。'
+    },
+    'Neil': {
+      desc: '信条中的关键角色，拥有逆向时间经验的特工，主角的盟友。',
+      welcome: '对于我来说，这是终点；对你而言，这只是开始。'
+    },
+    'Kat': {
+      desc: '信条中的女性角色，俄罗斯军火商Sator的妻子，寻求摆脱丈夫控制。',
+      welcome: '有时，我们必须向前看，才能理解过去。'
+    },
+    'Sator': {
+      desc: '信条中的主要反派，与未来人合作的俄罗斯军火商，试图逆转时间。',
+      welcome: '我们生活在一个正在崩溃的世界，没有朋友，没有未来，没有协商的余地。'
     }
   };
   
@@ -452,6 +466,12 @@ function showCharacterInfo(name) {
     // 更新纸条内容，使用"亲爱的[角色名]，[欢迎信息]"格式
     if (characterInfo[name].welcome) {
       const personalizedNoteContent = `${characterInfo[name].welcome}`;
+      
+      // 使用基础彩蛋组件的方法更新纸条内容
+      if (baseEgg.value) {
+        baseEgg.value.updateNoteContent(personalizedNoteContent);
+      }
+      
       emit('update-note-content', personalizedNoteContent);
     }
   }
@@ -534,12 +554,23 @@ function deactivateNolanFanMode() {
   try {
     console.log('结束诺兰粉丝模式');
     
+    // 使用基础彩蛋组件的停用方法
+    if (baseEgg.value) {
+      baseEgg.value.deactivateMode();
+    }
+    
     // 停止音频播放
     if (audioPlayer.value) {
       audioPlayer.value.pause();
       audioPlayer.value.src = '';
     }
-    
+
+    // 清理信条动画定时器
+    if (window.tenetAnimationIntervals && window.tenetAnimationIntervals.length > 0) {
+      window.tenetAnimationIntervals.forEach(interval => clearInterval(interval));
+      window.tenetAnimationIntervals = [];
+    }
+
     // 移除所有可能存在的模态框
     const existingModals = document.querySelectorAll('.nolan-modal-overlay');
     existingModals.forEach(modal => {
@@ -584,7 +615,11 @@ function deactivateNolanFanMode() {
       // 移除诺兰模式类
       nicknameContainer.classList.remove('nolan-fan-mode');
       nicknameContainer.classList.remove('nolan-interstellar', 'nolan-inception', 'nolan-batman', 'nolan-tenet');
-      
+
+      // 移除信条效果
+      const tenetEffect = nicknameContainer.querySelector('.tenet-effect');
+      if (tenetEffect) tenetEffect.remove();
+
       // 移除标题类
       const movieTitles = ['interstellar-title', 'inception-title', 'batman-title', 'tenet-title'];
       movieTitles.forEach(cls => {
@@ -641,9 +676,9 @@ function addNolanVisualEffect() {
     
     // 延迟添加视觉效果，确保DOM已完全就绪
     setTimeout(() => {
+      // 根据电影类型应用不同效果
       let effectAdded = false;
       
-      // 根据电影类型应用不同效果
       switch(currentNolanMovie.value) {
         case 'interstellar':
           console.log('添加星际效果');
@@ -673,7 +708,10 @@ function addNolanVisualEffect() {
       
       // 为动画效果元素强制应用重要样式
       const addedEffects = nicknameContainer.querySelectorAll('.nolan-effect');
+      console.log('添加的效果元素数量:', addedEffects.length);
+      
       addedEffects.forEach(effect => {
+        // 强制设置关键样式，确保效果不会消失
         effect.style.position = 'absolute';
         effect.style.top = '0';
         effect.style.left = '0';
@@ -684,29 +722,71 @@ function addNolanVisualEffect() {
         effect.style.opacity = '1';
         effect.style.visibility = 'visible';
         effect.style.display = 'block';
-      });
-      
-      // 添加动态波纹效果
-      nicknameContainer.removeEventListener('click', handleRippleEffect);
-      nicknameContainer.addEventListener('click', handleRippleEffect);
-      
-      // 延长检查时间，确保效果持久存在
-      setTimeout(() => {
-        const stillExists = nicknameContainer.querySelector('.nolan-effect');
-        console.log('效果1000ms后仍然存在:', !!stillExists);
         
-        // 如果效果已消失，尝试重新添加
-        if (!stillExists) {
-          console.log('效果已消失，尝试重新添加...');
-          // 根据电影类型重新添加效果
-          if(currentNolanMovie.value === 'interstellar') {
-            addInterstellarEffect(nicknameContainer);
-          } else if(currentNolanMovie.value === 'batman') {
-            addBatmanEffect(nicknameContainer);
+        // 特别处理信条效果
+        if (effect.classList.contains('tenet-effect')) {
+          console.log('应用信条特殊样式');
+          // 确保信条效果的子元素也有正确的样式
+          const timeParticles = effect.querySelector('.time-particles');
+          if (timeParticles) {
+            timeParticles.style.opacity = '1';
+            timeParticles.style.visibility = 'visible';
+            timeParticles.style.zIndex = '1';
+          }
+          
+          const timeIndicator = effect.querySelector('.time-indicator');
+          if (timeIndicator) {
+            timeIndicator.style.opacity = '0.7';
+            timeIndicator.style.visibility = 'visible';
+            timeIndicator.style.zIndex = '2';
+          }
+          
+          const chromaticAberration = effect.querySelector('.chromatic-aberration');
+          if (chromaticAberration) {
+            chromaticAberration.style.opacity = '1';
+            chromaticAberration.style.visibility = 'visible';
+            chromaticAberration.style.zIndex = '1';
           }
         }
-      }, 1000);
+      });
       
+      
+    // 延长检查时间，确保效果持久存在
+    setTimeout(() => {
+      const stillExists = nicknameContainer.querySelector('.nolan-effect');
+      console.log('效果1000ms后仍然存在:', !!stillExists);
+      
+      // 如果效果已消失，尝试重新添加
+      if (!stillExists) {
+        console.log('效果已消失，尝试重新添加...');
+        // 根据电影类型重新添加效果
+        if(currentNolanMovie.value === 'interstellar') {
+          addInterstellarEffect(nicknameContainer);
+        } else if(currentNolanMovie.value === 'batman') {
+          addBatmanEffect(nicknameContainer);
+        } else if(currentNolanMovie.value === 'inception') {
+          addInceptionEffect(nicknameContainer);
+        } else if(currentNolanMovie.value === 'tenet') {
+          addTenetEffect(nicknameContainer);
+          // 特别处理信条效果，确保它不会消失
+          const tenetEffect = nicknameContainer.querySelector('.tenet-effect');
+          if (tenetEffect) {
+            console.log('重新添加信条效果后强制应用样式');
+            tenetEffect.style.position = 'absolute';
+            tenetEffect.style.top = '0';
+            tenetEffect.style.left = '0';
+            tenetEffect.style.width = '100%';
+            tenetEffect.style.height = '100%';
+            tenetEffect.style.zIndex = '0';
+            tenetEffect.style.pointerEvents = 'none';
+            tenetEffect.style.opacity = '1';
+            tenetEffect.style.visibility = 'visible';
+            tenetEffect.style.display = 'block';
+          }
+        }
+      }
+    }, 1000);
+          
     }, 50); // 短暂延迟确保DOM已更新
     
   } catch (error) {
@@ -718,17 +798,18 @@ function addInterstellarEffect(container) {
   // 创建外层包装
   const effectWrapper = document.createElement('div');
   effectWrapper.className = 'nolan-effect interstellar-effect';
+  // 强制设置关键样式，确保效果不会消失
   effectWrapper.style.position = 'absolute';
   effectWrapper.style.top = '0';
   effectWrapper.style.left = '0';
   effectWrapper.style.width = '100%';
   effectWrapper.style.height = '100%';
   effectWrapper.style.zIndex = '0';
+  effectWrapper.style.pointerEvents = 'none';
   effectWrapper.style.opacity = '1';
   effectWrapper.style.visibility = 'visible';
   effectWrapper.style.display = 'block';
-
-  
+  effectWrapper.style.overflow = 'hidden';
 
   // 创建星空背景
   const starfield = document.createElement('div');
@@ -804,7 +885,6 @@ function handleRippleEffect(e) {
     }
   }, 1000);
 }
-
 
 // 蝙蝠侠特效
 function addBatmanEffect(container) {
@@ -886,7 +966,6 @@ function triggerRandomLightning(lightningElement) {
   const initialDelay = Math.random() * 3000 + 1000;
   setTimeout(triggerLightning, initialDelay);
 }
-// ...existing code...
 
 // 盗梦空间特效
 function addInceptionEffect(container) {
@@ -929,42 +1008,125 @@ function addInceptionEffect(container) {
   container.appendChild(effectWrapper);
 }
 
-// TENET特效
+// TENET特效 - 修复动画加载问题
 function addTenetEffect(container) {
   // 创建外层包装
   const effectWrapper = document.createElement('div');
   effectWrapper.className = 'nolan-effect tenet-effect';
   
+  // 直接设置关键样式而不只依赖CSS类
+  effectWrapper.style.position = 'absolute';
+  effectWrapper.style.top = '0';
+  effectWrapper.style.left = '0';
+  effectWrapper.style.width = '100%';
+  effectWrapper.style.height = '100%';
+  effectWrapper.style.zIndex = '0';
+  effectWrapper.style.pointerEvents = 'none';
+  effectWrapper.style.opacity = '1';
+  effectWrapper.style.visibility = 'visible';
+  effectWrapper.style.display = 'block';
+  effectWrapper.style.overflow = 'hidden';
+  effectWrapper.style.backgroundColor = 'rgba(15, 32, 45, 0.3)';
+  
   // 添加时间倒流粒子效果
   const timeParticles = document.createElement('div');
   timeParticles.className = 'time-particles';
+  timeParticles.style.position = 'absolute';
+  timeParticles.style.top = '0';
+  timeParticles.style.left = '0';
+  timeParticles.style.width = '100%';
+  timeParticles.style.height = '100%';
+  timeParticles.style.zIndex = '1';
   
   // 创建粒子
   for (let i = 0; i < 30; i++) {
     const particle = document.createElement('div');
     particle.className = 'time-particle';
+    
+    // 直接设置关键样式而不只依赖CSS类
+    particle.style.position = 'absolute';
     particle.style.top = `${Math.random() * 100}%`;
     particle.style.left = `${Math.random() * 100}%`;
-    particle.style.animationDuration = `${Math.random() * 8 + 4}s`;
-    particle.style.animationDelay = `${Math.random() * 2}s`;
+    
+    // 变化粒子大小
     const size = Math.random() * 8 + 2;
     particle.style.width = `${size}px`;
     particle.style.height = `${size}px`;
+    
+    // 设置粒子颜色 - 红蓝交替
+    particle.style.backgroundColor = i % 2 === 0 ? 'rgba(255, 87, 87, 0.8)' : 'rgba(87, 160, 255, 0.8)';
+    particle.style.borderRadius = '50%';
+    
+    // 设置动画持续时间和延迟
+    const duration = Math.random() * 4 + 2;
+    const delay = Math.random() * 2;
+    
+    // 使用CSS动画而不是JavaScript动画
+    particle.style.animationName = 'time-particle-flow';
+    particle.style.animationDuration = `${duration}s`;
+    particle.style.animationDelay = `${delay}s`;
+    particle.style.animationIterationCount = 'infinite';
+    particle.style.animationTimingFunction = 'linear';
+    particle.style.animationDirection = i % 2 === 0 ? 'normal' : 'reverse';
+    
     timeParticles.appendChild(particle);
   }
   
   // 创建红蓝分离效果
   const chromaticAberration = document.createElement('div');
   chromaticAberration.className = 'chromatic-aberration';
+  chromaticAberration.style.position = 'absolute';
+  chromaticAberration.style.top = '0';
+  chromaticAberration.style.left = '0';
+  chromaticAberration.style.width = '100%';
+  chromaticAberration.style.height = '100%';
+  chromaticAberration.style.background = 'linear-gradient(45deg, rgba(255, 0, 0, 0.1) 0%, transparent 20%, transparent 80%, rgba(0, 0, 255, 0.1) 100%)';
+  chromaticAberration.style.zIndex = '1';
+  chromaticAberration.style.pointerEvents = 'none';
+  chromaticAberration.style.animation = 'chromatic-shift 8s infinite alternate ease-in-out';
   
   // 创建时间指示器
   const timeIndicator = document.createElement('div');
   timeIndicator.className = 'time-indicator';
+  timeIndicator.style.position = 'absolute';
+  timeIndicator.style.bottom = '20px';
+  timeIndicator.style.right = '20px';
+  timeIndicator.style.width = '40px';
+  timeIndicator.style.height = '20px';
+  timeIndicator.style.backgroundImage = 'url(\'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><text x="0" y="15" font-family="Arial" font-size="16" font-weight="bold" fill="rgb(255,87,87)">T E N E T</text></svg>\')';
+  timeIndicator.style.backgroundSize = 'contain';
+  timeIndicator.style.backgroundRepeat = 'no-repeat';
+  timeIndicator.style.zIndex = '2';
+  timeIndicator.style.animation = 'time-indicator-flash 4s infinite alternate ease-in-out';
+  timeIndicator.style.opacity = '0.7';
   
+  // 添加反向时间流效果
+  const reverseTimeFlow = document.createElement('div');
+  reverseTimeFlow.className = 'reverse-time-flow';
+  reverseTimeFlow.style.position = 'absolute';
+  reverseTimeFlow.style.top = '0';
+  reverseTimeFlow.style.left = '0';
+  reverseTimeFlow.style.width = '100%';
+  reverseTimeFlow.style.height = '100%';
+  reverseTimeFlow.style.background = 'radial-gradient(circle at center, transparent 70%, rgba(255, 87, 87, 0.1) 100%)';
+  reverseTimeFlow.style.zIndex = '0';
+  reverseTimeFlow.style.animation = 'reverse-time-flow 10s infinite alternate ease-in-out';
+  
+  // 组装效果
   effectWrapper.appendChild(timeParticles);
   effectWrapper.appendChild(chromaticAberration);
   effectWrapper.appendChild(timeIndicator);
+  effectWrapper.appendChild(reverseTimeFlow);
   container.appendChild(effectWrapper);
+  
+  // 不再使用JavaScript动画，改为完全依赖CSS动画
+  // setupTenetAnimations(timeIndicator, chromaticAberration);
+}
+
+// 设置信条特有的动画 - 不再使用此函数，改为CSS动画
+function setupTenetAnimations(timeIndicator, chromaticAberration) {
+  // 此函数不再使用，保留以避免引用错误
+  console.log('使用CSS动画代替JavaScript动画');
 }
 
 
@@ -1002,40 +1164,22 @@ function updateInterfaceByMovie(movieType) {
   }
 }
 
-// 创建动态波纹效果
-function createRippleEffect() {
-  const container = document.querySelector('.nickname-container');
-  if (!container) return;
-  
-  // 添加点击波纹效果
-  container.addEventListener('click', function(e) {
-    const ripple = document.createElement('div');
-    ripple.className = 'nolan-ripple';
-    
-    const rect = container.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    
-    ripple.style.width = ripple.style.height = `${size}px`;
-    ripple.style.left = `${e.clientX - rect.left - size/2}px`;
-    ripple.style.top = `${e.clientY - rect.top - size/2}px`;
-    
-    container.appendChild(ripple);
-    
-    setTimeout(() => {
-      ripple.remove();
-    }, 1000);
-  });
-}
+// 监听步骤变化
+watch(() => props.currentStep, (newStep) => {
+  if (newStep === props.targetStep && props.isActive) {
+    // 当到达目标步骤且彩蛋已激活时，更新视觉效果
+    addNolanVisualEffect();
+  }
+});
 
 // 向外部暴露的函数
 defineExpose({
   activateNolanFanMode,
-  deactivateNolanFanMode,  // 暴露新函数
+  deactivateNolanFanMode,
   showCharacterInfo,
   getWelcomeClass,
   getNoteClass,
-  getNoteContent,
-  currentNolanMovie
+  getNoteContent
 });
 </script>
 
@@ -1182,9 +1326,9 @@ defineExpose({
 }
 
 @keyframes nolan-star-twinkle {
-  0% { opacity: 0.2; }
-  50% { opacity: 0.8; }
-  100% { opacity: 0.2; }
+  0% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 0.9; transform: scale(1.2); }
+  100% { opacity: 0.2; transform: scale(0.8); }
 }
 
 /* 确保效果可见 */
@@ -1824,11 +1968,6 @@ defineExpose({
   visibility: visible !important;
 }
 
-
-
-
-
-
 /* 盗梦空间增强效果 */
 .inception-effect {
   position: absolute;
@@ -1914,64 +2053,108 @@ defineExpose({
 
 /* 信条效果 */
 .tenet-effect {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  overflow: hidden;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0 !important; /* 改为0，与其他效果一致 */
+  overflow: hidden !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background-color: rgba(15, 32, 45, 0.3) !important;
+  pointer-events: none !important;
+  display: block !important;
 }
 
 .time-particles {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  display: block !important;
 }
 
 .time-particle {
-  position: absolute;
-  background-color: rgba(255, 87, 87, 0.8);
-  border-radius: 50%;
-  animation: time-particle-flow infinite linear;
+  position: absolute !important;
+  border-radius: 50% !important;
+  z-index: 2 !important;
+  visibility: visible !important;
+  opacity: 0.8 !important;
+  box-shadow: 0 0 5px 2px rgba(255, 87, 87, 0.3) !important; /* 添加光晕效果 */
+  pointer-events: none !important;
+  display: block !important;
 }
 
 .time-particle:nth-child(even) {
-  background-color: rgba(87, 160, 255, 0.8);
-  animation-direction: reverse;
+  box-shadow: 0 0 5px 2px rgba(87, 160, 255, 0.3) !important; /* 蓝色粒子光晕 */
 }
 
 .chromatic-aberration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(45deg, rgba(255, 0, 0, 0.1) 0%, transparent 20%, transparent 80%, rgba(0, 0, 255, 0.1) 100%);
-  animation: chromatic-shift 8s infinite alternate ease-in-out;
-  z-index: 1;
-  pointer-events: none;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(45deg, rgba(255, 0, 0, 0.1) 0%, transparent 20%, transparent 80%, rgba(0, 0, 255, 0.1) 100%) !important;
+  animation: chromatic-shift 8s infinite alternate ease-in-out !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
 }
 
 .time-indicator {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 40px;
-  height: 20px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><text x="0" y="15" font-family="Arial" font-size="16" font-weight="bold" fill="rgb(255,87,87)">T E N E T</text></svg>');
-  background-size: contain;
-  background-repeat: no-repeat;
-  animation: time-indicator-flash 4s infinite alternate ease-in-out;
-  z-index: 2;
+  position: absolute !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  width: 40px !important;
+  height: 20px !important;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><text x="0" y="15" font-family="Arial" font-size="16" font-weight="bold" fill="rgb(255,87,87)">T E N E T</text></svg>') !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  animation: time-indicator-flash 4s infinite alternate ease-in-out !important;
+  z-index: 2 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+  filter: drop-shadow(0 0 3px rgba(255, 87, 87, 0.8)) !important; /* 添加文字阴影 */
 }
 
+.reverse-time-flow {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: radial-gradient(circle at center, transparent 70%, rgba(255, 87, 87, 0.1) 100%) !important;
+  z-index: 0 !important;
+  animation: reverse-time-flow 10s infinite alternate ease-in-out !important;
+  pointer-events: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* 确保信条粒子动画正确定义 */
 @keyframes time-particle-flow {
-  0% { transform: translateY(0) translateX(0) scale(0); opacity: 0; }
-  50% { opacity: 1; }
-  100% { transform: translateY(-100px) translateX(100px) scale(1.5); opacity: 0; }
+  0% { 
+    transform: translateY(0) translateX(0) scale(0); 
+    opacity: 0; 
+  }
+  50% { 
+    opacity: 1; 
+  }
+  100% { 
+    transform: translateY(-100px) translateX(100px) scale(1.5); 
+    opacity: 0; 
+  }
 }
 
 @keyframes chromatic-shift {
@@ -1980,8 +2163,14 @@ defineExpose({
 }
 
 @keyframes time-indicator-flash {
-  0% { opacity: 0.3; transform: scale(0.9); }
-  100% { opacity: 1; transform: scale(1.1); }
+  0% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+@keyframes reverse-time-flow {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 /* 更新现有动画 */
@@ -1990,5 +2179,4 @@ defineExpose({
   50% { opacity: 0.9; transform: scale(1.2); }
   100% { opacity: 0.2; transform: scale(0.8); }
 }
-
 </style>

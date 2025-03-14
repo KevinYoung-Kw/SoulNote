@@ -310,76 +310,38 @@ function playCyberpunkMusic() {
     if (playPromise !== undefined) {
       playPromise.catch(error => {
         console.warn('自动播放受限:', error);
-        // 创建音乐控制按钮，让用户手动触发播放
-        createMusicButton();
+        // 不再创建音乐控制按钮，而是在用户交互时尝试播放
+        document.addEventListener('click', function playOnInteraction() {
+          audioPlayer.value.play().catch(e => console.warn('交互后仍无法播放:', e));
+          document.removeEventListener('click', playOnInteraction);
+        }, { once: true });
       });
     }
   } catch (error) {
     console.error('播放音乐失败:', error);
-    // 如果播放失败，创建音乐控制按钮
-    createMusicButton();
+    // 不再创建音乐控制按钮，而是在用户交互时尝试播放
+    document.addEventListener('click', function playOnInteraction() {
+      audioPlayer.value.play().catch(e => console.warn('交互后仍无法播放:', e));
+      document.removeEventListener('click', playOnInteraction);
+    }, { once: true });
   }
 }
 
-// 创建音乐控制按钮
+// 移除创建音乐控制按钮的函数，改为静默处理
 function createMusicButton() {
-  // 移除可能已存在的按钮
-  const existingButton = document.querySelector('.cyberpunk-music-button');
-  if (existingButton && document.body.contains(existingButton)) {
-    document.body.removeChild(existingButton);
-  }
+  // 此函数保留但不再创建按钮，仅用于兼容性
+  console.log('音乐播放按钮已被禁用，使用静默播放模式');
   
-  // 创建音乐控制按钮
-  const musicButton = document.createElement('button');
-  musicButton.className = 'cyberpunk-music-button';
-  musicButton.innerHTML = '<i class="fas fa-music"></i> 播放音乐';
-  
-  // 添加点击事件
-  musicButton.addEventListener('click', () => {
-    if (audioPlayer.value.paused) {
-      // 如果音频暂停，则播放
-      audioPlayer.value.play()
-        .then(() => {
-          musicButton.innerHTML = '<i class="fas fa-pause"></i> 暂停音乐';
-        })
-        .catch(error => {
-          console.error('播放音乐失败:', error);
-        });
-    } else {
-      // 如果音频正在播放，则暂停
-      audioPlayer.value.pause();
-      musicButton.innerHTML = '<i class="fas fa-music"></i> 播放音乐';
+  // 添加一次性点击事件监听器，在用户交互时播放
+  document.addEventListener('click', function playOnInteraction() {
+    if (audioPlayer.value && audioPlayer.value.paused) {
+      audioPlayer.value.play().catch(e => console.warn('交互后仍无法播放:', e));
     }
-  });
+    document.removeEventListener('click', playOnInteraction);
+  }, { once: true });
   
-  // 添加到body
-  document.body.appendChild(musicButton);
-  
-  // 添加音量控制
-  const volumeControl = document.createElement('input');
-  volumeControl.type = 'range';
-  volumeControl.min = '0';
-  volumeControl.max = '1';
-  volumeControl.step = '0.1';
-  volumeControl.value = audioPlayer.value.volume.toString();
-  volumeControl.className = 'cyberpunk-volume-control';
-  
-  // 添加音量变化事件
-  volumeControl.addEventListener('input', (event) => {
-    audioPlayer.value.volume = event.target.value;
-  });
-  
-  // 将音量控制添加到按钮中
-  musicButton.appendChild(volumeControl);
-  
-  // 添加音频结束事件监听
-  audioPlayer.value.addEventListener('ended', () => {
-    musicButton.innerHTML = '<i class="fas fa-music"></i> 播放音乐';
-  });
-  
-  return musicButton;
+  return null; // 不返回按钮元素
 }
-
 
 // 创建赛博朋克风格弹窗
 function createCyberpunkModal(title, quote) {
@@ -1454,7 +1416,7 @@ defineExpose({
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
 
-/* 赛博朋克模式相关样式 - 保留原有的模态框和角色提示样式 */
+/* 赛博朋克模式相关样式 */
 .cyberpunk-modal-overlay {
   position: fixed;
   top: 0;
@@ -1467,7 +1429,20 @@ defineExpose({
   align-items: center;
   z-index: 9999;
   opacity: 0;
-  transition: opacity 0.8s ease;
+  transition: opacity 0.5s ease;
+}
+
+/* 移除音乐按钮相关样式 */
+.cyberpunk-music-button {
+  display: none !important; /* 完全隐藏按钮 */
+}
+
+.cyberpunk-volume-control {
+  display: none !important; /* 完全隐藏音量控制 */
+}
+
+.cyberpunk-overlay-visible {
+  opacity: 1;
 }
 
 /* ... 保留其他原有样式 ... */
