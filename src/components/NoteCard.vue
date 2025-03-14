@@ -1,3 +1,4 @@
+// ... existing code ...
 <template>
   <div 
     class="note-card" 
@@ -6,8 +7,50 @@
     :style="cardStyle"
     data-v-notecard
   >
+    <!-- 图片背景层 - 仅用于图片背景布局 -->
+    <div 
+      v-if="hasCustomImage && props.customStyle?.layout === 'image-bg'" 
+      class="note-image-layer"
+      :style="imageLayerStyle"
+    ></div>
+    
+    <!-- 上图下文布局 -->
+    <template v-if="props.customStyle?.layout === 'image-top'">
+      <!-- 上半部分图片 -->
+      <div 
+        v-if="hasCustomImage" 
+        class="note-image-layer"
+        :style="imageLayerStyle"
+      ></div>
+      
+      <!-- 下半部分文本 -->
+      <div class="note-content" :style="contentStyle">{{ sanitizedContent }}</div>
+    </template>
+    
+    <!-- 下图上文布局 -->
+    <template v-else-if="props.customStyle?.layout === 'image-bottom'">
+      <!-- 上半部分文本 -->
+      <div class="note-content" :style="contentStyle">{{ sanitizedContent }}</div>
+      
+      <!-- 下半部分图片 -->
+      <div 
+        v-if="hasCustomImage" 
+        class="note-image-layer"
+        :style="imageLayerStyle"
+      ></div>
+    </template>
+    
+    <!-- 纸条布局或图片背景布局 -->
+    <template v-else>
+      <div class="note-content note-content-centered" :style="contentStyle">{{ sanitizedContent }}</div>
+    </template>
+    
     <!-- 修改mood展示区域，创建水平排列的表情容器 -->
-    <div class="note-mood-container" v-if="moodsArray.length > 0" :style="moodContainerStyle">
+    <div 
+      class="note-mood-container" 
+      v-if="moodsArray.length > 0 && props.customStyle?.showEmojiBubble !== false" 
+      :style="moodContainerStyle"
+    >
       <div 
         v-for="(emoji, index) in moodsArray" 
         :key="`mood-${index}`" 
@@ -17,22 +60,30 @@
         {{ emoji }}
       </div>
     </div>
-    <div class="note-content" :style="contentStyle">{{ sanitizedContent }}</div>
+    
+    <!-- 社群二维码 -->
+    <div 
+      v-if="showQrcode" 
+      class="note-qrcode"
+      :style="qrcodeStyle"
+    >
+      <img :src="qrcodeUrl" alt="社群二维码" />
+      <span v-if="customStyle?.slogan">{{ customStyle.slogan }}</span>
+    </div>
+    
     <div class="note-glow"></div>
     <div class="note-watermark">
       <span>@星语心笺</span>
     </div>
   </div>
-
-
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useNoteAnimation } from '../composables/useNoteAnimation';
-import { useRouter } from 'vue-router'; // 添加导入
+import { useRouter } from 'vue-router';
 
-const router = useRouter(); // 初始化router
+const router = useRouter();
 
 const props = defineProps({
   content: {
@@ -57,7 +108,12 @@ const props = defineProps({
   },
   animationDuration: {
     type: Number,
-    default: 2.0 // 默认动画时长2秒
+    default: 2.0
+  },
+  // 新增自定义样式属性
+  customStyle: {
+    type: Object,
+    default: () => ({})
   }
 });
 
@@ -74,25 +130,69 @@ const moodsArray = computed(() => {
 
 // 根据表情数量计算容器样式
 const moodContainerStyle = computed(() => {
+  const isSmallScreen = window.innerWidth <= 480;
+  const isVerySmallScreen = window.innerWidth <= 385;
+  
   // 基础样式
   const style = {
     display: 'flex',
     flexWrap: 'wrap', // 允许换行
-    gap: '4px', // 表情之间的间距
-    maxWidth: '70%', // 限制容器宽度，防止占用太多空间
-    zIndex: 3 // 确保在内容上方
+    gap: isVerySmallScreen ? '2px' : isSmallScreen ? '4px' : '4px', // 根据屏幕大小调整表情之间的间距
+    maxWidth: isVerySmallScreen ? '85%' : isSmallScreen ? '80%' : '70%', // 根据屏幕大小调整容器宽度
+    zIndex: 10 // 确保在内容上方
   };
   
-  // 如果只有一个表情，可以使用原来的位置
-  if (moodsArray.value.length === 1) {
-    style.top = 'var(--spacing-md)';
-    style.left = 'var(--spacing-md)';
-  } else {
-    // 多表情时，位置调整为顶部居中
-    style.top = 'var(--spacing-md)';
+  // 检查是否应该显示emoji气泡
+  if (props.customStyle?.showEmojiBubble === false) {
+    style.display = 'none';
+    return style;
+  }
+  
+  // 根据布局调整位置
+  if (props.customStyle?.layout === 'image-top') {
+    // 上图下文布局 - emoji气泡放在下半部分的顶部，使用固定像素值
+    style.top = '50%'; // 放在分界线位置
+    style.marginTop = isVerySmallScreen ? '3px' : '5px'; // 根据屏幕大小调整边距
+    style.bottom = 'auto';
     style.left = '50%';
-    style.transform = 'translateX(-50%)'; // 水平居中
-    style.justifyContent = 'center'; // 内部元素居中
+    style.transform = 'translateX(-50%)';
+    style.justifyContent = 'center';
+    style.position = 'absolute';
+    style.width = 'auto';
+    style.maxWidth = isVerySmallScreen ? '85%' : isSmallScreen ? '80%' : '70%'; // 根据屏幕大小调整最大宽度
+    style.borderRadius = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '16px'; // 根据屏幕大小调整圆角
+    style.padding = isVerySmallScreen ? '3px 6px' : isSmallScreen ? '4px 8px' : '6px 12px'; // 根据屏幕大小调整内边距
+    style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+    style.zIndex = '20';
+  } else if (props.customStyle?.layout === 'image-bottom') {
+    // 下图上文布局 - emoji气泡放在上半部分的底部，使用固定像素值
+    style.top = 'auto';
+    style.bottom = '50%'; // 放在分界线位置
+    style.marginBottom = isVerySmallScreen ? '3px' : '5px'; // 根据屏幕大小调整边距
+    style.left = '50%';
+    style.transform = 'translateX(-50%)';
+    style.justifyContent = 'center';
+    style.position = 'absolute';
+    style.width = 'auto';
+    style.maxWidth = isVerySmallScreen ? '85%' : isSmallScreen ? '80%' : '70%'; // 根据屏幕大小调整最大宽度
+    style.borderRadius = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '16px'; // 根据屏幕大小调整圆角
+    style.padding = isVerySmallScreen ? '3px 6px' : isSmallScreen ? '4px 8px' : '6px 12px'; // 根据屏幕大小调整内边距
+    style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+    style.zIndex = '20';
+  } else {
+    // 纸条布局或图片背景布局
+    style.position = 'absolute';
+    if (moodsArray.value.length === 1) {
+      // 单个表情使用原来的位置
+      style.top = isVerySmallScreen ? '10px' : '15px'; // 根据屏幕大小调整顶部距离
+      style.left = isVerySmallScreen ? '10px' : '15px'; // 根据屏幕大小调整左侧距离
+    } else {
+      // 多表情时，位置调整为顶部居中
+      style.top = isVerySmallScreen ? '10px' : '15px'; // 根据屏幕大小调整顶部距离
+      style.left = '50%';
+      style.transform = 'translateX(-50%)';
+      style.justifyContent = 'center';
+    }
   }
   
   return style;
@@ -128,16 +228,70 @@ const getBackgroundVariable = computed(() => {
   return `var(--note-bg-${bgIndex})`;
 });
 
+// 检查是否有自定义图片
+const hasCustomImage = computed(() => {
+  // 只有当有图片URL且布局不是纸条时才显示图片
+  return props.customStyle?.imageUrl && 
+         props.customStyle.imageUrl !== '' && 
+         props.customStyle.layout !== 'paper';
+});
+
+// 图片层样式
+const imageLayerStyle = computed(() => {
+  if (!hasCustomImage.value) return {};
+  
+  const style = {
+    backgroundImage: `url(${props.customStyle.imageUrl})`,
+    opacity: props.customStyle.imageOpacity || 1,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    filter: props.customStyle.imageFilter || ''
+  };
+  
+  // 根据布局调整图片位置
+  if (props.customStyle.layout === 'image-top') {
+    style.height = '50%';
+    style.top = '0';
+    style.backgroundSize = 'cover';
+  } else if (props.customStyle.layout === 'image-bottom') {
+    style.height = '50%';
+    style.bottom = '0';
+    style.backgroundSize = 'cover';
+  } else if (props.customStyle.layout === 'image-bg') {
+    style.height = '100%';
+    style.width = '100%';
+  }
+  
+  // 应用缩放
+  if (props.customStyle.imageScale) {
+    style.transform = `scale(${props.customStyle.imageScale})`;
+    style.transformOrigin = 'center';
+  }
+  
+  return style;
+});
+
 // 计算卡片样式，包括动态高度
 const cardStyle = computed(() => {
   // 获取背景
-  const background = getBackgroundVariable.value;
+  let background;
+  
+  if (props.customStyle?.layout === 'paper') {
+    // 纸条布局使用默认背景
+    background = getBackgroundVariable.value;
+  } else if (hasCustomImage.value && props.customStyle?.layout === 'image-bg') {
+    // 图片背景布局使用透明背景，让图片层显示
+    background = 'transparent';
+  } else {
+    // 其他情况使用默认背景
+    background = getBackgroundVariable.value;
+  }
+  
   const isSmallScreen = window.innerWidth <= 375;
   
   // 基础样式
   const style = {
     background: background,
-    color: 'var(--text-color)',
     boxShadow: 'var(--shadow-md)',
   };
   
@@ -145,7 +299,6 @@ const cardStyle = computed(() => {
   if (isSmallScreen) {
     style.aspectRatio = '5 / 6'; // 更紧凑的卡片比例
     style.minHeight = '180px'; // 减小最小高度
-    style.padding = 'var(--spacing-sm) var(--spacing-xs)'; // 减小内边距
   }
   
   // 根据内容长度动态调整高度
@@ -170,38 +323,208 @@ const cardStyle = computed(() => {
     style.fontWeight = '500';
   }
   
+  // 应用自定义布局样式
+  if (props.customStyle?.layout === 'image-top' || props.customStyle?.layout === 'image-bottom') {
+    style.display = 'flex';
+    style.flexDirection = 'column';
+    style.padding = '0';
+  } else {
+    // 纸条布局和图片背景布局需要内边距
+    style.padding = isSmallScreen ? 'var(--spacing-md) var(--spacing-sm)' : 'var(--spacing-xl)';
+    
+    // 纸条布局下添加居中样式
+    style.display = 'flex';
+    style.alignItems = 'center';
+    style.justifyContent = 'center';
+  }
+  
   return style;
 });
 
-
 // 修改contentStyle计算属性
 const contentStyle = computed(() => {
-  // 获取适当的字体大小 - 在小屏幕上使用更小的默认值，但允许props覆盖
-  const fontSize = props.fontSize;
+  const isSmallScreen = window.innerWidth <= 480;
+  const isVerySmallScreen = window.innerWidth <= 385;
   
-  return {
-    fontSize: `${fontSize}px`, // 直接使用props中的字体大小
+  // 获取适当的字体大小
+  const fontSize = props.customStyle?.fontSize || props.fontSize;
+  
+  const style = {
+    fontSize: `${fontSize}px`,
     fontFamily: 'var(--font-note)',
-    lineHeight: window.innerWidth <= 375 ? 1.5 : 1.6, // 小屏幕降低行高
-    // 添加上边距，为多个emoji腾出空间
-    paddingTop: moodsArray.value.length > 1 ? 
-      (window.innerWidth <= 375 ? 'calc(var(--spacing-md) + 6px)' : 'calc(var(--spacing-xl) + 8px)') : 
-      (window.innerWidth <= 375 ? 'var(--spacing-sm)' : 'var(--spacing-md)')
+    lineHeight: isVerySmallScreen ? 1.5 : isSmallScreen ? 1.5 : 1.6,
   };
+  
+  // 根据布局和emoji气泡位置调整内边距
+  if (props.customStyle?.layout === 'image-top') {
+    // 上图下文布局
+    style.flex = '1';
+    style.display = 'flex';
+    style.flexDirection = 'column';
+    style.justifyContent = 'center'; // 垂直居中
+    style.padding = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '15px'; // 根据屏幕大小调整内边距
+    style.height = '50%'; // 确保文本区域占据下半部分
+    
+    // 如果有emoji气泡，增加顶部内边距
+    if (props.customStyle?.showEmojiBubble !== false && moodsArray.value.length > 0) {
+      style.paddingTop = isVerySmallScreen ? '25px' : isSmallScreen ? '30px' : '35px'; // 根据屏幕大小调整顶部内边距
+    }
+  } else if (props.customStyle?.layout === 'image-bottom') {
+    // 下图上文布局
+    style.flex = '1';
+    style.display = 'flex';
+    style.flexDirection = 'column';
+    style.justifyContent = 'center'; // 垂直居中
+    style.padding = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '15px'; // 根据屏幕大小调整内边距
+    style.height = '50%'; // 确保文本区域占据上半部分
+    
+    // 如果有emoji气泡，增加底部内边距
+    if (props.customStyle?.showEmojiBubble !== false && moodsArray.value.length > 0) {
+      style.paddingBottom = isVerySmallScreen ? '25px' : isSmallScreen ? '30px' : '35px'; // 根据屏幕大小调整底部内边距
+    }
+  } else {
+    // 纸条布局或图片背景布局 - 为emoji腾出顶部空间
+    const showEmojiBubble = props.customStyle?.showEmojiBubble !== false && moodsArray.value.length > 0;
+    style.paddingTop = showEmojiBubble ? 
+      (moodsArray.value.length > 1 ? 
+        (isVerySmallScreen ? '30px' : isSmallScreen ? '35px' : '40px') : 
+        (isVerySmallScreen ? '25px' : isSmallScreen ? '28px' : '30px')) : 
+      (isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '15px'); // 根据屏幕大小调整顶部内边距
+  }
+  
+  // 应用文字颜色 - 确保颜色值有效
+  if (props.customStyle?.textColor && props.customStyle.textColor.trim() !== '') {
+    style.color = props.customStyle.textColor;
+  }
+  
+  // 应用文字阴影
+  if (props.customStyle?.textShadow) {
+    style.textShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+  }
+  
+  // 根据布局调整内容样式
+  if (props.customStyle?.layout === 'image-top') {
+    // 上图下文布局
+    style.flex = '1';
+    style.display = 'flex';
+    style.flexDirection = 'column';
+    style.justifyContent = 'center'; // 垂直居中
+    style.padding = 'var(--spacing-md)';
+    style.height = '50%'; // 确保文本区域占据下半部分
+  } else if (props.customStyle?.layout === 'image-bottom') {
+    // 下图上文布局
+    style.flex = '1';
+    style.display = 'flex';
+    style.flexDirection = 'column';
+    style.justifyContent = 'center'; // 垂直居中
+    style.padding = 'var(--spacing-md)';
+    style.height = '50%'; // 确保文本区域占据上半部分
+  } else {
+    // 纸条布局或图片背景布局
+    style.display = 'flex';
+    style.flexDirection = 'column';
+    style.justifyContent = 'center'; // 垂直居中
+    style.alignItems = 'center'; // 水平居中
+    style.height = '100%'; // 占据整个卡片高度
+  }
+  
+  // 根据文字位置调整
+  const textPosition = props.customStyle?.textPosition || 'center';
+  
+  // 处理水平对齐方式
+  if (textPosition === 'left') {
+    style.textAlign = 'left';
+    if (!props.customStyle?.layout || props.customStyle.layout === 'paper' || props.customStyle.layout === 'image-bg') {
+      style.alignItems = 'flex-start'; // 纸条布局下左对齐
+    }
+  } else if (textPosition === 'center') {
+    style.textAlign = 'center';
+    if (!props.customStyle?.layout || props.customStyle.layout === 'paper' || props.customStyle.layout === 'image-bg') {
+      style.alignItems = 'center'; // 纸条布局下居中对齐
+    }
+  } else if (textPosition === 'right') {
+    style.textAlign = 'right';
+    if (!props.customStyle?.layout || props.customStyle.layout === 'paper' || props.customStyle.layout === 'image-bg') {
+      style.alignItems = 'flex-end'; // 纸条布局下右对齐
+    }
+  }
+  
+  // 保留原有的垂直对齐逻辑，用于兼容旧数据
+  if (textPosition === 'top') {
+    if (props.customStyle?.layout === 'image-top' || props.customStyle?.layout === 'image-bottom') {
+      style.justifyContent = 'flex-start';
+      style.paddingTop = 'var(--spacing-lg)';
+    } else {
+      // 纸条布局下的顶部对齐
+      style.justifyContent = 'flex-start';
+      style.paddingTop = 'var(--spacing-lg)';
+    }
+  } else if (textPosition === 'center') {
+    style.justifyContent = 'center';
+  } else if (textPosition === 'bottom') {
+    if (props.customStyle?.layout === 'image-top' || props.customStyle?.layout === 'image-bottom') {
+      style.justifyContent = 'flex-end';
+      style.paddingBottom = 'var(--spacing-lg)';
+    } else {
+      // 纸条布局下的底部对齐
+      style.justifyContent = 'flex-end';
+      style.paddingBottom = 'var(--spacing-lg)';
+    }
+  }
+  
+  return style;
 });
-
-
 
 // 表情符号样式
 const moodStyle = computed(() => {
+  const isSmallScreen = window.innerWidth <= 480;
+  const isVerySmallScreen = window.innerWidth <= 385;
+  
   const style = {
-    fontSize: moodsArray.value.length > 3 ? '18px' : '24px' // 根据表情数量调整大小
+    fontSize: isVerySmallScreen ? '16px' : 
+              isSmallScreen ? '18px' : 
+              moodsArray.value.length > 3 ? '18px' : '24px' // 根据屏幕大小和表情数量调整大小
   };
   
   if (isSavageMode.value) {
     style.color = isDarkMode.value ? 'var(--savage-text)' : '#333333';
   } else {
     style.color = 'inherit';
+  }
+  
+  return style;
+});
+
+// 二维码相关
+const showQrcode = computed(() => {
+  return props.customStyle?.showQrcode === true;
+});
+
+const qrcodeUrl = computed(() => {
+  return '/assets/community-qr.png';
+});
+
+const qrcodeStyle = computed(() => {
+  const size = props.customStyle?.qrcodeSize || 60;
+  const style = {
+    width: `${size}px`,
+    height: `${size}px`
+  };
+  
+  // 根据位置调整
+  const position = props.customStyle?.qrcodePosition || 'bottom-left';
+  if (position === 'bottom-left') {
+    style.bottom = 'var(--spacing-md)';
+    style.left = 'var(--spacing-md)';
+  } else if (position === 'bottom-right') {
+    style.bottom = 'var(--spacing-md)';
+    style.right = 'var(--spacing-md)';
+  } else if (position === 'top-left') {
+    style.top = 'var(--spacing-md)';
+    style.left = 'var(--spacing-md)';
+  } else if (position === 'top-right') {
+    style.top = 'var(--spacing-md)';
+    style.right = 'var(--spacing-md)';
   }
   
   return style;
@@ -246,8 +569,6 @@ onMounted(async () => {
   });
 });
 
-
-
 // 监听内容变化，触发动画
 watch(() => props.content, (newContent, oldContent) => {
   if (newContent !== oldContent && noteRef.value && props.animate) {
@@ -270,6 +591,16 @@ watch(() => props.fontSize, (newSize) => {
 watch(() => props.animationDuration, (newDuration) => {
   // 这里不需要额外处理，因为useNoteAnimation会在下一次调用时使用新的动画时长
 });
+
+// 监听customStyle变化
+watch(() => props.customStyle, (newStyle) => {
+  console.log('NoteCard接收到新的customStyle:', newStyle);
+  
+  // 特别记录表情气泡显示状态变化
+  if (newStyle && 'showEmojiBubble' in newStyle) {
+    console.log('表情气泡显示状态:', newStyle.showEmojiBubble ? '显示' : '隐藏');
+  }
+}, { deep: true });
 </script>
 
 <style scoped>
@@ -277,74 +608,49 @@ watch(() => props.animationDuration, (newDuration) => {
   position: relative;
   width: 100%;
   aspect-ratio: 4 / 5; /* 默认比例，可以被内联样式覆盖 */
-  padding: var(--spacing-xl);
+  padding: 0; /* 移除默认内边距，由内部元素控制 */
   margin: var(--spacing-lg) auto; /* 改为auto使其居中 */
   border-radius: var(--radius-md);
   overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column; /* 默认垂直排列 */
   transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, aspect-ratio 0.5s ease;
   min-height: 300px; /* 设置最小高度确保短内容也有足够空间 */
   max-height: 800px; /* 设置最大高度防止过长内容导致卡片过大 */
 }
 
-/* 替换原有的note-mood样式为新的容器样式 */
-.note-mood-container {
-  position: absolute;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: var(--radius-md);
-  background-color: rgba(255, 255, 255, 0.7); /* 半透明背景 */
-  backdrop-filter: blur(2px); /* 轻微模糊效果 */
-  box-shadow: var(--shadow-xs);
+/* 图片层样式 */
+.note-image-layer {
+  position: relative; /* 改为相对定位，作为flex子元素 */
+  width: 100%;
+  height: 50%; /* 默认高度为50% */
+  z-index: 1;
   transition: all 0.3s ease;
-  z-index: 10; /* 确保高于其他元素 */
-  /* 位置由计算属性控制 */
+  background-size: cover;
+  background-position: center;
 }
 
-/* 暗黑模式下容器背景调整 */
-:global(.dark-mode) .note-mood-container {
-  background-color: rgba(40, 40, 40, 0.7);
-}
-
-/* 毒舌模式下容器样式 */
-.savage-note .note-mood-container {
-  background-color: rgba(255, 235, 235, 0.7);
-}
-
-:global(.dark-mode) .savage-note .note-mood-container {
-  background-color: rgba(80, 20, 20, 0.7);
-}
-
-/* 单个表情样式 */
-.note-mood-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.85;
-  transition: all 0.2s ease;
-}
-
-.note-mood-item:hover {
-  transform: scale(1.1);
-  opacity: 1;
+/* 纸条布局和图片背景布局下的图片层 */
+.note-card:not([style*="flex-direction: column"]) .note-image-layer {
+  position: absolute; /* 在非flex布局下使用绝对定位 */
+  top: 0;
+  left: 0;
+  height: 100%;
 }
 
 .note-content {
-  font-family: var(--font-note); /* 使用 --font-note 变量而不是装饰字体 */
+  position: relative;
+  font-family: var(--font-note);
   line-height: 1.6;
-  text-align: center;
   z-index: 2;
-  padding: 0 var(--spacing-md);
+  padding: var(--spacing-md);
   overflow-y: auto; /* 允许长内容滚动 */
-  max-height: 100%; /* 防止内容超出卡片 */
+  flex: 1; /* 在flex布局中占据剩余空间 */
   width: 100%; /* 确保宽度充满容器 */
   /* 隐藏滚动条但保留功能 */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
+  transition: color 0.3s ease; /* 添加颜色过渡效果 */
 }
 
 /* 字体加载完成后应用的样式 */
@@ -356,6 +662,33 @@ watch(() => props.animationDuration, (newDuration) => {
 /* 隐藏Webkit浏览器的滚动条 */
 .note-content::-webkit-scrollbar {
   display: none;
+}
+
+/* 二维码样式 */
+.note-qrcode {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.note-qrcode img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background-color: white;
+  padding: 2px;
+}
+
+.note-qrcode span {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-align: center;
 }
 
 .note-glow {
@@ -401,17 +734,35 @@ watch(() => props.animationDuration, (newDuration) => {
 /* 媒体查询，在小屏幕上调整内边距 */
 @media (max-width: 480px) {
   .note-card {
-    padding: var(--spacing-md) var(--spacing-sm);
     min-height: 200px; /* 小屏幕上进一步减小最小高度 */
   }
   
+  .note-card:not([style*="flex-direction: column"]) {
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+  
+  .note-content {
+    padding: var(--spacing-sm);
+  }
+  
   .note-mood-container {
-    padding: 2px 4px; /* 小屏幕上进一步减少内边距 */
-    gap: 2px; /* 进一步减少表情间距 */
+    padding: 4px 8px;
+    gap: 4px;
+    border-radius: 12px;
+    max-width: 80%; /* 在小屏幕上增加最大宽度比例 */
   }
   
   .note-mood-item {
-    font-size: 16px !important; /* 在小屏幕上进一步减小字体大小 */
+    font-size: 16px;
+    margin: 0 1px; /* 减小间距 */
+  }
+  
+  .note-qrcode {
+    transform: scale(0.8);
+  }
+  
+  .note-qrcode span {
+    font-size: 8px;
   }
 }
 
@@ -432,11 +783,16 @@ watch(() => props.animationDuration, (newDuration) => {
   }
   
   .note-mood-container {
-    top: var(--spacing-sm) !important; /* 减少顶部距离 */
+    /* 移除强制定位，使用计算属性中的定位 */
+    padding: 3px 6px; /* 进一步减小内边距 */
+    gap: 2px; /* 减小间距 */
+    border-radius: 10px; /* 减小圆角 */
+    max-width: 85%; /* 在超小屏幕上进一步增加最大宽度比例 */
   }
   
   .note-mood-item {
-    font-size: 14px; /* 进一步减小表情大小，移除!important */
+    font-size: 14px; /* 进一步减小表情大小 */
+    margin: 0; /* 移除间距 */
   }
   
   .note-watermark {
@@ -444,8 +800,11 @@ watch(() => props.animationDuration, (newDuration) => {
     right: 8px;
     font-size: 10px; /* 缩小水印字体 */
   }
+  
+  .note-qrcode {
+    transform: scale(0.7);
+  }
 }
-
 
 /* 添加平板和桌面设备的居中样式 */
 @media (min-width: 768px) {
@@ -466,5 +825,59 @@ watch(() => props.animationDuration, (newDuration) => {
   }
 }
 
+/* 替换原有的note-mood样式为新的容器样式 */
+.note-mood-container {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  z-index: 20;
+  max-width: 70%;
+  width: auto;
+}
 
+/* 暗黑模式下容器背景调整 */
+:global(.dark-mode) .note-mood-container {
+  background-color: rgba(40, 40, 40, 0.7);
+}
+
+/* 毒舌模式下容器样式 */
+.savage-note .note-mood-container {
+  background-color: rgba(255, 235, 235, 0.7);
+}
+
+:global(.dark-mode) .savage-note .note-mood-container {
+  background-color: rgba(80, 20, 20, 0.7);
+}
+
+/* 单个表情样式 */
+.note-mood-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+  font-size: 20px;
+  margin: 0 2px;
+}
+
+.note-mood-item:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+.note-content-centered {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+}
 </style>

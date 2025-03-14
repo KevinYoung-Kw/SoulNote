@@ -2,18 +2,15 @@ import { ref } from 'vue';
 import html2canvas from 'html2canvas';
 
 export function useNoteExport() {
-  // 改进版exportAsImage函数
-  const exportAsImage = async (element) => {
+  // 改进版exportAsImage函数，支持不同的导出格式和选项
+  const exportAsImage = async (element, options = {}) => {
     try {
       if (!element) {
         throw new Error("Element to export is null or undefined");
       }
 
       console.log("导出元素:", element); // 添加调试信息
-      
-      // 使用html2canvas直接导出，避免iframe复杂性
-      // 避免重复导入已经导入的库
-      // const html2canvas = (await import('html2canvas')).default;
+      console.log("导出选项:", options); // 添加选项调试信息
       
       // 确保所有字体和图片已加载完成
       await document.fonts.ready;
@@ -21,25 +18,36 @@ export function useNoteExport() {
       // 添加延迟确保渲染完成
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // 优化：不再使用onclone选项，而是直接处理目标元素
-      const canvas = await html2canvas(element, {
-        scale: 2, // 提高导出质量
+      // 设置html2canvas选项
+      const html2canvasOptions = {
+        scale: options.scale || 2, // 提高导出质量
         useCORS: true, // 允许跨域图片
         allowTaint: true,
-        backgroundColor: null, // 保留透明背景
+        backgroundColor: options.transparentBg ? null : '#ffffff', // 根据选项决定是否使用透明背景
         logging: true, // 开启日志以便调试
         imageTimeout: 0, // 不设置图片超时
         removeContainer: false // 不移除容器
-      });
+      };
       
-      return canvas.toDataURL('image/png');
+      // 创建canvas
+      const canvas = await html2canvas(element, html2canvasOptions);
+      
+      // 根据选项决定导出格式和质量
+      const format = options.format || 'png';
+      const quality = options.quality || 0.9;
+      
+      if (format === 'jpg' || format === 'jpeg') {
+        return canvas.toDataURL('image/jpeg', quality);
+      } else {
+        return canvas.toDataURL('image/png');
+      }
     } catch (error) {
       console.error('导出图片失败:', error);
       throw error;
     }
   };
 
-  // 保存到设备的函数
+  // 保存到设备的函数，支持不同的文件格式
   const saveToDevice = async (dataUrl, fileName = 'note.png') => {
     try {
       // 针对iOS Safari特殊处理
@@ -109,20 +117,27 @@ export function useNoteExport() {
     }
   };
 
-  // 分享图片
-  const shareImage = async (imageUrl) => {
+  // 分享图片，支持不同的文件格式
+  const shareImage = async (imageUrl, options = {}) => {
     try {
       // 检查是否支持Web Share API
       if (navigator.share && navigator.canShare) {
         // 将Data URL转换为File对象
         const response = await fetch(imageUrl);
         const blob = await response.blob();
-        const file = new File([blob], 'note.png', { type: 'image/png' });
+        
+        // 根据选项决定文件名和类型
+        const format = options.format || 'png';
+        const fileName = options.fileName || `note.${format}`;
+        const mimeType = format === 'jpg' || format === 'jpeg' ? 'image/jpeg' : 'image/png';
+        
+        const file = new File([blob], fileName, { type: mimeType });
         
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: '分享心语',
+            title: options.title || '分享心语',
+            text: options.text || '我用星语心笺生成了一段心语',
           });
           return true;
         }
@@ -131,9 +146,9 @@ export function useNoteExport() {
       // 如果不支持文件分享，尝试只分享链接
       if (navigator.share) {
         await navigator.share({
-          title: '分享心语',
-          text: '我用星语心笺生成了一段心语，点击查看',
-          url: window.location.href
+          title: options.title || '分享心语',
+          text: options.text || '我用星语心笺生成了一段心语，点击查看',
+          url: options.url || window.location.href
         });
         return true;
       }
@@ -146,9 +161,32 @@ export function useNoteExport() {
     }
   };
 
+  // 新增：将canvas转换为Blob对象
+  const canvasToBlob = async (canvas, format = 'png', quality = 0.9) => {
+    return new Promise((resolve, reject) => {
+      try {
+        if (format === 'jpg' || format === 'jpeg') {
+          canvas.toBlob(
+            (blob) => resolve(blob),
+            'image/jpeg',
+            quality
+          );
+        } else {
+          canvas.toBlob(
+            (blob) => resolve(blob),
+            'image/png'
+          );
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
   return {
     exportAsImage,
     saveToDevice,
-    shareImage
+    shareImage,
+    canvasToBlob
   };
 }

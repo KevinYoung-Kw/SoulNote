@@ -23,8 +23,8 @@
       <button class="icon-btn action-btn" @click="saveNote" :disabled="!noteContent || isGenerating">
         <i class="fas fa-heart"></i>
       </button>
-      <button class="icon-btn action-btn" @click="exportNote" :disabled="!noteContent || isGenerating">
-        <i class="fas fa-download"></i>
+      <button class="icon-btn action-btn" @click="customizeNote" :disabled="!noteContent || isGenerating">
+        <i class="fas fa-palette"></i>
       </button>
       <button class="icon-btn action-btn" @click="shareNote" :disabled="!noteContent || isGenerating">
         <i class="fas fa-share-alt"></i>
@@ -66,7 +66,7 @@ const emit = defineEmits([
   'generate', 
   'regenerate', 
   'save', 
-  'export', 
+  'customize', 
   'share'
 ]);
 
@@ -87,9 +87,9 @@ function saveNote() {
   }
 }
 
-function exportNote() {
+function customizeNote() {
   if (props.noteContent) {
-    emit('export');
+    emit('customize');
   }
 }
 
@@ -204,4 +204,4 @@ function shareNote() {
     padding: var(--spacing-xs) var(--spacing-sm);
   }
 }
-</style> 
+</style>

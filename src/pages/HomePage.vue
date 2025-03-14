@@ -24,12 +24,14 @@
         <NoteDisplay
           :content="noteContent"
           :mood="params.moods && params.moods.length > 0 ? params.moods.join('') : ''"
-          :isAnimating="isAnimating"
+          :isAnimating="isGenerating"
           :animationDuration="animationDuration"
           :initialBackground="currentBackground"
           :initialFontSize="fontSize"
           @update:fontSize="fontSize = $event"
           @update:background="currentBackground = $event"
+          @update:customStyle="customStyle = $event"
+          @export="handleExport"
           ref="noteDisplayRef"
         />
       </div>
@@ -45,6 +47,7 @@
       @generate="generateNoteContent"
       @regenerate="regenerateNote"
       @save="saveNote"
+      @customize="openStyleCustomizer"
       @export="exportNote"
       @share="shareNote"
     />
@@ -61,9 +64,12 @@
       <ImagePreviewModel
         v-if="showImagePreview"
         :imageUrl="previewImageUrl"
-        :onDownload="saveToDevice"
-        :onShare="handleSystemShare"
+        :onDownload="handleDownload"
+        :onShare="handleShare"
+        :export-options="exportOptions"
         @close="closeImagePreview"
+        @customize="showStyleCustomizer = true; showImagePreview = false"
+        @export="updateExportOptions"
       />
     </transition>
     
@@ -79,6 +85,21 @@
       @later="handleCommunityPromptClose"
       @never="handleCommunityPromptClose"
     />
+    
+    <!-- 样式定制器弹窗 -->
+    <div class="style-customizer-modal" v-if="showStyleCustomizer">
+      <div class="modal-overlay" @click="showStyleCustomizer = false"></div>
+      <div class="modal-content">
+        <NoteStyleCustomizer 
+          :note-content="noteContent"
+          :note-mood="params.moods && params.moods.length > 0 ? params.moods.join('') : ''"
+          :initial-style="customStyle"
+          @close="showStyleCustomizer = false"
+          @update:style="updateCustomStyle"
+          @export="handleExport"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -95,6 +116,7 @@ import NoteDisplay from '../components/NoteDisplay.vue';
 import AppreciationBanner from '../components/AppreciationBanner.vue';
 import ImagePreviewModel from '../components/ImagePreviewModel.vue';
 import CommunityPrompt from '../components/CommunityPrompt.vue';
+import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
 
 // 导入服务和工具
 import { generateNote, getEstimatedResponseTime } from '../services/aiService';
@@ -122,6 +144,13 @@ const showParamsPanel = ref(false);
 const showImagePreview = ref(false);
 const previewImageUrl = ref('');
 const showCommunityPrompt = ref(false);
+const showStyleCustomizer = ref(false);
+const customStyle = ref({});
+const exportOptions = ref({
+  format: 'png',
+  quality: 0.9,
+  transparentBg: false
+});
 
 // 导出功能
 const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
@@ -547,6 +576,81 @@ async function updateLocalPreferences() {
   }
 }
 
+// 打开样式定制器
+function openStyleCustomizer() {
+  showStyleCustomizer.value = true;
+}
+
+// 更新自定义样式
+function updateCustomStyle(newStyle) {
+  customStyle.value = { ...newStyle };
+  // 可能需要保存到本地存储
+}
+
+// 处理导出
+async function handleExport(options) {
+  try {
+    const element = options?.element || noteDisplayRef.value?.noteCardRef?.$el;
+    if (!element) {
+      console.error('找不到要导出的元素');
+      return;
+    }
+    
+    const exportOpts = {
+      format: options?.style?.exportFormat || exportOptions.value.format,
+      quality: options?.style?.exportQuality || exportOptions.value.quality,
+      transparentBg: options?.style?.transparentBg || exportOptions.value.transparentBg
+    };
+    
+    const imageUrl = await exportAsImage(element, exportOpts);
+    if (imageUrl) {
+      previewImageUrl.value = imageUrl;
+      showImagePreview.value = true;
+      showStyleCustomizer.value = false;
+    }
+  } catch (error) {
+    console.error('导出失败:', error);
+    alert('导出图片失败，请重试');
+  }
+}
+
+// 处理下载
+async function handleDownload(imageUrl, options) {
+  try {
+    const format = options?.format || 'png';
+    await saveToDevice(imageUrl, `心语_${new Date().toISOString().slice(0, 10)}.${format}`);
+    return true;
+  } catch (error) {
+    console.error('下载失败:', error);
+    return false;
+  }
+}
+
+// 处理分享
+async function handleShare(imageUrl) {
+  try {
+    const shared = await shareImage(imageUrl, {
+      title: '分享心语',
+      text: '我用星语心笺生成了一段心语',
+      format: exportOptions.value.format
+    });
+    
+    if (!shared) {
+      await saveToDevice(imageUrl);
+      alert('图片已保存，您可以手动分享');
+    }
+    return shared;
+  } catch (error) {
+    console.error('分享失败:', error);
+    return false;
+  }
+}
+
+// 更新导出选项
+function updateExportOptions(options) {
+  exportOptions.value = { ...options };
+}
+
 // 生命周期
 onMounted(async () => {
   // 加载用户偏好设置
@@ -723,6 +827,47 @@ watch([noteContent, () => params.moods, currentBackground, fontSize], () => {
 @media (max-width: 375px) {
   .content-container {
     padding: 0 var(--spacing-xs);
+  }
+}
+
+/* 样式定制器弹窗样式 */
+.style-customizer-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  height: 90%;
+  max-height: 700px;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  z-index: 1001;
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 95%;
+    height: 95%;
   }
 }
 </style>

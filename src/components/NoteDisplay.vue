@@ -7,10 +7,12 @@
       :fontSize="fontSize"
       :animate="isAnimating"
       :animation-duration="animationDuration"
+      :custom-style="customStyle"
       ref="noteCardRef"
     />
 
-    <div class="background-selector">
+    <!-- 保留原有的背景选择器，仅在非自定义图片模式下显示 -->
+    <div class="background-selector" v-if="!hasCustomImage">
       <span 
         v-for="(bg, index) in backgrounds" 
         :key="bg.value" 
@@ -19,7 +21,8 @@
       ></span>
     </div>
 
-    <div class="font-size-control">
+    <!-- 保留原有的字体大小控制，仅在非自定义样式模式下显示 -->
+    <div class="font-size-control" v-if="!hasCustomStyle">
       <button class="icon-btn" @click="decreaseFontSize">
         <i class="fas fa-font"></i>-
       </button>
@@ -29,12 +32,28 @@
         <i class="fas fa-font"></i>+
       </button>
     </div>
+    
+    <!-- 样式定制器弹窗 -->
+    <div class="style-customizer-modal" v-if="showStyleCustomizer">
+      <div class="modal-overlay" @click="showStyleCustomizer = false"></div>
+      <div class="modal-content">
+        <NoteStyleCustomizer 
+          :note-content="content"
+          :note-mood="mood"
+          :initial-style="customStyle"
+          @close="showStyleCustomizer = false"
+          @update:style="updateCustomStyle"
+          @export="handleExport"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, computed } from 'vue';
 import NoteCard from './NoteCard.vue';
+import NoteStyleCustomizer from './NoteStyleCustomizer.vue';
 import { saveUserPreferences, getUserPreferences } from '../services/storageService';
 import logger from '../utils/logger';
 
@@ -66,8 +85,16 @@ const props = defineProps({
   }
 });
 
+// 默认内容，用于判断是否显示自定义按钮
+const defaultContent = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+
 // Emits
-const emit = defineEmits(['update:fontSize', 'update:background']);
+const emit = defineEmits([
+  'update:fontSize', 
+  'update:background', 
+  'update:customStyle',
+  'export'
+]);
 
 // Refs
 const noteContainerRef = ref(null);
@@ -76,6 +103,18 @@ const noteCardRef = ref(null);
 // State
 const fontSize = ref(props.initialFontSize);
 const background = ref(props.initialBackground);
+const customStyle = ref({});
+const showStyleCustomizer = ref(false);
+
+// 计算属性
+const hasCustomImage = computed(() => {
+  return customStyle.value?.imageUrl && customStyle.value.imageUrl !== '';
+});
+
+const hasCustomStyle = computed(() => {
+  return Object.keys(customStyle.value).length > 0 && 
+         (customStyle.value.layout !== 'paper' || hasCustomImage.value);
+});
 
 // Data
 const backgrounds = [
@@ -140,7 +179,8 @@ async function updateLocalPreferences() {
     await saveUserPreferences({
       ...currentPrefs,
       fontSize: fontSize.value,
-      background: background.value
+      background: background.value,
+      customStyle: customStyle.value
     });
     
     if (noteCardRef.value) {
@@ -149,6 +189,24 @@ async function updateLocalPreferences() {
   } catch (error) {
     logger.error('PREFERENCES', '更新本地偏好设置失败:', error);
   }
+}
+
+// 自定义样式相关方法
+function openStyleCustomizer() {
+  showStyleCustomizer.value = true;
+}
+
+function updateCustomStyle(newStyle) {
+  customStyle.value = { ...newStyle };
+  emit('update:customStyle', customStyle.value);
+  updateLocalPreferences();
+}
+
+function handleExport(style) {
+  emit('export', { 
+    element: noteCardRef.value.$el,
+    style: style
+  });
 }
 
 // Expose methods to parent component
@@ -163,6 +221,14 @@ watch(fontSize, (newSize) => {
   nextTick(() => {
     applyFontSize();
   });
+});
+
+// 监听内容变化，重置自定义样式
+watch(() => props.content, (newContent, oldContent) => {
+  if (newContent !== oldContent && newContent !== defaultContent) {
+    // 如果是新生成的内容，但保留之前的自定义样式设置
+    // 这里不重置样式，让用户可以保持自己的样式偏好
+  }
 });
 </script>
 
@@ -226,11 +292,81 @@ watch(fontSize, (newSize) => {
   background-color: rgba(123, 158, 137, 0.1);
 }
 
+.customize-button {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-md);
+}
+
+.btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.btn-outline:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn i {
+  font-size: 16px;
+}
+
+.style-customizer-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  height: 90%;
+  max-height: 700px;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  z-index: 1001;
+}
+
 /* 特别针对iPhone SE及小型设备的优化 */
 @media (max-width: 375px) {
   .note-display-container {
     margin: 0 var(--spacing-xs);
     min-height: 300px;
   }
+  
+  .modal-content {
+    width: 95%;
+    height: 95%;
+  }
 }
-</style> 
+</style>
