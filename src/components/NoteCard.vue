@@ -246,7 +246,7 @@ const imageLayerStyle = computed(() => {
     opacity: props.customStyle.imageOpacity || 1,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    filter: props.customStyle.imageFilter || ''
+    filter: props.customStyle.imageFilter?.style || ''
   };
   
   // 根据布局调整图片位置

@@ -63,14 +63,12 @@
         
         <!-- 图片设置标签页 -->
         <div v-if="activeTab === 'image'" class="image-tab">
-          
           <div v-if="!currentStyle.imageUrl" class="image-upload-area">
             <ImageUploader @image-selected="handleImageSelected" />
           </div>
           
           <div v-else class="image-settings">
-
-            
+            <!-- 图片基础控制 -->
             <div class="image-controls">
               <div class="control-group">
                 <label>透明度</label>
@@ -99,8 +97,24 @@
               </div>
             </div>
 
+            <!-- 图片滤镜设置 -->
+            <ImageFilterSelector
+              :image-url="currentStyle.imageUrl"
+              :initial-filter="currentStyle.imageFilter?.id || 'none'"
+              :initial-intensity="currentStyle.imageFilter?.intensity || 0.5"
+              @update:filter="handleFilterUpdate"
+            />
+
             <div class="image-preview">
-              <img :src="currentStyle.imageUrl" alt="已上传图片" />
+              <img 
+                :src="currentStyle.imageUrl" 
+                alt="已上传图片" 
+                :style="{
+                  opacity: currentStyle.imageOpacity,
+                  filter: currentStyle.imageFilter?.style || '',
+                  transform: `scale(${currentStyle.imageScale})`
+                }"
+              />
               <button class="remove-image-btn" @click="removeImage">
                 <i class="fas fa-trash"></i>
               </button>
@@ -278,6 +292,7 @@ import NoteCard from './NoteCard.vue';
 import ImageUploader from './ImageUploader.vue';
 import html2canvas from 'html2canvas';
 import { FONT_SIZE_CONFIG } from '../config/style';
+import ImageFilterSelector from './ImageFilterSelector.vue';
 
 // Props
 const props = defineProps({
@@ -800,6 +815,14 @@ function handleColorClick(color) {
     updateStyle({ textColor: color });
   }
 }
+
+// 处理滤镜更新
+function handleFilterUpdate(filterData) {
+  console.log('更新滤镜:', filterData); // 添加日志
+  updateStyle({ 
+    imageFilter: filterData
+  });
+}
 </script>
 
 <style scoped>
@@ -1029,7 +1052,7 @@ function handleColorClick(color) {
 .image-settings {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
 }
 
 .image-preview {
@@ -1044,6 +1067,7 @@ function handleColorClick(color) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: all 0.3s ease;
 }
 
 .remove-image-btn {
@@ -1063,9 +1087,9 @@ function handleColorClick(color) {
 }
 
 .image-controls {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
+  background-color: var(--bg-color);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
 }
 
 /* 控制组样式 */

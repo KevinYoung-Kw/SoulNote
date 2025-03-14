@@ -7,7 +7,10 @@
       :fontSize="fontSize"
       :animate="isAnimating"
       :animation-duration="animationDuration"
-      :custom-style="customStyle"
+      :custom-style="{
+        ...customStyle,
+        imageFilter: customStyle.imageFilter || { id: 'none', intensity: 0.5, style: '' }
+      }"
       ref="noteCardRef"
     />
 

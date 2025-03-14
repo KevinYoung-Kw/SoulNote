@@ -91,7 +91,7 @@ const filters = [
   { id: 'brightness', label: '明亮', filter: 'brightness(150%)' },
   { id: 'blur', label: '模糊', filter: 'blur(5px)' },
   { id: 'hue-rotate', label: '色相', filter: 'hue-rotate(90deg)' },
-  { id: 'invert', label: '反色', filter: 'invert(80%)' },
+  { id: 'invert', label: '反色', filter: 'invert(100%)' },
   { id: 'saturate', label: '饱和', filter: 'saturate(200%)' }
 ];
 
@@ -105,14 +105,27 @@ function updateFilter() {
   const filter = filters.find(f => f.id === currentFilter.value);
   if (!filter) return;
   
-  const filterStyle = currentFilter.value === 'none' 
-    ? '' 
-    : filter.filter.replace('100%', `${filterIntensity.value * 100}%`)
-      .replace('150%', `${100 + filterIntensity.value * 100}%`)
-      .replace('200%', `${100 + filterIntensity.value * 200}%`)
-      .replace('5px', `${filterIntensity.value * 10}px`)
-      .replace('90deg', `${filterIntensity.value * 180}deg`)
-      .replace('80%', `${filterIntensity.value * 100}%`);
+  let filterStyle = '';
+  if (currentFilter.value !== 'none') {
+    if (filter.id === 'invert') {
+      // 特殊处理反色滤镜
+      filterStyle = `invert(${filterIntensity.value * 100}%)`;
+    } else {
+      // 其他滤镜的处理
+      filterStyle = filter.filter
+        .replace(/(\d+)%/g, (match, number) => {
+          if (filter.id === 'contrast' || filter.id === 'brightness') {
+            return `${100 + (number - 100) * filterIntensity.value}%`;
+          } else if (filter.id === 'saturate') {
+            return `${100 + (number - 100) * filterIntensity.value}%`;
+          } else {
+            return `${number * filterIntensity.value}%`;
+          }
+        })
+        .replace('5px', `${filterIntensity.value * 10}px`)
+        .replace('90deg', `${filterIntensity.value * 180}deg`);
+    }
+  }
   
   emit('update:filter', {
     id: currentFilter.value,
