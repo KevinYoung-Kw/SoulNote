@@ -86,8 +86,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
 /* 毒舌模式与暗黑模式结合的额外样式 */
 body.dark-mode.savage-mode .btn-primary,
 body.dark-mode.savage-mode .btn-secondary {
-  border-color: var(--primary-color);
-  color: var(--text-color);
+  border-color: var(--savage-primary-color, #ff5252);
 }
 
 body.dark-mode.savage-mode .setting-item {

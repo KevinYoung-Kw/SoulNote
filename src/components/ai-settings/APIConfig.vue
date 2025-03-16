@@ -15,7 +15,53 @@
         </div>
       </div>
 
-      <div class="setting-fields" :class="{ disabled: !useCustomAPI }">
+      <!-- 系统默认API设置 -->
+      <div class="setting-fields" v-if="!useCustomAPI">
+        <div class="system-api-info">
+          <div class="info-icon">
+            <i class="fas fa-info-circle"></i>
+          </div>
+          <div class="info-text">
+            <p>使用系统默认API无需配置API Key和端点，但请选择合适的模型：</p>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>选择系统模型</label>
+          <select v-model="systemModel">
+            <option value="qwen-turbo">通义千问 Turbo (响应快，性能一般)</option>
+            <option value="qwen-plus">通义千问 Plus (响应适中，性能良好)</option>
+            <option value="qwen-max">通义千问 Max (响应慢，性能最佳)</option>
+          </select>
+        </div>
+        
+        <div class="model-performance-note">
+          <div class="note-item">
+            <span class="model-tag turbo">Turbo</span>
+            <span>响应最快，但可能出现对仗不工整，不建议用于诗歌和俳句创作</span>
+          </div>
+          <div class="note-item">
+            <span class="model-tag plus">Plus</span>
+            <span>响应速度和质量平衡，适合大多数场景</span>
+          </div>
+          <div class="note-item">
+            <span class="model-tag max">Max</span>
+            <span>响应较慢，但质量最高，适合需要高质量输出的场景</span>
+          </div>
+        </div>
+        
+        <div class="setting-actions">
+          <button 
+            class="btn-primary" 
+            @click="saveSystemSettings"
+          >
+            保存设置
+          </button>
+        </div>
+      </div>
+
+      <!-- 自定义API设置 -->
+      <div class="setting-fields" :class="{ disabled: !useCustomAPI }" v-if="useCustomAPI">
         <div class="form-group">
           <label>API Key</label>
           <input 
@@ -79,30 +125,30 @@
             placeholder="输入模型名称（如：my-model-v1）"
           >
         </div>
-      </div>
-
-      <div class="setting-actions">
-        <button 
-          class="btn-primary" 
-          :disabled="!useCustomAPI || !canSave"
-          @click="saveSettings"
-        >
-          保存设置
-        </button>
-        <button 
-          class="btn-secondary" 
-          :disabled="!useCustomAPI || !canTest"
-          @click="testConnection"
-        >
-          测试连接
-        </button>
-        <button 
-          class="btn-danger" 
-          :disabled="!hasSettings"
-          @click="confirmClearSettings"
-        >
-          清除设置
-        </button>
+      
+        <div class="setting-actions">
+          <button 
+            class="btn-primary" 
+            :disabled="!useCustomAPI || !canSave"
+            @click="saveSettings"
+          >
+            保存设置
+          </button>
+          <button 
+            class="btn-secondary" 
+            :disabled="!useCustomAPI || !canTest"
+            @click="testConnection"
+          >
+            测试连接
+          </button>
+          <button 
+            class="btn-danger" 
+            :disabled="!hasSettings"
+            @click="confirmClearSettings"
+          >
+            清除设置
+          </button>
+        </div>
       </div>
 
       <div v-if="testResult" :class="['test-result', testResult.status]">
@@ -125,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { saveApiSettings, getApiSettings, clearApiSettings } from '@/services/storageService';
 import { testApiConnection } from '@/services/aiService';
 
@@ -140,6 +186,7 @@ const useCustomModel = ref(false);
 const customModelName = ref('');
 const testResult = ref(null);
 const showClearConfirm = ref(false);
+const systemModel = ref('qwen-turbo'); // 新增：系统默认模型选择
 
 // 计算属性
 const canSave = computed(() => {
@@ -163,13 +210,19 @@ async function loadSettings() {
     const settings = await getApiSettings();
     if (settings) {
       useCustomAPI.value = settings.useCustomAPI;
-      apiKey.value = settings.apiKey || '';
-      apiUrl.value = settings.apiUrl || '';
-      useCustomModel.value = settings.isCustomModel || false;
-      if (settings.isCustomModel) {
-        customModelName.value = settings.model || '';
+      
+      if (settings.useCustomAPI) {
+        apiKey.value = settings.apiKey || '';
+        apiUrl.value = settings.apiUrl || '';
+        useCustomModel.value = settings.isCustomModel || false;
+        if (settings.isCustomModel) {
+          customModelName.value = settings.model || '';
+        } else {
+          selectedModel.value = settings.model || 'qwen-turbo';
+        }
       } else {
-        selectedModel.value = settings.model || 'qwen-turbo';
+        // 加载系统默认API设置
+        systemModel.value = settings.model || 'qwen-turbo';
       }
     }
   } catch (error) {
@@ -203,6 +256,7 @@ async function clearSettings() {
   useCustomModel.value = false;
   customModelName.value = '';
   useCustomAPI.value = false;
+  systemModel.value = 'qwen-turbo';
   testResult.value = null;
   
   await clearApiSettings();
@@ -232,6 +286,25 @@ async function saveSettings() {
   }
 }
 
+// 新增：保存系统默认API设置
+async function saveSystemSettings() {
+  const settings = {
+    useCustomAPI: false,
+    apiKey: 'system_key',
+    apiUrl: 'system_end_point',
+    model: systemModel.value,
+    isCustomModel: false
+  };
+
+  try {
+    await saveApiSettings(settings);
+    emit('update:apiSettings', settings);
+    testResult.value = { status: 'success', message: '系统API设置保存成功！' };
+  } catch (error) {
+    testResult.value = { status: 'error', message: '设置保存失败：' + error.message };
+  }
+}
+
 async function testConnection() {
   if (!canTest.value) return;
   
@@ -256,6 +329,48 @@ async function testConnection() {
     };
   }
 }
+
+// 监听系统模型变化，自动保存设置
+watch(systemModel, async (newModel) => {
+  if (!useCustomAPI.value) {
+    const settings = {
+      useCustomAPI: false,
+      apiKey: 'system_key',
+      apiUrl: 'system_end_point',
+      model: newModel,
+      isCustomModel: false
+    };
+
+    try {
+      await saveApiSettings(settings);
+      emit('update:apiSettings', settings);
+      testResult.value = { status: 'success', message: '系统模型已更新为：' + newModel };
+    } catch (error) {
+      testResult.value = { status: 'error', message: '设置保存失败：' + error.message };
+    }
+  }
+});
+
+// 监听自定义模型变化，自动保存设置
+watch(selectedModel, async (newModel) => {
+  if (useCustomAPI.value && !useCustomModel.value && canSave.value) {
+    const settings = {
+      useCustomAPI: true,
+      apiKey: apiKey.value,
+      apiUrl: apiUrl.value,
+      model: newModel,
+      isCustomModel: false
+    };
+
+    try {
+      await saveApiSettings(settings);
+      emit('update:apiSettings', settings);
+      testResult.value = { status: 'success', message: '自定义模型已更新为：' + newModel };
+    } catch (error) {
+      testResult.value = { status: 'error', message: '设置保存失败：' + error.message };
+    }
+  }
+});
 
 // 生命周期钩子
 onMounted(() => {
@@ -525,5 +640,71 @@ optgroup {
 
 option {
   color: var(--text-color);
+}
+
+/* 系统API相关样式 */
+.system-api-info {
+  display: flex;
+  gap: var(--spacing-sm);
+  background-color: rgba(123, 158, 137, 0.1);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.info-icon {
+  color: var(--primary-color);
+  font-size: 1.2rem;
+}
+
+.info-text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.model-performance-note {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+}
+
+.note-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.note-item:last-child {
+  margin-bottom: 0;
+}
+
+.model-tag {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  min-width: 50px;
+  text-align: center;
+}
+
+.model-tag.turbo {
+  background-color: #4caf50;
+}
+
+.model-tag.plus {
+  background-color: #2196f3;
+}
+
+.model-tag.max {
+  background-color: #9c27b0;
+}
+
+.note-item span:last-child {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 </style>

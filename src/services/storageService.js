@@ -789,6 +789,10 @@ export async function saveApiSettings(settings) {
       console.warn('保存API设置到 localStorage 失败 (备份):', error);
     }
     
+    // 触发自定义事件，通知组件API设置已更改
+    const event = new CustomEvent('api-settings-changed', { detail: settings });
+    document.dispatchEvent(event);
+    
     return savedToIDB;
   } catch (error) {
     console.error('保存API设置到 IndexedDB 失败:', error);
@@ -797,6 +801,11 @@ export async function saveApiSettings(settings) {
     try {
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.API_SETTINGS);
       localStorage.setItem(storageKey, JSON.stringify(settings));
+      
+      // 即使使用降级方案，也触发事件
+      const event = new CustomEvent('api-settings-changed', { detail: settings });
+      document.dispatchEvent(event);
+      
       return true;
     } catch (fallbackError) {
       console.error('降级存储也失败:', fallbackError);
@@ -849,28 +858,38 @@ export async function clearApiSettings() {
     await new Promise((resolve, reject) => {
       const transaction = db.transaction(['settings'], 'readwrite');
       const store = transaction.objectStore('settings');
-      const request = store.delete(`${userId}-${BASE_KEYS.API_SETTINGS}`);
+      const key = `${userId}:${BASE_KEYS.API_SETTINGS}`;
+      const request = store.delete(key);
       
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(event.target.error);
     });
     
-    // 同时从 localStorage 清除
+    // 然后从 localStorage 清除
     try {
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.API_SETTINGS);
       localStorage.removeItem(storageKey);
     } catch (error) {
-      console.warn('从 localStorage 清除API设置失败 (备份):', error);
+      console.warn('从 localStorage 清除API设置失败:', error);
     }
+    
+    // 触发自定义事件，通知组件API设置已更改（被清除）
+    const event = new CustomEvent('api-settings-changed', { detail: null });
+    document.dispatchEvent(event);
     
     return true;
   } catch (error) {
-    console.error('从 IndexedDB 清除API设置失败:', error);
+    console.error('清除API设置失败:', error);
     
-    // 降级方案：使用 localStorage
+    // 降级方案：尝试只从 localStorage 清除
     try {
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.API_SETTINGS);
       localStorage.removeItem(storageKey);
+      
+      // 即使使用降级方案，也触发事件
+      const event = new CustomEvent('api-settings-changed', { detail: null });
+      document.dispatchEvent(event);
+      
       return true;
     } catch (fallbackError) {
       console.error('降级清除也失败:', fallbackError);

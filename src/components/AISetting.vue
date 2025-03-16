@@ -23,6 +23,20 @@
         </div>
 
         <div class="tab-content">
+          <div v-if="currentTab === 'api'" class="api-tab-header">
+            <div class="api-mode-info">
+              <div class="api-mode-badge" :class="apiModeClass">
+                {{ apiModeText }}
+              </div>
+              <p v-if="!useCustomAPI" class="api-mode-description">
+                当前使用系统默认API，模型：{{ currentModelName }}
+              </p>
+              <p v-else class="api-mode-description">
+                当前使用自定义API配置
+              </p>
+            </div>
+          </div>
+          
           <APIConfig 
             v-if="currentTab === 'api'"
             @update:apiSettings="handleAPISettingsUpdate"
@@ -40,10 +54,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import APIConfig from './ai-settings/APIConfig.vue';
 import KnowledgeBase from './ai-settings/KnowledgeBase.vue';
 import PremiumFeatures from './ai-settings/PremiumFeatures.vue';
+import { getApiSettings } from '@/services/storageService';
 
 const props = defineProps({
   visible: {
@@ -55,6 +70,8 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'update:apiSettings']);
 
 const currentTab = ref('api');
+const useCustomAPI = ref(false);
+const currentModel = ref('qwen-turbo');
 
 const tabs = [
   { id: 'api', name: 'API 配置', icon: 'fas fa-cog' },
@@ -62,14 +79,57 @@ const tabs = [
   { id: 'premium', name: '高级功能', icon: 'fas fa-crown' }
 ];
 
+// 计算属性
+const apiModeClass = computed(() => {
+  return useCustomAPI.value ? 'custom-mode' : 'system-mode';
+});
+
+const apiModeText = computed(() => {
+  return useCustomAPI.value ? '自定义API' : '系统API';
+});
+
+const currentModelName = computed(() => {
+  switch(currentModel.value) {
+    case 'qwen-turbo':
+      return '通义千问 Turbo';
+    case 'qwen-plus':
+      return '通义千问 Plus';
+    case 'qwen-max':
+      return '通义千问 Max';
+    default:
+      return currentModel.value;
+  }
+});
+
 function handleClose() {
   emit('update:visible', false);
 }
 
 function handleAPISettingsUpdate(settings) {
   emit('update:apiSettings', settings);
-  handleClose();
+  
+  // 更新当前API模式状态
+  if (settings) {
+    useCustomAPI.value = settings.useCustomAPI;
+    currentModel.value = settings.model || 'qwen-turbo';
+  }
+  
+  // 不要立即关闭窗口，让用户看到保存成功的提示
+  // handleClose();
 }
+
+// 生命周期钩子
+onMounted(async () => {
+  try {
+    const settings = await getApiSettings();
+    if (settings) {
+      useCustomAPI.value = settings.useCustomAPI;
+      currentModel.value = settings.model || 'qwen-turbo';
+    }
+  } catch (error) {
+    console.error('加载API设置失败:', error);
+  }
+});
 </script>
 
 <style scoped>
@@ -191,6 +251,42 @@ function handleAPISettingsUpdate(settings) {
 
 .tab-content {
   min-height: 400px;
+}
+
+/* API模式信息样式 */
+.api-tab-header {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+}
+
+.api-mode-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+}
+
+.api-mode-badge {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+}
+
+.api-mode-badge.system-mode {
+  background-color: var(--primary-color);
+}
+
+.api-mode-badge.custom-mode {
+  background-color: var(--warning-color, #ff9800);
+}
+
+.api-mode-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

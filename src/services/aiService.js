@@ -4,6 +4,17 @@ import { getApiSettings } from './storageService';
 // API基础URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+// 系统默认API配置
+const SYSTEM_API_CONFIG = {
+  key: 'system_key',
+  endpoint: 'system_end_point',
+  models: {
+    'qwen-turbo': { responseTime: 2000, features: { poetry: false, haiku: false } },
+    'qwen-plus': { responseTime: 4000, features: { poetry: true, haiku: true } },
+    'qwen-max': { responseTime: 6000, features: { poetry: true, haiku: true } }
+  }
+};
+
 /**
  * 生成心灵纸条内容
  * @param {Object} params 生成参数
@@ -14,25 +25,57 @@ export async function generateNote(params) {
     const settings = await getApiSettings();
     const headers = {};
     
-    // 如果使用自定义API，添加设置到请求头
-    if (settings?.useCustomAPI) {
-      headers['x-custom-api-key'] = settings.apiKey;
-      headers['x-custom-api-url'] = settings.apiUrl;
-      headers['x-custom-api-model'] = settings.model;
-      headers['x-use-custom-api'] = 'true';
+    // 处理API设置
+    if (settings) {
+      if (settings.useCustomAPI) {
+        // 使用自定义API
+        headers['x-custom-api-key'] = settings.apiKey;
+        headers['x-custom-api-url'] = settings.apiUrl;
+        headers['x-custom-api-model'] = settings.model;
+        headers['x-use-custom-api'] = 'true';
+        
+        console.log('发送自定义API请求:', {
+          useCustomAPI: true,
+          model: settings.model,
+          url: settings.apiUrl
+        });
+      } else {
+        // 使用系统默认API
+        headers['x-custom-api-key'] = SYSTEM_API_CONFIG.key;
+        headers['x-custom-api-url'] = SYSTEM_API_CONFIG.endpoint;
+        headers['x-custom-api-model'] = settings.model || 'qwen-turbo';
+        headers['x-use-custom-api'] = 'false';
+        
+        // 检查当前模型是否支持请求的功能
+        const modelConfig = SYSTEM_API_CONFIG.models[settings.model || 'qwen-turbo'];
+        if (modelConfig && params.type) {
+          // 如果请求的是诗歌或俳句，但当前模型不支持，则返回错误
+          if ((params.type === 'poetry' || params.type === 'haiku') && 
+              !modelConfig.features[params.type]) {
+            throw new Error(`当前模型 ${settings.model} 不支持${params.type === 'poetry' ? '诗歌' : '俳句'}创作，请升级到Plus或Max模型`);
+          }
+        }
+        
+        console.log('发送系统API请求:', {
+          useCustomAPI: false,
+          model: settings.model || 'qwen-turbo'
+        });
+      }
+    } else {
+      // 没有设置，使用系统默认API和默认模型
+      headers['x-custom-api-key'] = SYSTEM_API_CONFIG.key;
+      headers['x-custom-api-url'] = SYSTEM_API_CONFIG.endpoint;
+      headers['x-custom-api-model'] = 'qwen-turbo';
+      headers['x-use-custom-api'] = 'false';
       
-      console.log('发送自定义API请求:', {
-        useCustomAPI: true,
-        model: settings.model,
-        url: settings.apiUrl
-      });
+      console.log('使用默认系统API设置');
     }
 
     const response = await axios.post(`${API_BASE_URL}/note/generate`, params, { headers });
     return response.data;
   } catch (error) {
     console.error('生成笔记失败:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.error || '内容生成失败，请稍后再试');
+    throw new Error(error.response?.data?.error || error.message || '内容生成失败，请稍后再试');
   }
 }
 
@@ -73,11 +116,25 @@ export async function getApiStatus() {
     const settings = await getApiSettings();
     const headers = {};
     
-    if (settings?.useCustomAPI) {
-      headers['x-custom-api-key'] = settings.apiKey;
-      headers['x-custom-api-url'] = settings.apiUrl;
-      headers['x-custom-api-model'] = settings.model;
-      headers['x-use-custom-api'] = 'true';
+    if (settings) {
+      if (settings.useCustomAPI) {
+        headers['x-custom-api-key'] = settings.apiKey;
+        headers['x-custom-api-url'] = settings.apiUrl;
+        headers['x-custom-api-model'] = settings.model;
+        headers['x-use-custom-api'] = 'true';
+      } else {
+        // 使用系统默认API
+        headers['x-custom-api-key'] = SYSTEM_API_CONFIG.key;
+        headers['x-custom-api-url'] = SYSTEM_API_CONFIG.endpoint;
+        headers['x-custom-api-model'] = settings.model || 'qwen-turbo';
+        headers['x-use-custom-api'] = 'false';
+      }
+    } else {
+      // 没有设置，使用系统默认API
+      headers['x-custom-api-key'] = SYSTEM_API_CONFIG.key;
+      headers['x-custom-api-url'] = SYSTEM_API_CONFIG.endpoint;
+      headers['x-custom-api-model'] = 'qwen-turbo';
+      headers['x-use-custom-api'] = 'false';
     }
 
     const response = await axios.get(`${API_BASE_URL}/note/status`, { headers });
@@ -96,19 +153,33 @@ export async function getApiStatus() {
 export async function getEstimatedResponseTime(model = '') {
   try {
     const settings = await getApiSettings();
-    const headers = {};
     
-    if (settings?.useCustomAPI) {
-      headers['x-custom-api-key'] = settings.apiKey;
-      headers['x-custom-api-url'] = settings.apiUrl;
-      headers['x-custom-api-model'] = settings.model;
-      headers['x-use-custom-api'] = 'true';
+    // 如果使用系统默认API，直接返回预设的响应时间
+    if (!settings || !settings.useCustomAPI) {
+      const modelName = model || (settings ? settings.model : 'qwen-turbo') || 'qwen-turbo';
+      const modelConfig = SYSTEM_API_CONFIG.models[modelName];
       
-      console.log('获取响应时间估计:', {
-        useCustomAPI: true,
-        model: settings.model
-      });
+      if (modelConfig) {
+        console.log(`使用系统预设响应时间: ${modelConfig.responseTime}ms (${modelName})`);
+        return modelConfig.responseTime;
+      }
+      
+      // 如果没有找到模型配置，使用默认值
+      return 3000;
     }
+    
+    // 使用自定义API，从服务器获取估计时间
+    const headers = {
+      'x-custom-api-key': settings.apiKey,
+      'x-custom-api-url': settings.apiUrl,
+      'x-custom-api-model': settings.model,
+      'x-use-custom-api': 'true'
+    };
+    
+    console.log('获取响应时间估计:', {
+      useCustomAPI: true,
+      model: settings.model
+    });
 
     const response = await axios.get(`${API_BASE_URL}/note/estimated-time`, {
       headers,
@@ -118,6 +189,36 @@ export async function getEstimatedResponseTime(model = '') {
   } catch (error) {
     console.warn('获取估计响应时间失败，使用默认值:', error);
     return 3000;
+  }
+}
+
+/**
+ * 检查当前模型是否支持特定功能
+ * @param {string} feature 功能名称 (如 'poetry', 'haiku')
+ * @returns {Promise<boolean>} 是否支持该功能
+ */
+export async function isFeatureSupported(feature) {
+  try {
+    const settings = await getApiSettings();
+    
+    // 如果使用系统默认API，检查模型是否支持该功能
+    if (!settings || !settings.useCustomAPI) {
+      const modelName = settings ? settings.model : 'qwen-turbo';
+      const modelConfig = SYSTEM_API_CONFIG.models[modelName];
+      
+      if (modelConfig && modelConfig.features) {
+        return !!modelConfig.features[feature];
+      }
+      
+      // 默认情况下，假设自定义API支持所有功能
+      return true;
+    }
+    
+    // 对于自定义API，假设支持所有功能
+    return true;
+  } catch (error) {
+    console.warn('检查功能支持失败:', error);
+    return true; // 默认允许，避免阻止用户使用功能
   }
 }
 

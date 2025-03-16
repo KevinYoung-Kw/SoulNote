@@ -15,10 +15,22 @@ class AiService {
       model: process.env.VITE_API_MODEL || 'qwen-max'
     };
     
+    // 系统API配置
+    this.systemConfig = {
+      apiKey: process.env.SYSTEM_API_KEY || this.defaultConfig.apiKey,
+      apiUrl: process.env.SYSTEM_API_URL || this.defaultConfig.apiUrl,
+      models: {
+        'qwen-turbo': { responseTime: 2000, features: { poetry: false, haiku: false } },
+        'qwen-plus': { responseTime: 4000, features: { poetry: true, haiku: true } },
+        'qwen-max': { responseTime: 6000, features: { poetry: true, haiku: true } }
+      }
+    };
+    
     logger.info('AI_SERVICE', '初始化默认配置', {
       url: this.defaultConfig.apiUrl,
       model: this.defaultConfig.model,
-      key_available: !!this.defaultConfig.apiKey
+      key_available: !!this.defaultConfig.apiKey,
+      system_key_available: !!this.systemConfig.apiKey
     });
   }
 
@@ -37,6 +49,7 @@ class AiService {
       }
     });
 
+    // 使用自定义API
     if (headers['x-use-custom-api'] === 'true') {
       const customConfig = {
         apiKey: headers['x-custom-api-key'],
@@ -52,7 +65,33 @@ class AiService {
 
       return customConfig;
     }
+    
+    // 使用系统API
+    if (headers['x-use-custom-api'] === 'false' && 
+        headers['x-custom-api-key'] === 'system_key' && 
+        headers['x-custom-api-url'] === 'system_end_point') {
+      
+      const model = headers['x-custom-api-model'] || 'qwen-turbo';
+      
+      const systemApiConfig = {
+        apiKey: this.systemConfig.apiKey,
+        apiUrl: this.systemConfig.apiUrl,
+        model: model,
+        isSystemApi: true,
+        modelConfig: this.systemConfig.models[model] || {}
+      };
+      
+      logger.info('AI_SERVICE', '使用系统API配置', {
+        url: systemApiConfig.apiUrl,
+        model: systemApiConfig.model,
+        key_available: !!systemApiConfig.apiKey,
+        features: systemApiConfig.modelConfig.features
+      });
+      
+      return systemApiConfig;
+    }
 
+    // 使用默认配置
     logger.info('AI_SERVICE', '使用默认配置', {
       url: this.defaultConfig.apiUrl,
       model: this.defaultConfig.model,
@@ -72,11 +111,25 @@ class AiService {
     try {
       const apiConfig = this.getApiConfig(headers);
       
+      // 检查系统API模型功能限制
+      if (apiConfig.isSystemApi && apiConfig.modelConfig && apiConfig.modelConfig.features) {
+        // 检查诗歌和俳句功能
+        if (data.type === 'poetry' && !apiConfig.modelConfig.features.poetry) {
+          throw new Error(`当前模型 ${apiConfig.model} 不支持诗歌创作，请升级到Plus或Max模型`);
+        }
+        
+        if (data.type === 'haiku' && !apiConfig.modelConfig.features.haiku) {
+          throw new Error(`当前模型 ${apiConfig.model} 不支持俳句创作，请升级到Plus或Max模型`);
+        }
+      }
+      
       logger.info('AI_SERVICE', '开始生成笔记内容', {
         theme: data.theme,
+        type: data.type,
         savageMode: data.savageMode,
         moodCount: Array.isArray(data.moods) ? data.moods.length : 0,
         useCustomApi: headers['x-use-custom-api'] === 'true',
+        useSystemApi: apiConfig.isSystemApi === true,
         selectedModel: apiConfig.model
       });
       
@@ -106,7 +159,25 @@ class AiService {
    */
   async testConnection(settings) {
     try {
-      logger.info('AI_SERVICE', '测试API连接', {
+      // 处理系统API测试
+      if (settings.apiKey === 'system_key' && settings.apiUrl === 'system_end_point') {
+        const model = settings.model || 'qwen-turbo';
+        const modelConfig = this.systemConfig.models[model];
+        
+        logger.info('AI_SERVICE', '测试系统API连接', {
+          model: model,
+          features: modelConfig ? modelConfig.features : {}
+        });
+        
+        return {
+          success: true,
+          message: '系统API连接测试成功！',
+          model: model
+        };
+      }
+      
+      // 测试自定义API连接
+      logger.info('AI_SERVICE', '测试自定义API连接', {
         apiUrl: settings.apiUrl,
         model: settings.model
       });
@@ -149,6 +220,17 @@ class AiService {
   async getStatus(headers = {}) {
     try {
       const apiConfig = this.getApiConfig(headers);
+      
+      // 如果是系统API，直接返回状态
+      if (apiConfig.isSystemApi) {
+        return {
+          status: 'ok',
+          message: '系统API服务正常',
+          model: apiConfig.model,
+          features: apiConfig.modelConfig.features || {}
+        };
+      }
+      
       const status = await promptService.getStatus(apiConfig);
       logger.debug('AI_SERVICE', '获取服务状态', status);
       return status;
@@ -167,6 +249,22 @@ class AiService {
   async getEstimatedTime(model, headers = {}) {
     try {
       const apiConfig = this.getApiConfig(headers);
+      
+      // 如果是系统API，直接返回预设的响应时间
+      if (apiConfig.isSystemApi) {
+        const modelName = model || apiConfig.model;
+        const modelConfig = this.systemConfig.models[modelName];
+        
+        if (modelConfig && modelConfig.responseTime) {
+          logger.debug('AI_SERVICE', '使用系统预设响应时间', { 
+            model: modelName,
+            time: modelConfig.responseTime
+          });
+          
+          return { estimatedTime: modelConfig.responseTime };
+        }
+      }
+      
       const time = await promptService.getEstimatedTime(model || apiConfig.model);
       logger.debug('AI_SERVICE', '获取估计响应时间', { 
         requestedModel: model,
@@ -178,6 +276,23 @@ class AiService {
       logger.error('AI_SERVICE', '获取响应时间失败', { error: error.message });
       throw error;
     }
+  }
+  
+  /**
+   * 检查模型是否支持特定功能
+   * @param {string} model 模型名称
+   * @param {string} feature 功能名称
+   * @returns {boolean} 是否支持
+   */
+  isFeatureSupported(model, feature) {
+    // 检查系统模型功能支持
+    if (this.systemConfig.models[model] && 
+        this.systemConfig.models[model].features) {
+      return !!this.systemConfig.models[model].features[feature];
+    }
+    
+    // 默认情况下，假设支持所有功能
+    return true;
   }
 }
 

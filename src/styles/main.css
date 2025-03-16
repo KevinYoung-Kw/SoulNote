@@ -88,15 +88,13 @@ body.savage-mode:not(.dark-mode) {
   /* 保持原有的页面背景色 */
   --bg-color: #F9F3E5;
   --card-bg: #FFFFFF;
-  --text-color: #333333;
-  --text-secondary: #777777;
   
   --primary-color: #ff5252;
   --accent-color: #ff8a80;
   --success-color: #ff5252;
   
   /* 毒舌模式专用变量 */
-  --savage-text: #B71C1C;
+  --savage-primary-color: #ff5252;
   --savage-shadow: 0 4px 12px rgba(255, 123, 123, 0.15);
   
   /* 纸条背景 - 毒舌亮色 */
@@ -110,21 +108,12 @@ body.savage-mode:not(.dark-mode) {
 body.dark-mode.savage-mode {
   --primary-color: #ff5252;
   --accent-color: #ff8a80;
-  --text-color: #FFE0E0;
-  --text-secondary: #FFB0B0;
   --bg-color: #1A1A1A; /* 确保黑暗背景 */
   --card-bg: #2C2C2C;
   --border-color: #444444;
   
   /* 毒舌模式专用变量 - 暗色 */
-  --savage-text: #FFB6B6;
-  --savage-shadow: 0 4px 12px rgba(255, 82, 82, 0.25);
-  
-  /* 纸条背景 - 毒舌暗色 */
-  --note-bg-1: linear-gradient(to right bottom, #3A2434, #4A3045);
-  --note-bg-2: linear-gradient(to right bottom, #4A1F1F, #5C2626);
-  --note-bg-3: linear-gradient(to right bottom, #1F2A4A, #263866);
-  --note-bg-4: linear-gradient(to right bottom, #354221, #475C2C);
+  --savage-primary-color: #ff5252;
 }
 
 /* 基础样式重置 */
@@ -198,6 +187,24 @@ body {
 
 .btn-secondary:hover {
   background-color: rgba(123, 158, 137, 0.05);
+}
+
+/* 毒舌模式按钮样式 */
+body.savage-mode .btn-primary {
+  background-color: var(--savage-primary-color, #ff5252);
+}
+
+body.savage-mode .btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(255, 82, 82, 0.25);
+}
+
+body.savage-mode .btn-secondary {
+  border-color: var(--savage-primary-color, #ff5252);
+  color: var(--savage-primary-color, #ff5252);
+}
+
+body.savage-mode .btn-secondary:hover {
+  background-color: rgba(255, 82, 82, 0.05);
 }
 
 /* 卡片样式 */
@@ -295,6 +302,30 @@ body {
 .form-input:focus {
   border-color: var(--primary-color);
   outline: none;
+}
+
+/* 毒舌模式下的表单元素样式 */
+body.savage-mode .form-input:focus {
+  border-color: var(--savage-primary-color, #ff5252);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 82, 82, 0.2);
+}
+
+/* 选择器样式 */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23777' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px;
+}
+
+/* 毒舌模式下的选择器样式 */
+body.savage-mode select:focus {
+  border-color: var(--savage-primary-color, #ff5252);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 82, 82, 0.2);
 }
 
 /* 动画类 */
@@ -443,9 +474,7 @@ body {
 
 /* 在主CSS文件 (例如 app.css 或 main.css) 中 */
 body.savage-mode {
-  --savage-primary: #ff5252;
-  --savage-secondary: #ff8a80;
-  --savage-accent: #ffcdd2;
+  --savage-primary-color: #ff5252;
 }
 
 /* 添加固定布局辅助类 */
@@ -508,4 +537,47 @@ body.savage-mode {
 /* 添加对content标签的处理 */
 content, .content {
   display: inline;
+}
+
+/* 毒舌模式下的图标按钮样式 */
+body.savage-mode .icon-btn:hover {
+  color: var(--savage-primary-color, #ff5252);
+  background-color: rgba(255, 82, 82, 0.1);
+}
+
+/* 毒舌模式下的链接样式 */
+body.savage-mode a:not(.btn) {
+  color: var(--savage-primary-color, #ff5252);
+}
+
+body.savage-mode a:not(.btn):hover {
+  color: #ff0000;
+}
+
+/* 毒舌模式下的激活状态元素样式 */
+body.savage-mode .active-item,
+body.savage-mode .nav-item.active,
+body.savage-mode .tab-btn.active {
+  background-color: var(--savage-primary-color, #ff5252);
+  color: white;
+}
+
+body.savage-mode .active-border,
+body.savage-mode .nav-item.active-border {
+  border-color: var(--savage-primary-color, #ff5252);
+}
+
+/* 毒舌模式下的开关按钮样式 */
+body.savage-mode .toggle-switch:checked + .toggle-label {
+  background-color: var(--savage-primary-color, #ff5252);
+}
+
+body.savage-mode .toggle-switch:checked + .toggle-label .toggle-inner {
+  background-color: var(--savage-primary-color, #ff5252);
+}
+
+/* 毒舌模式下的加载动画 */
+body.savage-mode .loading-spinner {
+  border: 3px solid rgba(255, 82, 82, 0.3);
+  border-top-color: var(--savage-primary-color, #ff5252);
 }

@@ -14,9 +14,10 @@
         </template>
       </div>
       <!-- 添加主题参数显示 -->
-      <div class="params-item">
+      <div class="params-item" :class="{'unsupported': isUnsupportedTheme}">
         <i :class="themeOptions.find(t => t.value === params.theme)?.icon || 'fas fa-comment-dots'"></i>
         <span>{{ themeOptions.find(t => t.value === params.theme)?.label || '聊天' }}</span>
+        <span v-if="isUnsupportedTheme" class="unsupported-badge" title="当前模型不支持此功能">!</span>
       </div>
       <div class="params-item" v-if="params.enableFortune">
         <i :class="fortuneAspects.find(a => a.value === params.fortuneAspect)?.icon || 'fas fa-star'"></i>
@@ -31,7 +32,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { getApiSettings } from '../services/storageService';
+import { isFeatureSupported } from '../services/aiService';
 
 // Props
 const props = defineProps({
@@ -43,6 +46,12 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(['open-params-panel']);
+
+// State
+const supportsPoetry = ref(true);
+const supportsHaiku = ref(true);
+const currentModel = ref('qwen-turbo');
+const apiSettingsChangeListener = ref(null);
 
 // Data
 const themeOptions = [
@@ -62,6 +71,12 @@ const fortuneAspects = [
 // Computed
 const isSavageMode = computed(() => props.params.savageMode);
 
+// 检查当前主题是否不被支持
+const isUnsupportedTheme = computed(() => {
+  return (props.params.theme === 'poetry' && !supportsPoetry.value) || 
+         (props.params.theme === 'haiku' && !supportsHaiku.value);
+});
+
 // Methods
 function openParamsPanel() {
   emit('open-params-panel');
@@ -71,6 +86,79 @@ function getFortuneAspectLabel() {
   const aspect = fortuneAspects.find(a => a.value === props.params.fortuneAspect);
   return aspect ? aspect.label : '整体';
 }
+
+// 检查当前模型是否支持诗歌和俳句
+async function checkModelFeatures() {
+  try {
+    // 获取当前API设置
+    const settings = await getApiSettings();
+    if (settings) {
+      currentModel.value = settings.model || 'qwen-turbo';
+      
+      // 根据模型直接判断功能支持
+      if (settings.model === 'qwen-turbo') {
+        supportsPoetry.value = false;
+        supportsHaiku.value = false;
+      } else if (settings.model === 'qwen-plus' || settings.model === 'qwen-max') {
+        supportsPoetry.value = true;
+        supportsHaiku.value = true;
+      } else {
+        // 对于其他模型，使用API检查
+        supportsPoetry.value = await isFeatureSupported('poetry');
+        supportsHaiku.value = await isFeatureSupported('haiku');
+      }
+    } else {
+      // 默认使用turbo模型
+      currentModel.value = 'qwen-turbo';
+      supportsPoetry.value = false;
+      supportsHaiku.value = false;
+    }
+  } catch (error) {
+    console.error('检查模型功能失败:', error);
+    // 出错时默认允许所有功能
+    supportsPoetry.value = true;
+    supportsHaiku.value = true;
+  }
+}
+
+// 设置API设置变化的监听器
+function setupApiSettingsChangeListener() {
+  // 创建一个存储事件监听器
+  apiSettingsChangeListener.value = async () => {
+    // 当存储变化时，重新检查模型功能
+    await checkModelFeatures();
+  };
+  
+  // 添加事件监听器
+  window.addEventListener('storage', apiSettingsChangeListener.value);
+  
+  // 自定义事件监听器，用于非存储触发的API设置变化
+  document.addEventListener('api-settings-changed', apiSettingsChangeListener.value);
+}
+
+// 移除API设置变化的监听器
+function removeApiSettingsChangeListener() {
+  if (apiSettingsChangeListener.value) {
+    window.removeEventListener('storage', apiSettingsChangeListener.value);
+    document.removeEventListener('api-settings-changed', apiSettingsChangeListener.value);
+    apiSettingsChangeListener.value = null;
+  }
+}
+
+// 监听参数变化，当参数变化时重新检查模型功能
+watch(() => props.params, async () => {
+  await checkModelFeatures();
+}, { deep: true });
+
+// 生命周期钩子
+onMounted(async () => {
+  await checkModelFeatures();
+  setupApiSettingsChangeListener();
+});
+
+onBeforeUnmount(() => {
+  removeApiSettingsChangeListener();
+});
 </script>
 
 <style scoped>
@@ -112,12 +200,39 @@ function getFortuneAspectLabel() {
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-md);
   font-size: 14px;
+  position: relative;
 }
 
 .params-item i {
   margin-right: var(--spacing-xs);
   color: var(--primary-color);
   font-size: 14px;
+}
+
+/* 不支持的主题样式 */
+.params-item.unsupported {
+  background-color: rgba(255, 152, 0, 0.1);
+  border: 1px dashed var(--warning-color, #ff9800);
+}
+
+.params-item.unsupported i {
+  color: var(--warning-color, #ff9800);
+}
+
+.unsupported-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--warning-color, #ff9800);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .params-edit-btn {
@@ -155,10 +270,6 @@ function getFortuneAspectLabel() {
 }
 
 /* 毒舌模式样式 - 直接应用而不是使用全局选择器 */
-.savage-panel .params-item i {
-  color: var(--savage-primary-color, #ff5252);
-}
-
 .savage-panel .mood-counter-preview {
   background-color: var(--savage-primary-color, #ff5252);
 }

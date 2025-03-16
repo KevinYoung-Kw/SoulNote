@@ -91,7 +91,7 @@
           <div class="section-content" v-show="!collapsedSections.theme">
             <div class="theme-options">
               <div 
-                v-for="theme in themeOptions" 
+                v-for="theme in filteredThemeOptions" 
                 :key="theme.value"
                 :class="['theme-option', {active: params.theme === theme.value}]"
                 @click="params.theme = theme.value"
@@ -99,6 +99,11 @@
                 <i :class="theme.icon"></i>
                 <span>{{ theme.label }}</span>
               </div>
+            </div>
+            
+            <div v-if="!supportsPoetry || !supportsHaiku" class="feature-notice">
+              <i class="fas fa-info-circle"></i>
+              <span>当前使用的是 {{ currentModel }} 模型，部分创作类型不可用。如需使用全部功能，请在AI设置中选择Plus或Max模型。</span>
             </div>
           </div>
         </div>
@@ -180,8 +185,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
-import { saveUserPreferences } from '../services/storageService';
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { saveUserPreferences, getApiSettings } from '../services/storageService';
+import { isFeatureSupported } from '../services/aiService';
 import logger from '../utils/logger';
 
 // Props
@@ -209,9 +215,22 @@ const collapsedSections = reactive({
   style: true,
   fortune: true
 });
+const supportsPoetry = ref(true);
+const supportsHaiku = ref(true);
+const currentModel = ref('qwen-turbo');
+const apiSettingsChangeListener = ref(null);
 
 // Computed
 const isPanelSavageMode = computed(() => params.savageMode);
+
+// 过滤后的主题选项，根据当前模型支持的功能
+const filteredThemeOptions = computed(() => {
+  return themeOptions.filter(theme => {
+    if (theme.value === 'poetry') return supportsPoetry.value;
+    if (theme.value === 'haiku') return supportsHaiku.value;
+    return true;
+  });
+});
 
 // Data
 const themeOptions = [
@@ -555,7 +574,8 @@ function clearMoods() {
   params.moods = [];
 }
 
-function randomizeParams() {
+// 修改随机参数函数，考虑模型支持的功能
+async function randomizeParams() {
   // 1. 随机选择1-5个表情
   const randomEmojiCount = Math.floor(Math.random() * 5) + 1; // 生成1到5的随机数
   const allEmojis = emojiCategories.flatMap(category => category.emojis.map(emoji => emoji.symbol));
@@ -571,9 +591,15 @@ function randomizeParams() {
     }
   }
   
-  // 2. 随机选择主题
-  const randomThemeIndex = Math.floor(Math.random() * themeOptions.length);
-  params.theme = themeOptions[randomThemeIndex].value;
+  // 2. 随机选择主题，但排除不支持的主题
+  const availableThemes = filteredThemeOptions.value;
+  if (availableThemes.length > 0) {
+    const randomThemeIndex = Math.floor(Math.random() * availableThemes.length);
+    params.theme = availableThemes[randomThemeIndex].value;
+  } else {
+    // 如果没有可用主题（极端情况），默认使用聊天
+    params.theme = 'chat';
+  }
   
   // 3. 随机选择情感风格 (暖心/毒舌)
   const previousSavageMode = params.savageMode;
@@ -615,8 +641,88 @@ function setSavageMode(mode) {
   document.body.classList.toggle('savage-mode', mode);
 }
 
-// 监听visible变化，当打开面板时重置参数
-watch(() => props.visible, (newVisible) => {
+// 检查当前模型是否支持诗歌和俳句
+async function checkModelFeatures() {
+  try {
+    // 获取当前API设置
+    const settings = await getApiSettings();
+    if (settings) {
+      currentModel.value = settings.model || 'qwen-turbo';
+      
+      // 根据模型直接判断功能支持
+      if (settings.model === 'qwen-turbo') {
+        supportsPoetry.value = false;
+        supportsHaiku.value = false;
+      } else if (settings.model === 'qwen-plus' || settings.model === 'qwen-max') {
+        supportsPoetry.value = true;
+        supportsHaiku.value = true;
+      } else {
+        // 对于其他模型，使用API检查
+        supportsPoetry.value = await isFeatureSupported('poetry');
+        supportsHaiku.value = await isFeatureSupported('haiku');
+      }
+    } else {
+      // 默认使用turbo模型
+      currentModel.value = 'qwen-turbo';
+      supportsPoetry.value = false;
+      supportsHaiku.value = false;
+    }
+    
+    // 如果当前选择的主题不被支持，则切换到聊天
+    if ((params.theme === 'poetry' && !supportsPoetry.value) || 
+        (params.theme === 'haiku' && !supportsHaiku.value)) {
+      params.theme = 'chat';
+    }
+    
+    logger.info('PARAMS_PANEL', '模型功能支持检查', {
+      model: currentModel.value,
+      supportsPoetry: supportsPoetry.value,
+      supportsHaiku: supportsHaiku.value
+    });
+  } catch (error) {
+    logger.error('PARAMS_PANEL', '检查模型功能失败', error);
+    // 出错时默认允许所有功能
+    supportsPoetry.value = true;
+    supportsHaiku.value = true;
+  }
+}
+
+// 设置API设置变化的监听器
+function setupApiSettingsChangeListener() {
+  // 创建一个存储事件监听器
+  apiSettingsChangeListener.value = async () => {
+    // 当存储变化时，重新检查模型功能
+    await checkModelFeatures();
+  };
+  
+  // 添加事件监听器
+  window.addEventListener('storage', apiSettingsChangeListener.value);
+  
+  // 自定义事件监听器，用于非存储触发的API设置变化
+  document.addEventListener('api-settings-changed', apiSettingsChangeListener.value);
+}
+
+// 移除API设置变化的监听器
+function removeApiSettingsChangeListener() {
+  if (apiSettingsChangeListener.value) {
+    window.removeEventListener('storage', apiSettingsChangeListener.value);
+    document.removeEventListener('api-settings-changed', apiSettingsChangeListener.value);
+    apiSettingsChangeListener.value = null;
+  }
+}
+
+// 生命周期钩子
+onMounted(async () => {
+  await checkModelFeatures();
+  setupApiSettingsChangeListener();
+});
+
+onBeforeUnmount(() => {
+  removeApiSettingsChangeListener();
+});
+
+// 添加对visible的监听，当面板打开时重新检查模型功能
+watch(() => props.visible, async (newVisible) => {
   if (newVisible) {
     // 复制初始参数到当前参数
     Object.assign(params, props.initialParams);
@@ -627,6 +733,9 @@ watch(() => props.visible, (newVisible) => {
     
     // 确保面板打开时应用正确的savage模式样式
     document.body.classList.toggle('savage-mode', params.savageMode);
+    
+    // 重新检查模型功能
+    await checkModelFeatures();
   }
 });
 
@@ -1182,17 +1291,37 @@ watch(() => props.initialParams, (newParams) => {
 /* 毒舌模式样式 */
 .savage-panel .style-option:last-child.active {
   background-color: var(--savage-primary-color, #ff5252);
-  color: white;
   transform: translateY(-4px);
   box-shadow: var(--shadow-md);
-}
-
-.savage-panel .style-option:last-child.active i {
-  color: white;
 }
 
 .savage-panel .fortune-option.active {
   background-color: var(--savage-primary-color, #ff5252);
   border-color: var(--savage-primary-color, #ff5252);
+}
+
+/* 添加功能提示样式 */
+.feature-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: rgba(255, 152, 0, 0.1);
+  border-radius: var(--radius-sm);
+  margin-top: var(--spacing-sm);
+  font-size: 0.85rem;
+  color: var(--warning-color, #ff9800);
+}
+
+.feature-notice i {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* 禁用的主题选项样式 */
+.theme-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--border-color);
 }
 </style>

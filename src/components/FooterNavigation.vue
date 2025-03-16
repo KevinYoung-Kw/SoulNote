@@ -156,11 +156,12 @@ function openAISettings() {
 /* 毒舌模式的样式覆盖 */
 :global(.savage-mode) .generate-btn {
   background-color: var(--savage-primary-color, #ff5252);
-  border-color: var(--savage-accent-color, #8a0000);
+  border-color: var(--savage-primary-color, #ff5252);
 }
 
 :global(.savage-mode) .generate-btn:hover {
-  background-color: var(--savage-accent-color, #8a0000);
+  background-color: var(--savage-primary-color, #ff5252);
+  opacity: 0.9;
 }
 
 :global(.savage-mode) .action-btn {
@@ -169,7 +170,6 @@ function openAISettings() {
 
 :global(.savage-mode) .action-btn:hover {
   background-color: #444444;
-  color: var(--savage-primary-color, #ff5252);
 }
 
 /* 针对较小屏幕的优化 */

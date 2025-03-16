@@ -116,10 +116,6 @@ async function hideAppreciation() {
   background-color: rgba(255, 82, 82, 0.05);
 }
 
-:global(.savage-mode) .appreciation-text a {
-  color: var(--savage-primary-color, #ff5252);
-}
-
 /* 响应式调整 */
 @media (max-width: 480px) {
   .appreciation-container {

@@ -377,6 +377,10 @@ async function cacheGeneratedContent() {
       moods: params.moods,
       background: currentBackground.value,
       fontSize: fontSize.value,
+      theme: params.theme,
+      savageMode: params.savageMode,
+      enableFortune: params.enableFortune,
+      fortuneAspect: params.fortuneAspect,
       timestamp: new Date().toISOString()
     };
     
@@ -397,11 +401,21 @@ async function cacheGeneratedContent() {
 function clearGeneratedContent() {
   if (confirm('确定要清除当前内容吗？')) {
     noteContent.value = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+    
+    // 重置所有参数
     params.moods = [];
+    params.theme = 'chat';
+    params.savageMode = false;
+    params.enableFortune = false;
+    params.fortuneAspect = 'overall';
+    
     hasGeneratedContent.value = false;
     
     // 清除缓存
     clearContentCache();
+    
+    // 保存重置后的参数
+    updateLocalPreferences();
   }
 }
 
@@ -424,7 +438,7 @@ async function restoreFromCache() {
   try {
     const preferences = await getUserPreferences();
     if (preferences && preferences.cachedContent) {
-      const { content, moods, background, fontSize: cachedFontSize } = preferences.cachedContent;
+      const { content, moods, background, fontSize: cachedFontSize, theme, savageMode, enableFortune, fortuneAspect } = preferences.cachedContent;
       
       // 恢复内容
       if (content && content !== '点击下方"生成心语"按钮，开始您的心灵之旅...') {
@@ -445,6 +459,26 @@ async function restoreFromCache() {
       // 恢复字体大小
       if (cachedFontSize) {
         fontSize.value = cachedFontSize;
+      }
+      
+      // 恢复主题
+      if (theme) {
+        params.theme = theme;
+      }
+      
+      // 恢复毒舌模式
+      if (savageMode !== undefined) {
+        params.savageMode = savageMode === true;
+        document.body.classList.toggle('savage-mode', params.savageMode);
+      }
+      
+      // 恢复运势参数
+      if (enableFortune !== undefined) {
+        params.enableFortune = enableFortune === true;
+      }
+      
+      if (fortuneAspect) {
+        params.fortuneAspect = fortuneAspect;
       }
       
       logger.info('CACHE', '从缓存恢复内容成功');
@@ -470,7 +504,14 @@ async function updateLocalPreferences() {
       darkMode: darkMode.value,
       enableFortune: params.enableFortune,
       fortuneAspect: params.fortuneAspect,
-      moods: params.moods
+      moods: params.moods,
+      // 添加其他参数
+      gender: params.gender,
+      age: params.age,
+      relationship: params.relationship,
+      zodiac: params.zodiac,
+      mbti: params.mbti,
+      language: params.language
     });
   } catch (error) {
     logger.error('PREFERENCES', '更新本地偏好设置失败:', error);
@@ -539,7 +580,7 @@ onMounted(async () => {
       params.theme = preferences.theme || 'chat';
       
       currentBackground.value = preferences.background || 'paper-1';
-      params.savageMode = preferences.savageMode || false;
+      params.savageMode = preferences.savageMode === true;
 
       // 显示感谢文本
       showAppreciation.value = !preferences.hideAppreciation;
@@ -548,15 +589,18 @@ onMounted(async () => {
       if (preferences.mood) {
         params.moods = [preferences.mood];
       } else if (preferences.moods && Array.isArray(preferences.moods)) {
-        params.moods = preferences.moods;
+        params.moods = [...preferences.moods];
       }
-      params.enableFortune = preferences.enableFortune || false;
+      params.enableFortune = preferences.enableFortune === true;
       params.fortuneAspect = preferences.fortuneAspect || 'overall';
       
       // 加载新增的个人信息
       params.gender = preferences.gender;
       params.age = preferences.age;
       params.relationship = preferences.relationship;
+
+      // 确保毒舌模式的样式正确应用
+      document.body.classList.toggle('savage-mode', params.savageMode);
 
       const appVersion = APP_VERSION; // 当前应用版本，实际中可从环境变量获取
       const updatePrompt = await communityService.checkUpdatePrompt(appVersion);     
@@ -587,6 +631,15 @@ onMounted(async () => {
       if (savedAISettings) {
         apiSettings.value = JSON.parse(savedAISettings);
       }
+      
+      // 记录加载的参数
+      logger.info('PREFERENCES', '已加载用户偏好设置:', {
+        theme: params.theme,
+        savageMode: params.savageMode,
+        enableFortune: params.enableFortune,
+        fortuneAspect: params.fortuneAspect,
+        moods: params.moods
+      });
     }
   } catch (error) {
     logger.error('PREFERENCES', '加载用户偏好设置失败:', error);

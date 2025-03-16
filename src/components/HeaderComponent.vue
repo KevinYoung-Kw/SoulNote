@@ -281,8 +281,4 @@ onMounted(async () => {
 :global(.savage-mode) .header-toggle-btn:hover .toggle-bar {
   background-color: var(--savage-primary-color, #ff5252);
 }
-
-:global(.savage-mode) .header-title h1 {
-  color: var(--savage-primary-color, #ff5252);
-}
 </style> 
