@@ -23,15 +23,24 @@
       <div class="filter-controls" v-if="currentFilter !== 'none'">
         <div class="control-group">
           <label>强度</label>
-          <input 
-            type="range" 
-            min="0" 
-            max="1" 
-            step="0.1" 
-            v-model.number="filterIntensity" 
-            @input="updateFilter"
-          />
-          <span>{{ Math.round(filterIntensity * 100) }}%</span>
+          <div class="slider-labels">
+            <span class="slider-min">原图</span>
+            <input 
+              type="range" 
+              min="0" 
+              max="1" 
+              step="0.1" 
+              v-model.number="filterIntensity" 
+              @input="updateFilter"
+            />
+            <span class="slider-max">100%</span>
+          </div>
+          <span class="intensity-value">{{ Math.round(filterIntensity * 100) }}%</span>
+        </div>
+        <div class="reset-button-container">
+          <button class="reset-button" @click="resetFilterIntensity" title="重置为默认强度">
+            <i class="fas fa-undo-alt"></i> 重置
+          </button>
         </div>
       </div>
     </div>
@@ -98,6 +107,16 @@ function toggleFilters() {
 
 function selectFilter(filterId) {
   currentFilter.value = filterId;
+  
+  // 当选择"原图"时，强度自动设为0
+  if (filterId === 'none') {
+    filterIntensity.value = 0;
+  } 
+  // 当从"原图"切换到其他滤镜时，设置默认强度为0.5
+  else if (currentFilter.value === 'none') {
+    filterIntensity.value = 0.5;
+  }
+  
   updateFilter();
 }
 
@@ -107,23 +126,88 @@ function updateFilter() {
   
   let filterStyle = '';
   if (currentFilter.value !== 'none') {
+    // 修改滤镜强度逻辑，使0表示原图，1表示完全应用滤镜
     if (filter.id === 'invert') {
       // 特殊处理反色滤镜
       filterStyle = `invert(${filterIntensity.value * 100}%)`;
-    } else {
-      // 其他滤镜的处理
-      filterStyle = filter.filter
-        .replace(/(\d+)%/g, (match, number) => {
-          if (filter.id === 'contrast' || filter.id === 'brightness') {
-            return `${100 + (number - 100) * filterIntensity.value}%`;
-          } else if (filter.id === 'saturate') {
-            return `${100 + (number - 100) * filterIntensity.value}%`;
-          } else {
-            return `${number * filterIntensity.value}%`;
+    } else if (filter.id === 'blur') {
+      // 特殊处理模糊滤镜
+      filterStyle = `blur(${filterIntensity.value * 5}px)`;
+    } else if (filter.id === 'hue-rotate') {
+      // 特殊处理色相旋转
+      filterStyle = `hue-rotate(${filterIntensity.value * 90}deg)`;
+    } else if (filter.filter.includes(' ')) {
+      // 处理复合滤镜（包含多个滤镜效果）
+      const filterParts = filter.filter.split(' ');
+      const processedParts = filterParts.map(part => {
+        // 提取滤镜函数名和参数
+        const match = part.match(/([a-z-]+)\(([^)]+)\)/);
+        if (match) {
+          const [_, funcName, param] = match;
+          
+          // 根据不同滤镜类型处理参数
+          if (param.includes('%')) {
+            // 百分比参数
+            const baseValue = parseInt(param);
+            const baseUnit = param.includes('%') ? '%' : '';
+            
+            if (funcName === 'contrast' || funcName === 'brightness' || funcName === 'saturate') {
+              // 对比度、亮度和饱和度特殊处理
+              // 这些滤镜的100%是原图，大于100%是增强，小于100%是减弱
+              const diff = baseValue - 100;
+              return `${funcName}(${100 + diff * filterIntensity.value}${baseUnit})`;
+            } else {
+              // 其他百分比滤镜
+              return `${funcName}(${baseValue * filterIntensity.value}${baseUnit})`;
+            }
+          } else if (param.includes('px')) {
+            // 像素参数
+            const baseValue = parseInt(param);
+            return `${funcName}(${baseValue * filterIntensity.value}px)`;
+          } else if (param.includes('deg')) {
+            // 角度参数
+            const baseValue = parseInt(param);
+            return `${funcName}(${baseValue * filterIntensity.value}deg)`;
           }
-        })
-        .replace('5px', `${filterIntensity.value * 10}px`)
-        .replace('90deg', `${filterIntensity.value * 180}deg`);
+          return part; // 无法处理的情况返回原始部分
+        }
+        return part; // 无法匹配的情况返回原始部分
+      });
+      
+      filterStyle = processedParts.join(' ');
+    } else {
+      // 处理单一滤镜
+      const match = filter.filter.match(/([a-z-]+)\(([^)]+)\)/);
+      if (match) {
+        const [_, funcName, param] = match;
+        
+        if (param.includes('%')) {
+          // 百分比参数
+          const baseValue = parseInt(param);
+          const baseUnit = param.includes('%') ? '%' : '';
+          
+          if (funcName === 'contrast' || funcName === 'brightness' || funcName === 'saturate') {
+            // 对比度、亮度和饱和度特殊处理
+            const diff = baseValue - 100;
+            filterStyle = `${funcName}(${100 + diff * filterIntensity.value}${baseUnit})`;
+          } else {
+            // 其他百分比滤镜
+            filterStyle = `${funcName}(${baseValue * filterIntensity.value}${baseUnit})`;
+          }
+        } else if (param.includes('px')) {
+          // 像素参数
+          const baseValue = parseInt(param);
+          filterStyle = `${funcName}(${baseValue * filterIntensity.value}px)`;
+        } else if (param.includes('deg')) {
+          // 角度参数
+          const baseValue = parseInt(param);
+          filterStyle = `${funcName}(${baseValue * filterIntensity.value}deg)`;
+        } else {
+          filterStyle = filter.filter;
+        }
+      } else {
+        filterStyle = filter.filter;
+      }
     }
   }
   
@@ -142,6 +226,12 @@ function getFilterStyle(filter) {
   return {
     filter: filter.filter
   };
+}
+
+// 添加重置滤镜强度的方法
+function resetFilterIntensity() {
+  filterIntensity.value = 0.5;
+  updateFilter();
 }
 
 // 监听props变化
@@ -253,6 +343,19 @@ watch(() => props.initialIntensity, (newIntensity) => {
   color: var(--text-secondary);
 }
 
+.slider-labels {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider-min, .slider-max {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .control-group input[type="range"] {
   flex: 1;
   height: 6px;
@@ -270,11 +373,41 @@ watch(() => props.initialIntensity, (newIntensity) => {
   cursor: pointer;
 }
 
-.control-group span {
+.intensity-value {
   width: 50px;
   font-size: 14px;
   text-align: right;
   color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.reset-button-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-sm);
+}
+
+.reset-button {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition-fast);
+}
+
+.reset-button:hover {
+  background-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.reset-button i {
+  font-size: 10px;
 }
 
 @media (max-width: 480px) {
@@ -285,6 +418,20 @@ watch(() => props.initialIntensity, (newIntensity) => {
   .filter-preview {
     width: 60px;
     height: 60px;
+  }
+  
+  .slider-min, .slider-max {
+    font-size: 10px;
+  }
+  
+  .control-group label {
+    width: 40px;
+    font-size: 12px;
+  }
+  
+  .intensity-value {
+    width: 40px;
+    font-size: 12px;
   }
 }
 </style> 
