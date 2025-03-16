@@ -24,6 +24,19 @@ if (isEnvDebug) {
     console.log('Debug mode disabled');
 }
 
+// 添加全局错误处理
+app.config.errorHandler = (err, vm, info) => {
+    logger.error('VUE', `Error: ${err.toString()}\nInfo: ${info}`);
+    console.error('Vue Error:', err);
+};
+
+// 添加未捕获的 Promise 错误处理
+window.addEventListener('unhandledrejection', event => {
+    logger.error('PROMISE', `Unhandled Promise Rejection: ${event.reason}`);
+    console.error('Unhandled Promise Rejection:', event.reason);
+});
+
+
 app.use(router);
 app.mount('#app');
 

@@ -89,52 +89,96 @@
             <label for="darkModeSwitch" class="switch-label"></label>
           </div>
         </div>
-        
-        <!-- 添加毒舌模式切换选项 -->
-        <div class="setting-item savage-mode-setting">
-          <label class="setting-label">毒舌模式</label>
-          <div class="setting-switch">
-            <input 
-              type="checkbox" 
-              id="savageModeSwitch" 
-              v-model="isSavageMode"
-              @change="toggleSavageMode"
-            />
-            <label for="savageModeSwitch" class="switch-label"></label>
-          </div>
-        </div>
-        <div class="savage-mode-description" v-if="preferences.savageMode">
-          <p>已开启毒舌模式 - 请做好被扎心的准备！</p>
-        </div>
-        
-        <div class="setting-item">
-          <label class="setting-label">默认字号</label>
-          <div class="font-size-control">
-            <button class="icon-btn" @click="decreaseFontSize">
-              <i class="fas fa-font"></i>-
-            </button>
-            <span class="font-size-indicator">{{ preferences.fontSize }}px</span>
-            <button class="icon-btn" @click="increaseFontSize">
-              <i class="fas fa-font"></i>+
-            </button>
-          </div>
-        </div>
-        
-        <div class="setting-item">
-          <label class="setting-label">默认背景</label>
-          <div class="bg-selector">
-            <div 
-              class="bg-option"
-              v-for="bg in backgrounds"
-              :key="bg.value"
-              :class="{ active: preferences.background === bg.value }"
-              :style="{ background: getBgStyle(bg.value) }"
-              @click="updatePreference('background', bg.value)"
-            ></div>
-          </div>
-        </div>
       </section>
-      
+
+      <!-- 在设置页面中添加数据管理部分 -->
+      <div class="settings-section">
+        <h2 class="section-title">数据管理</h2>
+        
+        <div class="settings-card">
+          <div class="settings-item">
+            <div class="settings-item-header">
+              <h3>存储状态</h3>
+              <button class="btn-icon" @click="checkStorage">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+            <div class="storage-status" v-if="storageHealth">
+              <div class="status-item">
+                <span class="status-label">IndexedDB:</span>
+                <span class="status-value" :class="{'status-good': storageHealth.indexedDB.available && storageHealth.indexedDB.writable, 'status-bad': !storageHealth.indexedDB.available || !storageHealth.indexedDB.writable}">
+                  {{ (storageHealth.indexedDB.available && storageHealth.indexedDB.writable) ? '正常' : '异常' }}
+                </span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">本地存储:</span>
+                <span class="status-value" :class="{'status-good': storageHealth.localStorage.available && storageHealth.localStorage.writable, 'status-bad': !storageHealth.localStorage.available || !storageHealth.localStorage.writable}">
+                  {{ (storageHealth.localStorage.available && storageHealth.localStorage.writable) ? '正常' : '异常' }}
+                </span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">数据存储位置:</span>
+                <span class="status-value status-good">
+                  <span>本地</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="settings-item" style="margin-top: 1rem; border-top: 1px solid #eee; padding-top: 1rem;">
+            <div class="settings-item-header">
+              <h3>数据操作</h3>
+            </div>
+            <p class="settings-desc">备份或恢复您的所有数据，包括个人设置和保存的笔记。</p>
+            <div class="data-actions-row">
+              <button class="btn btn-primary" @click="backupData">
+                <i class="fas fa-download"></i>
+                导出备份
+              </button>
+              <input 
+                type="file" 
+                ref="backupFileInput" 
+                accept=".json" 
+                style="display: none" 
+                @change="handleBackupFileSelected"
+              />
+              <button class="btn btn-secondary" @click="$refs.backupFileInput.click()">
+                <i class="fas fa-upload"></i>
+                导入备份
+              </button>
+            </div>
+          </div>
+          
+          <div class="settings-item danger-zone">
+            <div class="settings-item-header">
+              <h3>危险区域</h3>
+            </div>
+            <p class="settings-desc warning-text">以下操作将永久删除您的数据，请谨慎操作。</p>
+            <div class="data-actions-row">
+              <button class="btn btn-danger" @click="confirmReset">
+                <i class="fas fa-trash-alt"></i>
+                重置所有数据
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 添加确认对话框 -->
+      <div class="modal" v-if="showResetConfirm">
+        <div class="modal-overlay" @click="showResetConfirm = false"></div>
+        <div class="modal-content">
+          <h3>确认重置数据</h3>
+          <p>此操作将永久删除您的所有数据，包括个人设置和保存的笔记。此操作无法撤销。</p>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" @click="showResetConfirm = false">取消</button>
+            <button class="btn btn-danger" @click="resetApplication" :disabled="isResetting">
+              {{ isResetting ? '重置中...' : '确认重置' }}
+            </button>
+          </div>
+        </div>
+      </div>
+            
       <section class="settings-section">
         <h2 class="section-title">关于</h2>
         
@@ -154,25 +198,6 @@
         
         <div class="app-version">
           版本: {{ APP_VERSION }}
-        </div>
-      </section>
-      
-      <!-- 添加数据与隐私部分 -->
-      <section class="settings-section">
-        <h2 class="section-title">数据与隐私</h2>
-        
-        <div class="setting-item">
-          <label class="setting-label">数据存储</label>
-          <div class="setting-value">
-            <span class="badge">本地</span>
-          </div>
-        </div>
-        
-        <div class="setting-item reset-app-item">
-          <label class="setting-label">重置应用</label>
-          <button class="btn btn-danger reset-btn" @click="showResetConfirm = true">
-            <i class="fas fa-exclamation-triangle"></i> 重置
-          </button>
         </div>
       </section>
     </div>
@@ -315,50 +340,17 @@
         </div>
       </div>
     </div>
-    
-    <!-- 重置确认弹窗 -->
-    <div class="modal reset-confirm-modal" v-if="showResetConfirm">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>确认重置</h3>
-        </div>
-        
-        <div class="modal-body">
-          <div class="warning-icon">
-            <i class="fas fa-exclamation-triangle"></i>
-          </div>
-          <p class="reset-warning">此操作将清除所有应用数据，包括：</p>
-          <ul class="reset-list">
-            <li>所有收藏的纸条</li>
-            <li>个人偏好设置</li>
-            <li>应用配置</li>
-          </ul>
-          <p class="reset-note">重置后，应用将返回到首次安装状态，此操作无法撤销。</p>
-        </div>
-        
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="showResetConfirm = false">取消</button>
-          <button 
-            class="btn btn-danger" 
-            @click="resetApplication"
-            :disabled="isResetting"
-          >
-            {{ isResetting ? '重置中...' : '确认重置' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue';
+import { ref, reactive, onMounted, onErrorCaptured, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { getUserPreferences, saveUserPreferences, resetUserData } from '../services/storageService';
+import { getUserPreferences, saveUserPreferences, resetUserData, checkStorageHealth, backupUserData, restoreUserData } from '../services/storageService';
+
 import logger from '../utils/logger';
 import { APP_VERSION } from '../config/version';
 
-const router = useRouter();
 const showZodiacSelector = ref(false);
 const showMbtiSelector = ref(false);
 const showGenderSelector = ref(false); // 添加性别选择器状态
@@ -366,8 +358,15 @@ const showAgeSelector = ref(false); // 添加年龄选择器状态
 const showRelationshipSelector = ref(false); // 添加感情状况选择器状态
 const isDarkMode = ref(false);
 const isSavageMode = ref(false); // 添加毒舌模式状态
-const showResetConfirm = ref(false);
 const isResetting = ref(false);
+
+
+// 状态变量
+const storageHealth = ref(null);
+const showResetConfirm = ref(false);
+const backupFileInput = ref(null);
+const router = useRouter();
+const errorMessage = ref('');
 
 // 使用reactive创建一个空对象，稍后填充数据
 const preferences = reactive({
@@ -471,6 +470,8 @@ const backgrounds = [
   { value: 'paper-4', label: '淡绿色' }
 ];
 
+
+
 function getGenderLabel(value) {
   if (!value) return '未设置';
   const gender = genders.find(g => g.value === value);
@@ -555,24 +556,23 @@ function toggleSavageMode() {
   savePreferences();
 }
 
-function increaseFontSize() {
-  if (preferences.fontSize < 36) {
-    preferences.fontSize += 2;
-    savePreferences();
-    console.log('Settings page increased font size to:', preferences.fontSize);
-  }
-}
-
-function decreaseFontSize() {
-  if (preferences.fontSize > 16) {
-    preferences.fontSize -= 2;
-    savePreferences();
-    console.log('Settings page decreased font size to:', preferences.fontSize);
-  }
-}
-
 async function savePreferences() {
   try {
+    // 调试：检查偏好设置对象中的数组
+    console.log('保存偏好设置前检查:', preferences);
+    
+    // 检查是否有数组类型的属性
+    for (const key in preferences) {
+      if (Array.isArray(preferences[key])) {
+        console.log(`发现数组属性: ${key}`, preferences[key]);
+        
+        // 检查数组内的每个元素
+        preferences[key].forEach((item, index) => {
+          console.log(`${key}[${index}] 类型:`, typeof item, item);
+        });
+      }
+    }
+    
     await saveUserPreferences(preferences);
     // 通知应用字体大小已经更新
     document.dispatchEvent(new CustomEvent('preferences-updated', {
@@ -630,6 +630,113 @@ async function resetApplication() {
   }
 }
 
+// 错误捕获处理
+onErrorCaptured((err, instance, info) => {
+  logger.error('SETTINGS', `Error in settings page: ${err.toString()}, Info: ${info}`);
+  errorMessage.value = '操作过程中发生错误，请稍后再试';
+  return false; // 阻止错误继续传播
+});
+
+// 检查存储健康状态
+async function checkStorage() {
+  try {
+    storageHealth.value = await checkStorageHealth();
+  } catch (error) {
+    logger.error('SETTINGS', '检查存储状态失败:', error);
+    errorMessage.value = '检查存储状态失败';
+  }
+}
+
+// 触发文件选择
+function triggerFileInput() {
+  if (backupFileInput.value) {
+    backupFileInput.value.click();
+  }
+}
+
+// 备份数据
+async function backupData() {
+  try {
+    const backup = await backupUserData();
+    if (backup) {
+      // 创建并下载备份文件
+      const dataStr = JSON.stringify(backup, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileName = `soul-note-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileName);
+      linkElement.click();
+    }
+  } catch (error) {
+    logger.error('SETTINGS', '备份数据失败:', error);
+    errorMessage.value = '备份数据失败';
+  }
+}
+
+// 处理选择的备份文件
+function handleBackupFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const backup = JSON.parse(e.target.result);
+      restoreUserData(backup)
+        .then(success => {
+          if (success) {
+            alert('数据恢复成功，将刷新页面应用更改。');
+            window.location.reload();
+          } else {
+            alert('数据恢复失败，请检查备份文件是否有效。');
+          }
+        })
+        .catch(error => {
+          logger.error('SETTINGS', '恢复数据失败:', error);
+          alert('恢复数据失败，请稍后再试。');
+        });
+    } catch (parseError) {
+      logger.error('SETTINGS', '解析备份文件失败:', parseError);
+      alert('无法解析备份文件，请确保文件格式正确。');
+    }
+  };
+  
+  reader.onerror = (error) => {
+    logger.error('SETTINGS', '读取备份文件失败:', error);
+    alert('读取备份文件失败，请稍后再试。');
+  };
+  
+  reader.readAsText(file);
+}
+
+// 显示重置确认对话框
+function confirmReset() {
+  showResetConfirm.value = true;
+}
+
+// 重置所有数据
+function resetData() {
+  resetUserData()
+    .then(success => {
+      if (success) {
+        showResetConfirm.value = false;
+        alert('数据已重置，将返回首页。');
+        router.push('/').catch(err => {
+          logger.error('SETTINGS', '导航到首页失败:', err);
+        });
+      } else {
+        alert('重置数据失败，请稍后再试。');
+      }
+    })
+    .catch(error => {
+      logger.error('SETTINGS', '重置数据失败:', error);
+      alert('重置数据失败，请稍后再试。');
+    });
+}
+
 // 生命周期
 onMounted(async () => {
   try {
@@ -642,11 +749,13 @@ onMounted(async () => {
     // 设置暗黑模式
     isDarkMode.value = preferences.theme === 'dark';
     document.body.classList.toggle('dark-mode', isDarkMode.value);
-    
-    // 设置毒舌模式
+
     isSavageMode.value = preferences.savageMode || false;
-    document.body.classList.toggle('savage-mode', isSavageMode.value);
+    document.body.classList.toggle('savage-mode', isSavageMode.value);  
     
+    checkStorage().catch(error => {
+      logger.error('SETTINGS', '挂载时检查存储状态失败:', error);
+    });
     // 检查并打印当前激活的模式
     logger.info('SETTINGS', '当前模式设置', {
       darkMode: isDarkMode.value,
@@ -677,12 +786,16 @@ watch(preferences, () => {
   padding: var(--spacing-md) var(--spacing-lg);
   background-color: var(--card-bg);
   box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 10;
 }
 
 .page-title {
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 600;
   margin: 0;
+  color: var(--text-color);
+  letter-spacing: 0.5px;
 }
 
 .placeholder {
@@ -691,22 +804,34 @@ watch(preferences, () => {
 
 .settings-content {
   padding: var(--spacing-md);
+  background-color: var(--bg-color);
+  overflow-y: auto;
 }
 
 .settings-section {
   margin-bottom: var(--spacing-xl);
   background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
   box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.settings-section:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .section-title {
   font-size: 16px;
   margin-top: 0;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
   padding-bottom: var(--spacing-sm);
   border-bottom: 1px solid var(--border-color);
+  color: var(--primary-color);
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .setting-item {
@@ -714,14 +839,21 @@ watch(preferences, () => {
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md) 0;
+  transition: all 0.2s ease;
 }
 
 .setting-item:not(:last-child) {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.setting-item:hover {
+  background-color: rgba(0, 0, 0, 0.01);
 }
 
 .setting-label {
   font-size: 16px;
+  color: var(--text-color);
+  font-weight: 500;
 }
 
 .setting-value {
@@ -729,10 +861,22 @@ watch(preferences, () => {
   align-items: center;
   color: var(--text-secondary);
   cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.setting-value:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .setting-value i {
   margin-left: var(--spacing-sm);
+  transition: transform 0.2s ease;
+}
+
+.setting-value:hover i {
+  transform: translateX(2px);
 }
 
 .toggle-switch {
@@ -740,19 +884,791 @@ watch(preferences, () => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-switch span {
   padding: var(--spacing-xs) var(--spacing-md);
   cursor: pointer;
   transition: all var(--transition-fast);
+  font-weight: 500;
 }
 
 .toggle-switch span.active {
   background-color: var(--primary-color);
   color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
+/* 存储状态卡片 */
+.storage-status {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background-color: var(--bg-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.storage-status:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* 状态项目 */
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.05);
+}
+
+.status-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.status-label {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.status-label i {
+  margin-right: var(--spacing-xs);
+  font-size: 1rem;
+}
+
+.status-value {
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.status-good {
+  color: var(--success-color, #4caf50);
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.status-bad {
+  color: var(--error-color, #f44336);
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+/* 数据操作按钮行 */
+.data-actions-row {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.data-actions-row .btn {
+  flex: 1;
+  min-width: 120px;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.data-actions-row .btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.data-actions-row .btn-primary:hover {
+  background-color: var(--primary-dark, #5a7a68);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.data-actions-row .btn-secondary {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.data-actions-row .btn-secondary:hover {
+  background-color: var(--border-color);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.data-actions-row .btn-danger {
+  background-color: white;
+  color: var(--error-color, #f44336);
+  border-color: var(--error-color, #f44336);
+}
+
+.data-actions-row .btn-danger:hover {
+  background-color: var(--error-color, #f44336);
+  color: white;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.2);
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .settings-section {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .data-actions-row {
+    flex-direction: column;
+  }
+  
+  .data-actions-row .btn {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .modal-content {
+    padding: var(--spacing-md);
+    width: 95%;
+    max-height: 85vh;
+  }
+  
+  .modal-body {
+    max-height: 65vh;
+  }
+  
+  .status-label, .status-value {
+    font-size: 0.85rem;
+  }
+  
+  .settings-item-header h3 {
+    font-size: 1rem;
+  }
+  
+  .settings-desc {
+    font-size: 0.85rem;
+  }
+  
+  .data-action-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .setting-item {
+    padding: var(--spacing-sm) 0;
+  }
+  
+  .setting-label {
+    font-size: 14px;
+  }
+  
+  .zodiac-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .mbti-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .relationship-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .gender-options {
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
+  
+  .gender-option {
+    width: 70px;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .age-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 平板设备适配 */
+@media (min-width: 481px) and (max-width: 768px) {
+  .modal-content {
+    max-width: 400px;
+  }
+  
+  .modal-body {
+    max-height: 70vh;
+  }
+  
+  .zodiac-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .gender-options {
+    flex-wrap: wrap;
+  }
+}
+
+/* 确保滚动条样式美观 */
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* 危险区域 */
+.danger-zone {
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  position: relative;
+}
+
+.danger-zone::before {
+  content: "⚠️";
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--card-bg);
+  padding: 0 var(--spacing-sm);
+  font-size: 1.2rem;
+}
+
+.warning-text {
+  color: var(--error-color, #f44336);
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: rgba(244, 67, 54, 0.05);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--error-color, #f44336);
+}
+
+/* 模态框 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+}
+
+.modal-content {
+  position: relative;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  width: 90%;
+  max-width: 450px;
+  max-height: 80vh;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.3s ease;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 0 var(--spacing-sm) var(--spacing-sm) var(--spacing-sm);
+  flex: 1;
+  max-height: 60vh;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  color: var(--text-color);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+}
+
+.modal-content p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-lg);
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+/* 按钮样式 */
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  color: var(--primary-color);
+  background-color: rgba(123, 158, 137, 0.15);
+  transform: rotate(15deg);
+}
+
+.btn-icon:active {
+  transform: scale(0.95) rotate(15deg);
+}
+
+/* 设置项标题 */
+.settings-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.settings-item-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-color);
+}
+
+.settings-desc {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 错误消息 */
+.error-message {
+  background-color: var(--error-bg, #ffebee);
+  color: var(--error-color, #f44336);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.15);
+  animation: shake 0.5s ease;
+  border-left: 4px solid var(--error-color, #f44336);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--error-color, #f44336);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-full);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+  transform: scale(1.1);
+}
+
+/* 统一所有选项的字体样式 */
+.gender-option span,
+.age-option span,
+.relationship-option span,
+.zodiac-item span,
+.mbti-code,
+.mbti-name,
+.modal-content p,
+.modal-header h3,
+.modal-content h3,
+.group-title {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.gender-option span,
+.age-option span,
+.relationship-option span,
+.zodiac-item span,
+.mbti-code {
+  font-weight: 500;
+}
+
+.mbti-name {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.modal-header h3,
+.modal-content h3,
+.group-title {
+  font-weight: 600;
+}
+
+/* 图标大小统一 */
+.gender-option i,
+.relationship-option i,
+.zodiac-item i {
+  font-size: 20px;
+}
+
+/* 性别选择样式 */
+.gender-options {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.gender-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  width: 80px;
+  height: 80px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.gender-option i {
+  font-size: 20px;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.gender-option span {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.gender-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-color);
+}
+
+.gender-option.active i {
+  color: white;
+}
+
+.gender-option:hover:not(.active) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 年龄选择样式 */
+.age-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.age-option {
+  padding: var(--spacing-md);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  text-align: center;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  font-size: 14px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.age-option span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.age-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-color);
+}
+
+.age-option:hover:not(.active) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 婚恋状况选择样式 */
+.relationship-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.relationship-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  height: 80px;
+}
+
+.relationship-option i {
+  font-size: 20px;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.relationship-option span {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.relationship-option.active {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-color);
+}
+
+.relationship-option.active i {
+  color: white;
+}
+
+.relationship-option:hover:not(.active) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 星座选择样式 */
+.zodiac-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+  max-width: 100%;
+}
+
+.zodiac-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  font-size: 14px;
+  height: 80px;
+}
+
+.zodiac-item i {
+  font-size: 20px;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.zodiac-item span {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.zodiac-item.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.zodiac-item.active i {
+  color: white;
+}
+
+.zodiac-item:hover:not(.active) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* MBTI选择样式 */
+.mbti-selection {
+  max-width: 100%;
+}
+
+.mbti-group {
+  margin-bottom: var(--spacing-md);
+  background-color: rgba(0, 0, 0, 0.02);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+}
+
+.group-title {
+  font-size: 14px;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--spacing-xs);
+}
+
+.mbti-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-xs);
+}
+
+.mbti-button {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  height: 70px;
+}
+
+.mbti-code {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.mbti-name {
+  font-size: 12px;
+  margin-top: var(--spacing-xs);
+  font-weight: 400;
+}
+
+.mbti-button.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mbti-button:hover:not(.active) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.app-version {
+  text-align: center;
+  margin-top: var(--spacing-lg);
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: var(--spacing-md);
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-md);
+}
+
+/* 设置开关样式 */
 .setting-switch {
   position: relative;
 }
@@ -772,6 +1688,7 @@ watch(preferences, () => {
   cursor: pointer;
   transition: background-color var(--transition-fast);
   position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .switch-label::after {
@@ -783,7 +1700,8 @@ watch(preferences, () => {
   height: 20px;
   border-radius: 50%;
   background-color: white;
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 input:checked + .switch-label {
@@ -792,414 +1710,7 @@ input:checked + .switch-label {
 
 input:checked + .switch-label::after {
   transform: translateX(24px);
-}
-
-.font-size-control {
-  display: flex;
-  align-items: center;
-}
-
-.font-size-indicator {
-  margin: 0 var(--spacing-md);
-  color: var(--text-secondary);
-}
-
-.bg-selector {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-.bg-option {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  transition: transform var(--transition-fast);
-}
-
-.bg-option.active {
-  transform: scale(1.2);
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(123, 158, 137, 0.3);
-}
-
-.app-version {
-  text-align: center;
-  margin-top: var(--spacing-lg);
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.modal-content {
-  width: 90%;
-  max-width: 500px;
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.modal-header h3 {
-  margin: 0;
-}
-
-.modal-body {
-  padding: var(--spacing-md);
-  overflow-y: auto;
-}
-
-.zodiac-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-md);
-  max-width: 100%;
-}
-
-.zodiac-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--spacing-md);
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.zodiac-item i {
-  font-size: 24px;
-  margin-bottom: var(--spacing-sm);
-  color: var(--text-secondary);
-}
-
-.zodiac-item.active {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.zodiac-item.active i {
-  color: white;
-}
-
-.mbti-selection {
-  max-width: 100%;
-}
-
-.mbti-group {
-  margin-bottom: var(--spacing-lg);
-}
-
-.group-title {
-  font-size: 16px;
-  margin-bottom: var(--spacing-md);
-  color: var(--text-secondary);
-}
-
-.mbti-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-sm);
-}
-
-.mbti-button {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  cursor: pointer;
-  text-align: left;
-  transition: all var(--transition-fast);
-  display: flex;
-  flex-direction: column;
-}
-
-.mbti-button.active {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var (--primary-color);
-}
-
-.mbti-code {
-  font-weight: 600;
-}
-
-.mbti-name {
-  font-size: 14px;
-}
-
-@media (max-width: 480px) {
-  .zodiac-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .mbti-buttons {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 重置确认弹窗样式 */
-.reset-confirm-modal .modal-content {
-  max-width: 400px;
-}
-
-.warning-icon {
-  font-size: 48px;
-  color: #e74c3c;
-  text-align: center;
-  margin: var(--spacing-md) 0;
-}
-
-.reset-warning {
-  font-weight: 500;
-  margin-bottom: var(--spacing-md);
-}
-
-.reset-list {
-  margin-bottom: var(--spacing-md);
-  padding-left: var(--spacing-xl);
-}
-
-.reset-list li {
-  margin-bottom: var(--spacing-xs);
-}
-
-.reset-note {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-md);
-}
-
-.btn-danger {
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-}
-
-.btn-danger:hover {
-  background-color: #c0392b;
-}
-
-.btn-danger:disabled {
-  background-color: #e57373;
-  cursor: not-allowed;
-}
-
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background-color: var(--primary-color);
-  color: white;
-  font-size: 12px;
-}
-
-/* 确保重置按钮样式正确 */
-.reset-app-item {
-  align-items: center;
-}
-
-.reset-btn {
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: 14px;
-  border-radius: var (--radius-md);
-  display: flex;
-  align-items: center;
-}
-
-.reset-btn i {
-  margin-right: var(--spacing-xs);
-  font-size: 16px;
-}
-
-/* 确保modal显示正确 */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--border-color);
-  gap: var(--spacing-md);
-}
-
-/* 添加毒舌模式相关样式 */
-.savage-mode-setting {
-  position: relative;
-}
-
-.savage-mode-description {
-  font-size: 14px;
-  color: var(--savage-primary-color, #ff5252);
-  margin-top: -10px;
-  padding-bottom: var(--spacing-md);
-  font-style: italic;
-}
-
-/* 毒舌模式下的全局样式变量 */
-:global(body.savage-mode) {
-  --bg-color: #1a1a1a;
-  --card-bg: #2c2c2c;
-  --text-color: #e0e0e0;
-  --text-secondary: #9e9e9e;
-  --border-color: #3a3a3a;
-  --primary-color: #ff5252;
-  --savage-primary-color: #ff5252;
-  --savage-card-bg: #2c2c2c;
-  --savage-text-color: #e0e0e0;
-  --savage-text-secondary: #9e9e9e;
-  
-  /* 信笺相关样式变量 */
-  --savage-note-bg-1: linear-gradient(to right bottom, #3c2a2a, #4c3636);
-  --savage-note-bg-2: linear-gradient(to right bottom, #4a2a2c, #5c3638);
-  --savage-note-bg-3: linear-gradient(to right bottom, #2a2a3c, #36364c);
-  --savage-note-bg-4: linear-gradient(to right bottom, #2a3c2e, #364c3a);
-  --savage-note-text: #ff9e9e;
-  --savage-note-shadow: 0 4px 12px rgba(255, 82, 82, 0.25);
-}
-
-/* 改进毒舌模式的视觉提示 */
-.savage-mode .savage-mode-description p {
-  color: var(--primary-color);
-  font-weight: bold;
-}
-
-.savage-mode .section-title {
-  color: var(--primary-color);
-  text-shadow: 0 0 3px rgba(255, 82, 82, 0.3);
-}
-
-/* 毒舌模式下的开关样式 */
-.savage-mode input:checked + .switch-label {
-  background-color: var(--primary-color);
-  box-shadow: 0 0 5px rgba(255, 82, 82, 0.5);
-}
-
-/* 性别选择样式 */
-.gender-options {
-  display: flex;
-  justify-content: center;
-  gap: var(--spacing-md);
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.gender-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--spacing-lg);
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  width: 100px;
-}
-
-.gender-option i {
-  font-size: 32px;
-  margin-bottom: var(--spacing-md);
-  color: var(--text-secondary);
-}
-
-.gender-option span {
-  font-size: 14px;
-}
-
-.gender-option.active {
-  background-color: var(--primary-color);
-  color: white;
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
-}
-
-.gender-option.active i {
-  color: white;
-}
-
-/* 年龄选择样式 */
-.age-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.age-option {
-  padding: var(--spacing-md);
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  text-align: center;
-}
-
-.age-option.active {
-  background-color: var(--primary-color);
-  color: white;
-  transform: translateX(8px);
-  box-shadow: var(--shadow-md);
-}
-
-/* 婚恋状况选择样式 */
-.relationship-options {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-md);
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.relationship-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--spacing-md);
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-normal);
-}
-
-.relationship-option i {
-  font-size: 24px;
-  margin-bottom: var(--spacing-sm);
-  color: var(--text-secondary);
-}
-
-.relationship-option.active {
-  background-color: var(--primary-color);
-  color: white;
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
-}
-
-.relationship-option.active i {
-  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 @media (max-width: 480px) {
@@ -1216,8 +1727,31 @@ input:checked + .switch-label::after {
   }
   
   .gender-options {
-    flex-direction: column;
-    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
+  
+  .gender-option, .relationship-option, .zodiac-item {
+    height: 70px;
+  }
+  
+  .age-option {
+    height: 40px;
+  }
+  
+  .mbti-button {
+    height: 60px;
+  }
+}
+
+/* 平板设备适配 */
+@media (min-width: 481px) and (max-width: 768px) {
+  .modal-content {
+    max-width: 450px;
+  }
+  
+  .modal-body {
+    max-height: 70vh;
   }
 }
 </style>

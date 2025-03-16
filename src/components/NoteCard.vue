@@ -261,6 +261,10 @@ const imageLayerStyle = computed(() => {
   } else if (props.customStyle.layout === 'image-bg') {
     style.height = '100%';
     style.width = '100%';
+    style.position = 'absolute';
+    style.top = '0';
+    style.left = '0';
+    style.zIndex = '1'; // 确保图片层在纸条背景之上，但在内容之下
   }
   
   // 应用缩放
@@ -281,8 +285,14 @@ const cardStyle = computed(() => {
     // 纸条布局使用默认背景
     background = getBackgroundVariable.value;
   } else if (hasCustomImage.value && props.customStyle?.layout === 'image-bg') {
-    // 图片背景布局使用透明背景，让图片层显示
-    background = 'transparent';
+    // 图片背景布局
+    if (props.customStyle.preservePaperBg) {
+      // 如果需要保留纸条背景，使用默认背景
+      background = getBackgroundVariable.value;
+    } else {
+      // 否则使用透明背景，让图片层显示
+      background = 'transparent';
+    }
   } else {
     // 其他情况使用默认背景
     background = getBackgroundVariable.value;
@@ -294,6 +304,7 @@ const cardStyle = computed(() => {
   const style = {
     background: background,
     boxShadow: 'var(--shadow-md)',
+    position: 'relative' // 确保定位上下文正确
   };
   
   // 小屏幕特殊处理，调整纵横比
@@ -354,6 +365,8 @@ const contentStyle = computed(() => {
     fontSize: `${fontSize}px`,
     fontFamily: 'var(--font-note)',
     lineHeight: isVerySmallScreen ? 1.5 : isSmallScreen ? 1.5 : 1.6,
+    position: 'relative',
+    zIndex: '2' // 确保内容在图片层之上
   };
   
   // 根据布局和emoji气泡位置调整内边距
@@ -398,35 +411,27 @@ const contentStyle = computed(() => {
     style.color = props.customStyle.textColor;
   }
   
-  // 应用文字阴影
+  // 添加文字阴影
   if (props.customStyle?.textShadow) {
-    style.textShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+    style.textShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
   }
   
   // 根据布局调整内容样式
-  if (props.customStyle?.layout === 'image-top') {
-    // 上图下文布局
-    style.flex = '1';
+  if (props.customStyle?.layout === 'image-top' || props.customStyle?.layout === 'image-bottom') {
+    style.height = '50%';
     style.display = 'flex';
-    style.flexDirection = 'column';
-    style.justifyContent = 'center'; // 垂直居中
-    style.padding = 'var(--spacing-md)';
-    style.height = '50%'; // 确保文本区域占据下半部分
-  } else if (props.customStyle?.layout === 'image-bottom') {
-    // 下图上文布局
-    style.flex = '1';
-    style.display = 'flex';
-    style.flexDirection = 'column';
-    style.justifyContent = 'center'; // 垂直居中
-    style.padding = 'var(--spacing-md)';
-    style.height = '50%'; // 确保文本区域占据上半部分
-  } else {
-    // 纸条布局或图片背景布局
-    style.display = 'flex';
-    style.flexDirection = 'column';
-    style.justifyContent = 'center'; // 垂直居中
-    style.alignItems = 'center'; // 水平居中
-    style.height = '100%'; // 占据整个卡片高度
+    style.alignItems = 'center';
+    style.justifyContent = 'center';
+    style.padding = '1rem';
+    style.boxSizing = 'border-box';
+  } else if (props.customStyle?.layout === 'image-bg') {
+    style.position = 'relative';
+    style.zIndex = '2'; // 确保内容在图片层之上
+    
+    // 如果图片背景较深，可能需要更强的文字阴影
+    if (props.customStyle?.textShadow) {
+      style.textShadow = '0 2px 6px rgba(0, 0, 0, 0.4)';
+    }
   }
   
   // 根据文字位置调整
@@ -519,7 +524,9 @@ const qrcodeStyle = computed(() => {
   const size = props.customStyle?.qrcodeSize || 60;
   const style = {
     width: `${size}px`,
-    height: `${size}px`
+    height: `${size}px`,
+    position: 'absolute',
+    zIndex: '3' // 确保二维码在所有内容之上
   };
   
   // 根据布局调整位置

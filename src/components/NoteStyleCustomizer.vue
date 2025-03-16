@@ -341,6 +341,7 @@ const defaultStyle = {
   imageUrl: '',
   imageOpacity: 1,
   imageScale: 1,
+  preservePaperBg: false,
   showQrcode: true,
   qrcodeSize: 50,
   qrcodePosition: 'bottom-left',
@@ -380,6 +381,23 @@ function updateStyle(updates) {
   // 如果选择了纸条布局，清除图片URL
   if (updates.layout === 'paper') {
     updates.imageUrl = '';
+    updates.preservePaperBg = false; // 纸条布局不需要保留纸条背景
+  }
+  
+  // 如果切换到图片背景布局，自动设置半透明并保留纸条背景
+  if (updates.layout === 'image-bg' && !updates.hasOwnProperty('preservePaperBg')) {
+    updates.preservePaperBg = true; // 图片背景布局默认保留纸条背景
+    
+    // 如果没有明确设置透明度，则设置默认半透明
+    if (!updates.hasOwnProperty('imageOpacity') && currentStyle.value.imageOpacity === 1) {
+      updates.imageOpacity = 0.7;
+    }
+  }
+  
+  // 如果切换到其他图片布局，默认不保留纸条背景
+  if ((updates.layout === 'image-top' || updates.layout === 'image-bottom') && 
+      !updates.hasOwnProperty('preservePaperBg')) {
+    updates.preservePaperBg = false;
   }
   
   // 如果切换到上图下文布局，自动将二维码位置设为左下角
@@ -422,14 +440,27 @@ function handleImageSelected(imageUrl) {
     // 更新图片和布局
     updateStyle({ 
       imageUrl, 
-      layout: 'image-top' // 默认使用上图下文布局
+      layout: 'image-top', // 默认使用上图下文布局
+      imageOpacity: 1, // 默认不透明
+      preservePaperBg: false // 默认不保留纸条背景
     });
     
     // 切换到布局标签页让用户看到效果
     activeTab.value = 'layout';
+  } else if (currentStyle.value.layout === 'image-bg') {
+    // 如果是图片背景布局，设置半透明并保留纸条背景
+    updateStyle({ 
+      imageUrl,
+      imageOpacity: 0.7, // 默认半透明
+      preservePaperBg: true // 保留纸条背景
+    });
   } else {
-    // 如果已经是图片布局，直接更新图片
-    updateStyle({ imageUrl });
+    // 如果已经是其他图片布局，直接更新图片
+    updateStyle({ 
+      imageUrl,
+      imageOpacity: 1, // 默认不透明
+      preservePaperBg: false // 默认不保留纸条背景
+    });
   }
 }
 
@@ -545,6 +576,34 @@ async function saveImage() {
     clonedCard.style.borderRadius = '0';
     clonedCard.style.boxShadow = 'none';
     
+    // 确保图片背景布局下的背景层正确显示
+    if (currentStyle.value.layout === 'image-bg') {
+      // 查找图片层元素
+      const imageLayer = clonedCard.querySelector('.note-image-layer');
+      if (imageLayer) {
+        // 确保图片层样式正确
+        imageLayer.style.position = 'absolute';
+        imageLayer.style.top = '0';
+        imageLayer.style.left = '0';
+        imageLayer.style.width = '100%';
+        imageLayer.style.height = '100%';
+        imageLayer.style.zIndex = '1';
+        
+        // 如果需要保留纸条背景，确保背景色正确
+        if (currentStyle.value.preservePaperBg) {
+          // 确保卡片背景色正确
+          clonedCard.style.backgroundColor = getComputedStyle(noteCard).backgroundColor;
+        }
+      }
+      
+      // 确保内容层在图片层之上
+      const contentLayer = clonedCard.querySelector('.note-content');
+      if (contentLayer) {
+        contentLayer.style.position = 'relative';
+        contentLayer.style.zIndex = '2';
+      }
+    }
+    
     // 处理克隆卡片中的二维码图片
     if (qrImageBase64) {
       const qrCodeImg = clonedCard.querySelector('img[src*="community-qr.png"]');
@@ -554,6 +613,7 @@ async function saveImage() {
         qrCodeImg.style.height = '50px';
         qrCodeImg.style.objectFit = 'contain';
         qrCodeImg.style.display = 'block';
+        qrCodeImg.style.zIndex = '3'; // 确保二维码在最上层
       }
     }
     
@@ -590,6 +650,34 @@ async function saveImage() {
           element.style.borderRadius = '0';
           element.style.boxShadow = 'none';
 
+          // 确保图片背景布局下的背景层正确显示
+          if (currentStyle.value.layout === 'image-bg') {
+            // 查找图片层元素
+            const imageLayer = element.querySelector('.note-image-layer');
+            if (imageLayer) {
+              // 确保图片层样式正确
+              imageLayer.style.position = 'absolute';
+              imageLayer.style.top = '0';
+              imageLayer.style.left = '0';
+              imageLayer.style.width = '100%';
+              imageLayer.style.height = '100%';
+              imageLayer.style.zIndex = '1';
+              
+              // 如果需要保留纸条背景，确保背景色正确
+              if (currentStyle.value.preservePaperBg) {
+                // 确保卡片背景色正确
+                element.style.backgroundColor = getComputedStyle(noteCard).backgroundColor;
+              }
+            }
+            
+            // 确保内容层在图片层之上
+            const contentLayer = element.querySelector('.note-content');
+            if (contentLayer) {
+              contentLayer.style.position = 'relative';
+              contentLayer.style.zIndex = '2';
+            }
+          }
+
           // 确保二维码图片正确加载
           if (qrImageBase64) {
             const qrCode = element.querySelector('img[src*="community-qr.png"]');
@@ -599,6 +687,7 @@ async function saveImage() {
               qrCode.style.height = '50px';
               qrCode.style.objectFit = 'contain';
               qrCode.style.display = 'block';
+              qrCode.style.zIndex = '3'; // 确保二维码在最上层
             }
           }
         }
@@ -790,6 +879,17 @@ onMounted(() => {
   // 如果有图片URL但布局是纸条，自动切换到图片背景布局
   if (currentStyle.value.imageUrl && currentStyle.value.layout === 'paper') {
     currentStyle.value.layout = 'image-bg';
+    currentStyle.value.preservePaperBg = true; // 确保保留纸条背景
+    
+    // 如果透明度是1，设置为默认半透明
+    if (currentStyle.value.imageOpacity === 1) {
+      currentStyle.value.imageOpacity = 0.7;
+    }
+  }
+  
+  // 如果是图片背景布局但没有设置preservePaperBg，默认设置为true
+  if (currentStyle.value.layout === 'image-bg' && currentStyle.value.preservePaperBg === undefined) {
+    currentStyle.value.preservePaperBg = true;
   }
 });
 

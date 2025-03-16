@@ -10,10 +10,22 @@
     </button>
 
     <header class="header fixed-header" :class="{'header-collapsed': headerCollapsed}">
-      <button class="icon-btn" @click="goToSettings">
-        <i class="fas fa-cog"></i>
-      </button>
-      <h1 class="app-title">星语心笺</h1>
+      <div class="header-left">
+        <button class="icon-btn" @click="goToSettings">
+          <i class="fas fa-cog"></i>
+        </button>
+        <!-- 添加个人信息提醒 -->
+        <div v-if="!hasUserInfo" class="user-info-reminder" @click="goToSettings">
+          <i class="fas fa-exclamation-circle"></i>
+          <span>请设置个人信息</span>
+        </div>
+      </div>
+      
+      <!-- 添加居中标题 -->
+      <div class="header-title">
+        <h1>星语心笺</h1>
+      </div>
+      
       <div class="header-right">
         <!-- 添加清除按钮 -->
         <button class="icon-btn" @click="clearContent" v-if="hasGeneratedContent">
@@ -48,15 +60,16 @@ const emit = defineEmits(['clear-content']);
 
 // State
 const headerCollapsed = ref(false);
+const hasUserInfo = ref(false);
 
 // Methods
-function toggleHeader() {
+async function toggleHeader() {
   headerCollapsed.value = !headerCollapsed.value;
   
   // 保存用户偏好
   try {
-    const currentPrefs = getUserPreferences();
-    saveUserPreferences({
+    const currentPrefs = await getUserPreferences();
+    await saveUserPreferences({
       ...currentPrefs,
       headerCollapsed: headerCollapsed.value
     });
@@ -80,6 +93,19 @@ function clearContent() {
   emit('clear-content');
 }
 
+// 检查用户信息是否完整
+async function checkUserInfo() {
+  try {
+    const preferences = await getUserPreferences();
+    hasUserInfo.value = !!(preferences?.gender && preferences?.age && 
+                          preferences?.relationship && preferences?.zodiac && 
+                          preferences?.mbti);
+  } catch (error) {
+    logger.error('HEADER', '检查用户信息失败:', error);
+    hasUserInfo.value = false;
+  }
+}
+
 // Lifecycle hooks
 onMounted(async () => {
   try {
@@ -87,6 +113,7 @@ onMounted(async () => {
     if (preferences) {
       headerCollapsed.value = preferences.headerCollapsed || false;
     }
+    await checkUserInfo();
   } catch (error) {
     logger.error('HEADER', '加载页眉状态失败:', error);
   }
@@ -108,29 +135,76 @@ onMounted(async () => {
   padding: var(--spacing-md) var(--spacing-lg);
   background-color: var(--card-bg);
   box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+  justify-content: flex-start;
+}
+
+/* 添加居中标题样式 */
+.header-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none; /* 确保点击事件可以穿透到下面的元素 */
+  z-index: 1;
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary-color);
+  letter-spacing: 1px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  flex: 1;
+  justify-content: flex-end;
 }
 
-.app-title {
-  font-size: 20px;
-  font-weight: 500;
-  margin: 0;
+.user-info-reminder {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--warning-color, #ff9800);
+  font-size: 14px;
+  cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background-color: rgba(255, 152, 0, 0.1);
+  transition: all var(--transition-fast);
+  z-index: 2; /* 确保在标题之上 */
+}
+
+.user-info-reminder:hover {
+  background-color: rgba(255, 152, 0, 0.2);
+}
+
+.user-info-reminder i {
+  font-size: 16px;
 }
 
 .icon-btn {
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: 18px;
+  font-size: 15px;
   cursor: pointer;
   padding: var(--spacing-xs);
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
+  z-index: 2; /* 确保在标题之上 */
 }
 
 .icon-btn:hover {
@@ -193,6 +267,14 @@ onMounted(async () => {
   .toggle-bar {
     height: 3px;
   }
+  
+  .user-info-reminder span {
+    display: none;
+  }
+  
+  .header-title h1 {
+    font-size: 16px;
+  }
 }
 
 /* 毒舌模式样式适配 */
@@ -200,8 +282,7 @@ onMounted(async () => {
   background-color: var(--savage-primary-color, #ff5252);
 }
 
-:global(.savage-mode) .app-title {
+:global(.savage-mode) .header-title h1 {
   color: var(--savage-primary-color, #ff5252);
-  text-shadow: 0 0 5px rgba(255, 82, 82, 0.2);
 }
 </style> 
