@@ -32,6 +32,8 @@
             <option value="qwen-turbo">通义千问 Turbo (响应快，性能一般)</option>
             <option value="qwen-plus">通义千问 Plus (响应适中，性能良好)</option>
             <option value="qwen-max">通义千问 Max (响应慢，性能最佳)</option>
+            <option value="deepseek-v3">DeepSeek V3 (响应巨慢，性能优秀)</option>
+            <option value="deepseek-r1">DeepSeek R1 (响应慢的我想4️⃣，但奈何性能卓越)</option>
           </select>
         </div>
         
@@ -47,6 +49,14 @@
           <div class="note-item">
             <span class="model-tag max">Max</span>
             <span>响应较慢，但质量最高，适合需要高质量输出的场景</span>
+          </div>
+          <div class="note-item">
+            <span class="model-tag deepseek-r1">R1</span>
+            <span>DeepSeek R1 模型，响应适中，诗歌和俳句创作表现优秀</span>
+          </div>
+          <div class="note-item">
+            <span class="model-tag deepseek-v3">V3</span>
+            <span>DeepSeek V3 模型，响应适中，诗歌和俳句创作表现卓越</span>
           </div>
         </div>
         
@@ -95,6 +105,8 @@
               <option value="chatglm-turbo">智谱 ChatGLM Turbo</option>
               <option value="chatglm-pro">智谱 ChatGLM Pro</option>
               <option value="spark-desk">讯飞星火认知</option>
+              <option value="deepseek-r1">DeepSeek R1</option>
+              <option value="deepseek-v3">DeepSeek V3</option>
             </optgroup>
             <optgroup label="OpenAI 模型">
               <option value="gpt-4">GPT-4</option>
@@ -701,6 +713,14 @@ option {
 
 .model-tag.max {
   background-color: #9c27b0;
+}
+
+.model-tag.deepseek-r1 {
+  background-color: #ff9800;
+}
+
+.model-tag.deepseek-v3 {
+  background-color: #2196f3;
 }
 
 .note-item span:last-child {

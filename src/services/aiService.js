@@ -11,7 +11,9 @@ const SYSTEM_API_CONFIG = {
   models: {
     'qwen-turbo': { responseTime: 2000, features: { poetry: false, haiku: false } },
     'qwen-plus': { responseTime: 4000, features: { poetry: true, haiku: true } },
-    'qwen-max': { responseTime: 6000, features: { poetry: true, haiku: true } }
+    'qwen-max': { responseTime: 6000, features: { poetry: true, haiku: true } },
+    'deepseek-r1': { responseTime: 30000, features: { poetry: true, haiku: true } },
+    'deepseek-v3': { responseTime: 20000, features: { poetry: true, haiku: true } }
   }
 };
 

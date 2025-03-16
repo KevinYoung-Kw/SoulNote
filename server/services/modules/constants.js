@@ -7,7 +7,7 @@ const ESTIMATED_RESPONSE_TIMES = {
   'qwen-max': 5000,
   'qwen-plus': 3000,
   'qwen-turbo': 1000,
-  'deepseek-r1': 20000,
+  'deepseek-r1': 30000,
   'default': 3000
 };
 

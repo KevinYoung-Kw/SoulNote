@@ -581,3 +581,34 @@ body.savage-mode .loading-spinner {
   border: 3px solid rgba(255, 82, 82, 0.3);
   border-top-color: var(--savage-primary-color, #ff5252);
 }
+
+/* DeepSeek 模型在毒舌模式下的样式 */
+body.savage-mode .model-tag.deepseek-r1,
+body.savage-mode .model-tag.deepseek-v3 {
+  background-color: var(--savage-primary-color, #ff5252);
+  color: white;
+}
+
+body.savage-mode .deepseek-model-info {
+  border-left: 3px solid var(--savage-primary-color, #ff5252);
+}
+
+/* 毒舌模式下的按钮样式 */
+body.savage-mode .btn-primary {
+  background-color: var(--savage-primary-color, #ff5252);
+  border-color: var(--savage-primary-color, #ff5252);
+}
+
+body.savage-mode .btn-primary:hover {
+  background-color: #ff3838;
+  box-shadow: 0 4px 12px rgba(255, 82, 82, 0.25);
+}
+
+body.savage-mode .btn-secondary {
+  border-color: var(--savage-primary-color, #ff5252);
+  color: var(--savage-primary-color, #ff5252);
+}
+
+body.savage-mode .btn-secondary:hover {
+  background-color: rgba(255, 82, 82, 0.05);
+}
