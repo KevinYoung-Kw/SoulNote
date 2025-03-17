@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { saveUserPreferences, getUserPreferences } from '../services/storageService';
 import logger from '../utils/logger';
@@ -116,6 +116,14 @@ onMounted(async () => {
     await checkUserInfo();
   } catch (error) {
     logger.error('HEADER', '加载页眉状态失败:', error);
+  }
+});
+
+// 监听hasGeneratedContent变化，确保UI状态同步
+watch(() => props.hasGeneratedContent, (newValue) => {
+  // 当内容被清除时，确保UI状态同步
+  if (!newValue) {
+    logger.info('HEADER', '内容已清除，更新UI状态');
   }
 });
 </script>

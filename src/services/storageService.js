@@ -250,13 +250,16 @@ export async function saveNote(note) {
       savedAt: new Date().toISOString()
     };
     
+    // 确保数据可以被序列化
+    const cleanNote = cleanDataForStorage(noteWithMeta);
+    
     // 首先尝试保存到 IndexedDB
     const db = await openDatabase();
     await new Promise((resolve, reject) => {
       const transaction = db.transaction(['notes'], 'readwrite');
       const store = transaction.objectStore('notes');
       
-      const request = store.put(noteWithMeta);
+      const request = store.put(cleanNote);
       
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(event.target.error);
@@ -265,12 +268,12 @@ export async function saveNote(note) {
     // 同时更新 localStorage 中的笔记列表
     try {
       const savedNotes = await getSavedNotes();
-      const existingIndex = savedNotes.findIndex(n => n.id === noteWithMeta.id);
+      const existingIndex = savedNotes.findIndex(n => n.id === cleanNote.id);
       
       if (existingIndex >= 0) {
-        savedNotes[existingIndex] = noteWithMeta;
+        savedNotes[existingIndex] = cleanNote;
       } else {
-        savedNotes.unshift(noteWithMeta);
+        savedNotes.unshift(cleanNote);
         
         // 最多保存50个纸条
         if (savedNotes.length > 50) {
@@ -284,7 +287,7 @@ export async function saveNote(note) {
       console.warn('更新 localStorage 中的笔记列表失败 (备份):', error);
     }
     
-    return noteWithMeta;
+    return cleanNote;
   } catch (error) {
     console.error('保存纸条到 IndexedDB 失败:', error);
     
@@ -296,15 +299,19 @@ export async function saveNote(note) {
       const noteWithMeta = {
         ...note,
         id: note.id || Date.now().toString(),
+        userId,
         savedAt: new Date().toISOString()
       };
       
-      const existingIndex = savedNotes.findIndex(n => n.id === noteWithMeta.id);
+      // 确保数据可以被序列化
+      const cleanNote = cleanDataForStorage(noteWithMeta);
+      
+      const existingIndex = savedNotes.findIndex(n => n.id === cleanNote.id);
       
       if (existingIndex >= 0) {
-        savedNotes[existingIndex] = noteWithMeta;
+        savedNotes[existingIndex] = cleanNote;
       } else {
-        savedNotes.unshift(noteWithMeta);
+        savedNotes.unshift(cleanNote);
         
         // 最多保存50个纸条
         if (savedNotes.length > 50) {
@@ -315,7 +322,7 @@ export async function saveNote(note) {
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
       localStorage.setItem(storageKey, JSON.stringify(savedNotes));
       
-      return noteWithMeta;
+      return cleanNote;
     } catch (fallbackError) {
       console.error('降级存储也失败:', fallbackError);
       return null;
@@ -1170,5 +1177,74 @@ export async function restoreUserData(backup) {
   } catch (error) {
     console.error('恢复用户数据失败:', error);
     return false;
+  }
+}
+
+/**
+ * 更新已保存的纸条
+ * @param {Object} note 要更新的纸条对象
+ * @returns {Promise<boolean>} 是否更新成功
+ */
+export async function updateSavedNote(note) {
+  if (!note || !note.id) {
+    console.error('更新纸条失败: 无效的纸条对象或ID');
+    return false;
+  }
+  
+  try {
+    // 确保数据可以被序列化
+    const cleanNote = cleanDataForStorage(note);
+    
+    // 首先尝试从 IndexedDB 更新
+    const db = await openDatabase();
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(['notes'], 'readwrite');
+      const store = transaction.objectStore('notes');
+      
+      const request = store.put(cleanNote);
+      
+      request.onsuccess = () => resolve();
+      request.onerror = (event) => reject(event.target.error);
+    });
+    
+    // 同时更新 localStorage 中的笔记列表
+    try {
+      const savedNotes = await getSavedNotes();
+      const existingIndex = savedNotes.findIndex(n => n.id === cleanNote.id);
+      
+      if (existingIndex >= 0) {
+        savedNotes[existingIndex] = cleanNote;
+        
+        const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
+        localStorage.setItem(storageKey, JSON.stringify(savedNotes));
+      }
+    } catch (error) {
+      console.warn('更新 localStorage 中的笔记列表失败 (备份):', error);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('更新纸条到 IndexedDB 失败:', error);
+    
+    // 降级方案：使用 localStorage
+    try {
+      const savedNotes = await getSavedNotes();
+      const existingIndex = savedNotes.findIndex(n => n.id === note.id);
+      
+      if (existingIndex >= 0) {
+        // 确保数据可以被序列化
+        const cleanNote = cleanDataForStorage(note);
+        savedNotes[existingIndex] = cleanNote;
+        
+        const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
+        localStorage.setItem(storageKey, JSON.stringify(savedNotes));
+        return true;
+      }
+      
+      return false;
+    } catch (fallbackError) {
+      console.error('降级更新也失败:', fallbackError);
+      return false;
+    }
   }
 }

@@ -48,6 +48,7 @@
             :content="currentNote.content"
             :background="currentNote.background"
             :fontSize="currentNote.fontSize"
+            :custom-style="currentNote.customStyle || {}"
             ref="detailNoteRef"
           />
         </div>
@@ -56,13 +57,25 @@
           <button class="icon-btn action-btn" @click="deleteCurrentNote">
             <i class="fas fa-trash"></i>
           </button>
-          <button class="icon-btn action-btn" @click="exportCurrentNote">
-            <i class="fas fa-download"></i>
-          </button>
-          <button class="icon-btn action-btn" @click="shareCurrentNote">
-            <i class="fas fa-share-alt"></i>
+          <button class="icon-btn action-btn" @click="customizeCurrentNote">
+            <i class="fas fa-palette"></i>
           </button>
         </div>
+      </div>
+    </div>
+    
+    <!-- 样式定制器弹窗 -->
+    <div class="style-customizer-modal" v-if="showStyleCustomizer" @click.self="showStyleCustomizer = false">
+      <div class="modal-content" @click.stop>
+        <NoteStyleCustomizer 
+          :note-content="currentNote?.content || ''"
+          :note-mood="currentNote?.mood || ''"
+          :initial-style="currentNote?.customStyle || {}"
+          :external-font-size="currentNote?.fontSize || getDefaultFontSize()"
+          @close="showStyleCustomizer = false"
+          @update:style="updateNoteStyle"
+          @export="handleExport"
+        />
       </div>
     </div>
     
@@ -90,9 +103,9 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
-import { getSavedNotes, deleteNote, clearSavedNotes } from '../services/storageService';
+import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
+import { getSavedNotes, deleteNote, clearSavedNotes, updateSavedNote } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
-import { generateNote } from '../services/aiService.js';
 
 const router = useRouter();
 const savedNotes = ref([]);
@@ -100,8 +113,9 @@ const showNoteDetail = ref(false);
 const showActionMenu = ref(false);
 const currentNote = ref(null);
 const detailNoteRef = ref(null);
+const showStyleCustomizer = ref(false);
 
-const { exportAsImage, saveToDevice, shareImage } = useNoteExport();
+const { exportAsImage, saveToDevice } = useNoteExport();
 
 // 获取收藏的笔记
 async function loadSavedNotes() {
@@ -157,40 +171,6 @@ async function deleteAll() {
   }
 }
 
-// 导出当前笔记
-async function exportCurrentNote() {
-  if (!detailNoteRef.value) return;
-  
-  try {
-    const imageUrl = await exportAsImage(detailNoteRef.value.$el);
-    if (imageUrl) {
-      await saveToDevice(imageUrl, `心语_${formatDateForFile(currentNote.value.savedAt)}.png`);
-    }
-  } catch (error) {
-    console.error('导出失败:', error);
-    alert('导出图片失败，请重试');
-  }
-}
-
-// 分享当前笔记
-async function shareCurrentNote() {
-  if (!detailNoteRef.value) return;
-  
-  try {
-    const imageUrl = await exportAsImage(detailNoteRef.value.$el);
-    if (imageUrl) {
-      const shared = await shareImage(imageUrl);
-      if (!shared) {
-        await saveToDevice(imageUrl);
-        alert('图片已保存，您可以手动分享');
-      }
-    }
-  } catch (error) {
-    console.error('分享失败:', error);
-    alert('分享失败，请重试');
-  }
-}
-
 // 导出所有笔记
 async function exportAll() {
   alert('批量导出功能暂未实现');
@@ -238,59 +218,80 @@ function formatDateForFile(dateString) {
   return date.toISOString().slice(0, 10);
 }
 
-// 重新生成笔记内容
-async function regenerateNote(note) {
-  isRegenerating.value = note.id;
-  
-  try {
-    const params = {
-      zodiac: userPreferences.zodiac,
-      mbti: userPreferences.mbti,
-      moods: note.moods || ['😊'],
-      theme: note.theme || 'chat',
-      savageMode: note.savageMode || false,
-      language: preferDualLanguage.value ? 'en-zh' : 'zh',
-      gender: userPreferences.gender,
-      age: userPreferences.age,
-      relationship: userPreferences.relationship
-    };
-    
-    // Use generateNote instead of generateNoteContent
-    const result = await generateNote(params);
-    
-    // Update the note with the new content
-    const updatedNote = {
-      ...note,
-      content: result.data.content,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Update in your storage
-    updateSavedNote(updatedNote);
-    
-    // Refresh the notes list
-    loadSavedNotes();
-    
-    // Show success message
-    successMessage.value = '已重新生成内容';
-    setTimeout(() => {
-      successMessage.value = '';
-    }, 3000);
-  } catch (error) {
-    console.error('重新生成内容失败:', error);
-    errorMessage.value = error.message || '重新生成失败，请稍后重试';
-    setTimeout(() => {
-      errorMessage.value = '';
-    }, 3000);
-  } finally {
-    isRegenerating.value = null;
-  }
-}
-
 // 生命周期
 onMounted(() => {
   loadSavedNotes();
 });
+
+// 自定义当前笔记样式
+function customizeCurrentNote() {
+  showStyleCustomizer.value = true;
+}
+
+// 更新笔记样式
+async function updateNoteStyle(newStyle) {
+  if (!currentNote.value) return;
+  
+  try {
+    // 从新样式中解构出字体大小，其他样式属性保持不变
+    const { fontSize: newFontSize, ...otherStyles } = newStyle;
+    
+    // 创建一个新的笔记对象，避免直接修改引用
+    const updatedNote = {
+      ...currentNote.value,
+      customStyle: otherStyles,
+      fontSize: newFontSize || currentNote.value.fontSize || getDefaultFontSize() // 确保字体大小被正确应用
+    };
+    
+    // 确保params是可序列化的对象
+    if (updatedNote.params) {
+      // 如果params包含数组或复杂对象，确保它们被正确序列化
+      updatedNote.params = JSON.parse(JSON.stringify(updatedNote.params));
+    }
+    
+    // 更新笔记
+    const success = await updateSavedNote(updatedNote);
+    if (success) {
+      currentNote.value = updatedNote;
+      await loadSavedNotes();
+    } else {
+      alert('更新样式失败，请重试');
+    }
+  } catch (error) {
+    console.error('更新笔记样式失败:', error);
+    alert('更新样式失败，请重试');
+  }
+}
+
+// 处理导出
+async function handleExport(style) {
+  if (!detailNoteRef.value) return;
+  
+  try {
+    // 应用样式
+    if (style) {
+      await updateNoteStyle(style);
+    }
+    
+    // 导出图片
+    const imageUrl = await exportAsImage(detailNoteRef.value.$el);
+    if (imageUrl) {
+      // 直接下载图片
+      await saveToDevice(imageUrl, `心语_${formatDateForFile(currentNote.value.savedAt || new Date())}.png`);
+      alert('导出成功！图片已保存到您的设备');
+      showStyleCustomizer.value = false;
+    }
+  } catch (error) {
+    console.error('导出失败:', error);
+    alert('导出图片失败，请重试');
+  }
+}
+
+// 获取默认字体大小
+function getDefaultFontSize() {
+  // 根据屏幕宽度返回合适的字体大小
+  return window.innerWidth <= 375 ? 18 : 24;
+}
 </script>
 
 <style scoped>
@@ -484,5 +485,31 @@ onMounted(() => {
     height: 40px;
     font-size: 18px;
   }
+}
+
+.style-customizer-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-content {
+  width: 90%;
+  max-width: 400px;
+  max-height: 90vh;
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 101;
 }
 </style>

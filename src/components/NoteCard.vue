@@ -363,7 +363,7 @@ const contentStyle = computed(() => {
   
   const style = {
     fontSize: `${fontSize}px`,
-    fontFamily: 'var(--font-note)',
+    fontFamily: props.customStyle?.fontFamily || 'var(--font-note)',
     lineHeight: isVerySmallScreen ? 1.5 : isSmallScreen ? 1.5 : 1.6,
     position: 'relative',
     zIndex: '2' // 确保内容在图片层之上

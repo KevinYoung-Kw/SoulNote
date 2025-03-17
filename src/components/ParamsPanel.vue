@@ -741,14 +741,18 @@ watch(() => props.visible, async (newVisible) => {
 
 // 监听initialParams变化
 watch(() => props.initialParams, (newParams) => {
-  if (!props.visible) {
-    // 只有在面板关闭时才更新参数，避免编辑过程中被覆盖
-    Object.assign(params, newParams);
-    // 对于数组，需要深度复制
-    if (newParams.moods) {
-      params.moods = [...newParams.moods];
-    }
+  // 无论面板是否打开，都更新参数，确保清除操作能立即生效
+  Object.assign(params, newParams);
+  
+  // 对于数组，需要深度复制
+  if (newParams.moods) {
+    params.moods = [...newParams.moods];
+  } else {
+    params.moods = [];
   }
+  
+  // 确保毒舌模式状态正确
+  document.body.classList.toggle('savage-mode', params.savageMode);
 }, { deep: true });
 </script>
 

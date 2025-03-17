@@ -26,37 +26,30 @@
           </div>
         </div>
         
-        <div class="form-group">
-          <label>选择系统模型</label>
-          <select v-model="systemModel">
-            <option value="qwen-turbo">通义千问 Turbo (响应快，性能一般)</option>
-            <option value="qwen-plus">通义千问 Plus (响应适中，性能良好)</option>
-            <option value="qwen-max">通义千问 Max (响应慢，性能最佳)</option>
-            <option value="deepseek-v3">DeepSeek V3 (响应巨慢，性能优秀)</option>
-            <option value="deepseek-r1">DeepSeek R1 (响应慢的我想4️⃣，但奈何性能卓越)</option>
-          </select>
-        </div>
-        
-        <div class="model-performance-note">
-          <div class="note-item">
-            <span class="model-tag turbo">Turbo</span>
-            <span>响应最快，但可能出现对仗不工整，不建议用于诗歌和俳句创作</span>
+        <div class="custom-dropdown">
+          <div class="dropdown-header" @click="showModelDropdown = !showModelDropdown">
+            <div class="selected-model">
+              <span :class="['model-tag', selectedModelInfo.tagClass]">{{ selectedModelInfo.tag }}</span>
+              <span class="model-name">{{ selectedModelInfo.name }}</span>
+            </div>
+            <i class="fas fa-chevron-down" :class="{ 'rotate': showModelDropdown }"></i>
           </div>
-          <div class="note-item">
-            <span class="model-tag plus">Plus</span>
-            <span>响应速度和质量平衡，适合大多数场景</span>
-          </div>
-          <div class="note-item">
-            <span class="model-tag max">Max</span>
-            <span>响应较慢，但质量最高，适合需要高质量输出的场景</span>
-          </div>
-          <div class="note-item">
-            <span class="model-tag deepseek-r1">R1</span>
-            <span>DeepSeek R1 模型，响应适中，诗歌和俳句创作表现优秀</span>
-          </div>
-          <div class="note-item">
-            <span class="model-tag deepseek-v3">V3</span>
-            <span>DeepSeek V3 模型，响应适中，诗歌和俳句创作表现卓越</span>
+          
+          <div class="dropdown-options" v-if="showModelDropdown">
+            <div 
+              v-for="model in systemModels" 
+              :key="model.value"
+              :class="['dropdown-option', { active: systemModel === model.value }]"
+              @click="selectModel(model.value)"
+            >
+              <div class="option-header">
+                <span :class="['model-tag', model.tagClass]">{{ model.tag }}</span>
+                <span class="model-name">{{ model.name }}</span>
+              </div>
+              <div class="option-body">
+                <p>{{ model.description }}</p>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -183,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { saveApiSettings, getApiSettings, clearApiSettings } from '@/services/storageService';
 import { testApiConnection } from '@/services/aiService';
 
@@ -199,6 +192,46 @@ const customModelName = ref('');
 const testResult = ref(null);
 const showClearConfirm = ref(false);
 const systemModel = ref('qwen-turbo'); // 新增：系统默认模型选择
+const showModelDropdown = ref(false);
+
+// 系统模型定义
+const systemModels = [
+  {
+    value: 'qwen-turbo',
+    name: '通义千问 Turbo',
+    tag: 'Turbo',
+    tagClass: 'turbo',
+    description: '响应最快，但可能出现对仗不工整，不建议用于诗歌和俳句创作'
+  },
+  {
+    value: 'qwen-plus',
+    name: '通义千问 Plus',
+    tag: 'Plus',
+    tagClass: 'plus',
+    description: '响应速度和质量平衡，适合大多数场景'
+  },
+  {
+    value: 'qwen-max',
+    name: '通义千问 Max',
+    tag: 'Max',
+    tagClass: 'max',
+    description: '响应较慢，但质量最高，适合需要高质量输出的场景'
+  },
+  {
+    value: 'deepseek-r1',
+    name: 'DeepSeek R1',
+    tag: 'R1',
+    tagClass: 'deepseek-r1',
+    description: '响应较慢，但性能卓越，诗歌和俳句创作表现极佳'
+  },
+  {
+    value: 'deepseek-v3',
+    name: 'DeepSeek V3',
+    tag: 'V3',
+    tagClass: 'deepseek-v3',
+    description: '响应适中，性能优秀，诗歌和俳句创作表现良好'
+  }
+];
 
 // 计算属性
 const canSave = computed(() => {
@@ -214,6 +247,10 @@ const canTest = computed(() => {
 
 const hasSettings = computed(() => {
   return apiKey.value || apiUrl.value || customModelName.value;
+});
+
+const selectedModelInfo = computed(() => {
+  return systemModels.find(model => model.value === systemModel.value) || systemModels[0];
 });
 
 // 方法
@@ -342,6 +379,19 @@ async function testConnection() {
   }
 }
 
+function selectModel(modelValue) {
+  systemModel.value = modelValue;
+  showModelDropdown.value = false;
+}
+
+// 点击外部关闭下拉菜单
+function closeDropdownOnOutsideClick(event) {
+  const dropdown = document.querySelector('.custom-dropdown');
+  if (dropdown && !dropdown.contains(event.target) && showModelDropdown.value) {
+    showModelDropdown.value = false;
+  }
+}
+
 // 监听系统模型变化，自动保存设置
 watch(systemModel, async (newModel) => {
   if (!useCustomAPI.value) {
@@ -387,6 +437,12 @@ watch(selectedModel, async (newModel) => {
 // 生命周期钩子
 onMounted(() => {
   loadSettings();
+  document.addEventListener('click', closeDropdownOnOutsideClick);
+});
+
+// 组件卸载时移除事件监听
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdownOnOutsideClick);
 });
 </script>
 
@@ -675,22 +731,89 @@ option {
   color: var(--text-secondary);
 }
 
-.model-performance-note {
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  padding: var(--spacing-sm);
+.model-selection-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
-.note-item {
+.model-select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23777' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 36px;
+}
+
+.model-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.model-detail-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.model-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.model-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.model-card.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color), var(--shadow-md);
+}
+
+.model-card-header {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
 }
 
-.note-item:last-child {
-  margin-bottom: 0;
+.model-name {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.model-card-body {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.model-card-body p {
+  margin: 0;
 }
 
 .model-tag {
@@ -723,8 +846,94 @@ option {
   background-color: #2196f3;
 }
 
-.note-item span:last-child {
+@media (max-width: 480px) {
+  .model-selection-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+.custom-dropdown {
+  position: relative;
+  margin-bottom: var(--spacing-md);
+}
+
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: var(--card-bg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.dropdown-header:hover {
+  border-color: var(--primary-color);
+}
+
+.selected-model {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.dropdown-header i {
+  transition: transform 0.3s ease;
+}
+
+.dropdown-header i.rotate {
+  transform: rotate(180deg);
+}
+
+.dropdown-options {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: var(--shadow-md);
+  margin-top: 4px;
+}
+
+.dropdown-option {
+  padding: var(--spacing-md);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.dropdown-option:last-child {
+  border-bottom: none;
+}
+
+.dropdown-option:hover {
+  background-color: rgba(123, 158, 137, 0.05);
+}
+
+.dropdown-option.active {
+  background-color: rgba(123, 158, 137, 0.1);
+  border-left: 3px solid var(--primary-color);
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.option-body {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  line-height: 1.4;
+  padding-left: calc(50px + var(--spacing-sm)); /* 对齐标签宽度 + 间距 */
 }
 </style>

@@ -127,6 +127,25 @@
         
           
           <div class="text-settings-panel">
+            <!-- 字体选择 -->
+            <div class="setting-group">
+              <div class="setting-header">
+                <i class="fas fa-font"></i>
+                <span>字体选择</span>
+              </div>
+              <div class="font-selection">
+                <div 
+                  v-for="font in fontFamilies" 
+                  :key="font.value"
+                  :class="['font-option', { active: currentStyle.fontFamily === font.value }]"
+                  @click="updateStyle({ fontFamily: font.value })"
+                  :style="{ fontFamily: font.value }"
+                >
+                  <span>{{ font.label }}</span>
+                </div>
+              </div>
+            </div>
+            
             <!-- 字体大小控制 -->
             <div class="setting-group">
               <div class="setting-header">
@@ -330,11 +349,23 @@ const textColors = [
   { value: '#B54A4A', label: '红色' }
 ];
 
+// 字体选项
+const fontFamilies = [
+  { value: 'var(--font-note)', label: '默认楷体' },
+  { value: "'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体'", label: '楷体' },
+  { value: "'Noto Sans SC', 'PingFang SC', '微软雅黑', sans-serif", label: '黑体' },
+  { value: "'Noto Serif SC', 'SimSun', '宋体', serif", label: '宋体' },
+  { value: "'Dancing Script', cursive", label: '英文草书' },
+  { value: "'Arial', sans-serif", label: '英文无衬线' },
+  { value: "'Times New Roman', serif", label: '英文衬线' }
+];
+
 // 默认样式
 const defaultStyle = {
   layout: 'paper',
   background: 'paper-1',
   fontSize: props.externalFontSize,
+  fontFamily: 'var(--font-note)',
   textColor: '#000000',
   textShadow: false,
   textPosition: 'center',
@@ -866,14 +897,22 @@ watch(() => props.initialStyle, (newStyle) => {
 
 // 生命周期
 onMounted(() => {
-  // 初始化样式
-  if (Object.keys(props.initialStyle).length > 0) {
-    currentStyle.value = { 
-      ...defaultStyle, 
+  // 如果有初始样式，合并到当前样式
+  if (props.initialStyle) {
+    // 合并初始样式
+    currentStyle.value = {
+      ...currentStyle.value,
       ...props.initialStyle,
-      showQrcode: true,
-      slogan: ''
+      // 确保字体大小正确
+      fontSize: props.initialStyle.fontSize || props.externalFontSize || defaultStyle.fontSize,
+      // 确保字体正确
+      fontFamily: props.initialStyle.fontFamily || defaultStyle.fontFamily
     };
+  }
+  
+  // 如果有心情标签，设置相应的背景
+  if (props.noteMood) {
+    setBackgroundByMood(props.noteMood);
   }
   
   // 如果有图片URL但布局是纸条，自动切换到图片背景布局
@@ -1251,8 +1290,8 @@ function handleFilterUpdate(filterData) {
 .color-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: var(--spacing-sm);
-  margin-top: 8px;
+  gap: var(--spacing-xs);
+  margin-top: 4px;
 }
 
 .color-option {
@@ -1265,24 +1304,24 @@ function handleFilterUpdate(filterData) {
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   margin: 0 auto;
 }
 
 .color-option:hover {
   transform: scale(1.1);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
 }
 
 .color-option.active {
   transform: scale(1.15);
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(123, 158, 137, 0.3);
+  box-shadow: 0 0 0 2px rgba(123, 158, 137, 0.2);
 }
 
 .color-option i {
-  font-size: 16px;
+  font-size: 14px;
   opacity: 0.9;
 }
 
@@ -1661,131 +1700,44 @@ function handleFilterUpdate(filterData) {
   border: 1px solid var(--border-color);
 }
 
-/* 颜色选择网格 */
-.color-grid {
+/* 字体选择样式 */
+.font-selection {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-xs);
-  margin-top: 4px;
+  margin-top: var(--spacing-xs);
 }
 
-.color-option {
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 2px solid var(--border-color);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 30px;
-  height: 30px;
-  margin: 0 auto;
-}
-
-.color-option:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
-}
-
-.color-option.active {
-  transform: scale(1.15);
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(123, 158, 137, 0.2);
-}
-
-.color-option i {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-/* 位置控制样式 */
-.position-controls {
-  display: flex;
-  gap: var(--spacing-xs);
-}
-
-.position-btn {
-  flex: 1;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.font-option {
+  padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
   background-color: var(--card-bg);
-  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: center;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.position-btn i {
+.font-option span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 14px;
 }
 
-.position-btn.active {
-  background-color: var(--primary-color);
-  color: white;
+.font-option:hover {
   border-color: var(--primary-color);
+  background-color: rgba(123, 158, 137, 0.05);
 }
 
-/* 开关样式 */
-.switch-container {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.switch-control {
-  position: relative;
-  width: 36px;
-  height: 20px;
-}
-
-.switch-control input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.switch-control label {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--border-color);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.switch-control label:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 2px;
-  bottom: 2px;
-  background-color: white;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.switch-control input:checked + label {
-  background-color: var(--primary-color);
-}
-
-.switch-control input:checked + label:before {
-  transform: translateX(16px);
-}
-
-.switch-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 500;
+.font-option.active {
+  border-color: var(--primary-color);
+  background-color: rgba(123, 158, 137, 0.1);
+  box-shadow: 0 0 0 1px var(--primary-color);
 }
 
 /* 添加toast消息样式 */

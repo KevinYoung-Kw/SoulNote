@@ -341,18 +341,27 @@ function regenerateNote() {
 async function saveNote() {
   if (!noteContent.value) return;
   
-  const note = {
-    content: noteContent.value,
-    background: currentBackground.value,
-    fontSize: fontSize.value,
-    params: { ...params },
-    createdAt: new Date().toISOString()
-  };
-  
-  const savedNote = saveNoteToStorage(note);
-  if (savedNote) {
-    alert('保存成功！');
-  } else {
+  try {
+    // 创建一个可序列化的参数对象
+    const serializableParams = JSON.parse(JSON.stringify(params));
+    
+    const note = {
+      content: noteContent.value,
+      background: currentBackground.value,
+      fontSize: fontSize.value,
+      customStyle: customStyle.value || {},
+      params: serializableParams,
+      createdAt: new Date().toISOString()
+    };
+    
+    const savedNote = await saveNoteToStorage(note);
+    if (savedNote) {
+      alert('保存成功！');
+    } else {
+      alert('保存失败，请重试');
+    }
+  } catch (error) {
+    logger.error('SAVE', '保存笔记失败:', error);
     alert('保存失败，请重试');
   }
 }
@@ -365,7 +374,11 @@ function openStore() {
 
 // 添加一个方法来缓存生成的内容
 async function cacheGeneratedContent() {
-  if (!noteContent.value || noteContent.value === '点击下方"生成心语"按钮，开始您的心灵之旅...') return;
+  // 确保不缓存默认内容或空内容
+  const defaultMessage = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+  if (!noteContent.value || noteContent.value === defaultMessage) {
+    return;
+  }
   
   try {
     // 获取当前偏好
@@ -400,6 +413,7 @@ async function cacheGeneratedContent() {
 // 添加清除内容方法
 function clearGeneratedContent() {
   if (confirm('确定要清除当前内容吗？')) {
+    // 重置内容
     noteContent.value = '点击下方"生成心语"按钮，开始您的心灵之旅...';
     
     // 重置所有参数
@@ -409,13 +423,20 @@ function clearGeneratedContent() {
     params.enableFortune = false;
     params.fortuneAspect = 'overall';
     
+    // 重置生成状态
     hasGeneratedContent.value = false;
     
     // 清除缓存
     clearContentCache();
     
-    // 保存重置后的参数
-    updateLocalPreferences();
+    // 保存重置后的参数 - 确保完全清除所有相关参数
+    updateLocalPreferencesAfterClear();
+    
+    // 确保样式更新
+    document.body.classList.remove('savage-mode');
+    
+    // 记录清除操作
+    logger.info('CLEAR', '已清除内容和参数');
   }
 }
 
@@ -433,21 +454,86 @@ async function clearContentCache() {
   }
 }
 
+// 添加一个专门用于清除后更新偏好的方法
+async function updateLocalPreferencesAfterClear() {
+  try {
+    // 获取当前偏好
+    const currentPrefs = await getUserPreferences();
+    
+    // 创建一个新的偏好对象，只保留必要的用户信息，重置其他所有设置
+    const cleanedPrefs = {
+      // 保留用户个人信息
+      gender: currentPrefs.gender,
+      age: currentPrefs.age,
+      relationship: currentPrefs.relationship,
+      zodiac: currentPrefs.zodiac,
+      mbti: currentPrefs.mbti,
+      
+      // 重置所有其他设置
+      fontSize: fontSize.value,
+      background: currentBackground.value,
+      savageMode: false,
+      theme: 'chat',
+      moods: [],
+      enableFortune: false,
+      fortuneAspect: 'overall',
+      
+      // 保留其他不相关的设置
+      language: currentPrefs.language || 'zh',
+      darkMode: currentPrefs.darkMode,
+      headerCollapsed: currentPrefs.headerCollapsed,
+      hideAppreciation: currentPrefs.hideAppreciation,
+      
+      // 明确设置缓存为null
+      cachedContent: null
+    };
+    
+    // 保存清理后的偏好
+    await saveUserPreferences(cleanedPrefs);
+    
+    logger.info('PREFERENCES', '已完全重置所有参数');
+  } catch (error) {
+    logger.error('PREFERENCES', '重置参数失败:', error);
+  }
+}
+
 // 从缓存恢复内容
 async function restoreFromCache() {
   try {
     const preferences = await getUserPreferences();
-    if (preferences && preferences.cachedContent) {
-      const { content, moods, background, fontSize: cachedFontSize, theme, savageMode, enableFortune, fortuneAspect } = preferences.cachedContent;
+    
+    // 检查是否存在缓存内容且缓存内容不为null
+    if (preferences && preferences.cachedContent && preferences.cachedContent !== null) {
+      const { content, moods, background, fontSize: cachedFontSize, theme, savageMode, enableFortune, fortuneAspect, timestamp } = preferences.cachedContent;
+      
+      // 检查缓存时间戳，如果超过24小时则不恢复
+      const cacheTime = timestamp ? new Date(timestamp) : null;
+      const now = new Date();
+      const cacheAgeHours = cacheTime ? (now - cacheTime) / (1000 * 60 * 60) : 0;
+      
+      // 如果缓存超过24小时，则不恢复
+      if (cacheTime && cacheAgeHours > 24) {
+        logger.info('CACHE', '缓存内容已过期，不恢复');
+        await clearContentCache(); // 清除过期缓存
+        return;
+      }
+      
+      // 检查内容是否有效
+      const defaultMessage = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+      if (!content || content === defaultMessage || content.trim() === '') {
+        logger.info('CACHE', '缓存内容无效，不恢复');
+        await clearContentCache();
+        return;
+      }
       
       // 恢复内容
-      if (content && content !== '点击下方"生成心语"按钮，开始您的心灵之旅...') {
+      if (content && content !== defaultMessage) {
         noteContent.value = content;
         hasGeneratedContent.value = true;
       }
       
       // 恢复表情
-      if (moods && Array.isArray(moods)) {
+      if (moods && Array.isArray(moods) && moods.length > 0) {
         params.moods = [...moods];
       }
       
@@ -482,6 +568,8 @@ async function restoreFromCache() {
       }
       
       logger.info('CACHE', '从缓存恢复内容成功');
+    } else {
+      logger.info('CACHE', '没有找到有效的缓存内容');
     }
   } catch (error) {
     logger.error('CACHE', '恢复缓存内容失败:', error);
@@ -674,7 +762,8 @@ watch(() => params.savageMode, (isSavage) => {
 
 // 监听内容、表情、背景和字体大小的变化，更新缓存
 watch([noteContent, () => params.moods, currentBackground, fontSize], () => {
-  if (noteContent.value && noteContent.value !== '点击下方"生成心语"按钮，开始您的心灵之旅...') {
+  const defaultMessage = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+  if (noteContent.value && noteContent.value !== defaultMessage && hasGeneratedContent.value) {
     cacheGeneratedContent();
   }
 }, { deep: true });
