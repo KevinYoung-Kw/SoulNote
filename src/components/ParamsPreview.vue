@@ -35,6 +35,7 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { getApiSettings } from '../services/storageService';
 import { isFeatureSupported } from '../services/aiService';
+import { themeOptions, fortuneAspects } from '../data/emojiData';
 
 // Props
 const props = defineProps({
@@ -52,21 +53,6 @@ const supportsPoetry = ref(true);
 const supportsHaiku = ref(true);
 const currentModel = ref('qwen-turbo');
 const apiSettingsChangeListener = ref(null);
-
-// Data
-const themeOptions = [
-  { label: '聊天', value: 'chat', icon: 'fas fa-comment-dots' },
-  { label: '箴言', value: 'aphorism', icon: 'fas fa-book-open' },
-  { label: '诗歌', value: 'poetry', icon: 'fas fa-feather-alt' },
-  { label: '俳句', value: 'haiku', icon: 'fas fa-leaf' }
-];
-
-const fortuneAspects = [
-  { label: '整体', value: 'overall', icon: 'fas fa-star' },
-  { label: '爱情', value: 'love', icon: 'fas fa-heart' },
-  { label: '事业', value: 'career', icon: 'fas fa-briefcase' },
-  { label: '财运', value: 'wealth', icon: 'fas fa-coins' }
-];
 
 // Computed
 const isSavageMode = computed(() => props.params.savageMode);
