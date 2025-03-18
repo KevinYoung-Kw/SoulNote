@@ -144,20 +144,19 @@
     }
     
     .logo-placeholder {
-      width: 80px;
-      height: 80px;
-      border-radius: 20px;
-      background-color: var(--primary-color);
+      width: 130px;
+      height: 130px;
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: 1rem;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      overflow: hidden;
     }
     
-    .logo-placeholder i {
-      font-size: 40px;
-      color: white;
+    .loading-logo {
+      width: 95%;
+      height: 95%;
+      object-fit: contain;
     }
     
     .loading-text {
@@ -188,7 +187,7 @@
   <div id="app">
     <div class="loading-container">
       <div class="logo-placeholder">
-        <i class="fas fa-star"></i>
+        <img src="/assets/welcome-logo.svg" alt="星语心笺" class="loading-logo" />
       </div>
       <h1>星语心笺</h1>
       <div class="loading-spinner"></div>

@@ -3,7 +3,7 @@
     <div class="welcome-content">
       <div class="logo-container">
         <div class="app-logo">
-          <i class="fas fa-star logo-icon"></i>
+          <img src="/assets/welcome-logo.svg" alt="星语心笺" class="logo-image" />
         </div>
         <h1 class="app-title">星语心笺</h1>
         <p class="app-slogan">心笺一瞬，暖意自生</p>
@@ -98,20 +98,19 @@ function startExperience() {
 }
 
 .app-logo {
-  width: 80px;
-  height: 80px;
-  background-color: var(--primary-color);
-  border-radius: 20px;
+  width: 130px;
+  height: 130px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto var(--spacing-md);
-  box-shadow: var(--shadow-md);
+  overflow: hidden;
 }
 
-.logo-icon {
-  font-size: 40px;
-  color: white;
+.logo-image {
+  width: 95%;
+  height: 95%;
+  object-fit: contain;
 }
 
 .app-title {
