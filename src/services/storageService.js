@@ -229,7 +229,12 @@ function getDefaultPreferences() {
     theme: 'light',
     fontSize: 24,
     background: 'paper-1',
-    savageMode: false
+    savageMode: false,
+    lastSeenVersion: null,
+    isFirstLogin: true,
+    communityRemindAt: null,
+    communityShownBefore: false,
+    neverRemindCommunity: false
   };
 }
 

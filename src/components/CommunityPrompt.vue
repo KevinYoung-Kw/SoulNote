@@ -36,7 +36,7 @@
               <ul class="benefit-list">
                 <li><i class="fas fa-star"></i> 第一时间获取新功能通知</li>
                 <li><i class="fas fa-mobile-alt"></i> 获取App下载及更新信息</li>
-                <li><i class="fas fa-comments"></i> 与其他用户交流心得及建议</li>
+                <li><i class="fas fa-comments"></i> 基本上用户一提出来建议我就实现了嘎嘎嘎</li>
                 <li><i class="fas fa-gift"></i> 星与心笺公测后获得免费试用资格</li>
                 <li><i class="fas fa-flask"></i> 参与其他应用开发抢先内测</li>
               </ul>
@@ -97,7 +97,7 @@
           <div class="action-area" v-if="!compact">
             <template v-if="activeTab === 'community'">
               <button class="remind-later-btn" @click="remindLater">稍后提醒</button>
-              <button class="close-btn-text" @click="neverRemind">不再提醒</button>
+              <button class="close-btn-text" @click="neverRemind">本版本不再提醒</button>
             </template>
             <template v-else>
               <button class="primary-btn" @click="activeTab = 'community'">
@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { saveUserPreferences, getUserPreferences } from '../services/storageService';
 import { APP_VERSION } from '../config/version';
 
@@ -145,13 +145,26 @@ const props = defineProps({
   updateLogs: {
     type: Array,
     default: () => []
+  },
+  // 新增：初始激活的标签页
+  activeTab: {
+    type: String,
+    default: 'community'
   }
 });
 
 const emit = defineEmits(['close', 'later', 'never']);
 
 // 活动标签页，默认显示社群标签
-const activeTab = ref('community');
+const activeTab = ref(props.activeTab);
+
+// 监听属性变化，同步更新标签页
+watch(() => props.activeTab, (newValue) => {
+  if (newValue) {
+    activeTab.value = newValue;
+    console.log('标签页切换为:', newValue);
+  }
+}, { immediate: true }); // 添加 immediate: true 确保组件挂载时立即生效
 
 // 选中的版本筛选
 const selectedVersion = ref('all');
@@ -302,15 +315,16 @@ function getCategoryTitle(type) {
 
 function close() {
   if (props.allowClose) {
+    console.log('关闭弹窗');
     emit('close');
   }
 }
 
 async function remindLater() {
   try {
-    // 设置3分钟后再次提醒
+    // 设置5分钟后再次提醒
     const nextRemindDate = new Date();
-    nextRemindDate.setMinutes(nextRemindDate.getMinutes() + 3);
+    nextRemindDate.setMinutes(nextRemindDate.getMinutes() + 5);
     
     // 先获取当前用户偏好设置
     const currentPrefs = await getUserPreferences();
@@ -318,10 +332,11 @@ async function remindLater() {
     // 合并偏好设置，保留现有设置同时更新提醒时间
     await saveUserPreferences({
       ...currentPrefs,
-      communityRemindAt: nextRemindDate.toISOString()
+      communityRemindAt: nextRemindDate.toISOString(),
+      communityShownBefore: true // 确保标记为已显示过
     });
     
-    console.log('已设置3分钟后提醒');
+    console.log('已设置5分钟后提醒');
     emit('later');
   } catch (error) {
     console.error('设置提醒时间失败:', error);
@@ -337,13 +352,14 @@ async function neverRemind() {
     // 合并偏好设置，保留现有设置同时添加不再提醒标记
     await saveUserPreferences({
       ...currentPrefs,
-      neverRemindCommunity: true
+      neverRemindCommunity: true,
+      communityShownBefore: true // 确保标记为已显示过
     });
     
-    console.log('已设置永不提醒');
+    console.log('已设置本版本内不再提醒');
     emit('never');
   } catch (error) {
-    console.error('设置永不提醒失败:', error);
+    console.error('设置不再提醒失败:', error);
     emit('never'); // 即使出错也关闭弹窗
   }
 }

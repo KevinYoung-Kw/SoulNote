@@ -65,6 +65,7 @@
       :qrcodeUrl="communityPromptData.qrcodeUrl"
       :compact="communityPromptData.reason === 'generation_threshold'"
       :updateLogs="communityPromptData.updateLogs"
+      :activeTab="communityPromptData.activeTab || 'community'"
       @close="handleCommunityPromptClose"
       @later="handleCommunityPromptClose"
       @never="handleCommunityPromptClose"
@@ -159,7 +160,8 @@ const communityPromptData = reactive({
   message: '',
   qrcodeUrl: '/assets/community-qr.png',
   reason: '',
-  updateLogs: []
+  updateLogs: [],
+  activeTab: 'community' // 默认选中标签
 });
 
 // 动态计算响应时间和动画时长
@@ -293,7 +295,8 @@ async function generateNoteContent() {
             if (shouldShow.show) {
               Object.assign(communityPromptData, {
                 ...shouldShow,
-                message: '内容生成成功！喜欢这种体验吗？加入社群获取更多创作技巧～'
+                message: '内容生成成功！喜欢这种体验吗？加入社群获取更多创作技巧～',
+                activeTab: 'community' // 确保生成内容后显示社群标签页
               });
               showCommunityPrompt.value = true;
             }
@@ -329,7 +332,25 @@ async function generateNoteContent() {
 
 // 添加社群提示关闭处理函数
 function handleCommunityPromptClose() {
+  console.log('弹窗关闭');
   showCommunityPrompt.value = false;
+  
+  // 延迟重置 activeTab，确保下次打开时能根据需要设置正确的标签页
+  setTimeout(() => {
+    communityPromptData.activeTab = 'community'; // 重置为默认标签
+  }, 500);
+  
+  // 更新 communityShownBefore 标记，但不修改其他弹窗设置
+  getUserPreferences().then(prefs => {
+    saveUserPreferences({
+      ...prefs,
+      communityShownBefore: true // 标记弹窗已经显示过
+    }).catch(err => {
+      console.error('更新弹窗显示状态失败:', err);
+    });
+  }).catch(err => {
+    console.error('获取用户偏好设置失败:', err);
+  });
 }
 
 function regenerateNote() {
@@ -656,7 +677,7 @@ onMounted(async () => {
       
       // 加载页眉折叠状态
       headerCollapsed.value = preferences.headerCollapsed || false;
-    
+      
       // 小屏幕设备(≤375px)默认使用18px字体，除非用户显式设置了不同的大小
       if (isSmallScreen && (!preferences.fontSize || preferences.fontSize === 24)) {
         fontSize.value = 18;
@@ -690,28 +711,103 @@ onMounted(async () => {
       // 确保毒舌模式的样式正确应用
       document.body.classList.toggle('savage-mode', params.savageMode);
 
-      const appVersion = APP_VERSION; // 当前应用版本，实际中可从环境变量获取
-      const updatePrompt = await communityService.checkUpdatePrompt(appVersion);     
-
-      if (updatePrompt.show) {
-        Object.assign(communityPromptData, updatePrompt);
-        setTimeout(() => {
-          showCommunityPrompt.value = true;
-        }, 1000); // 页面加载1秒后显示
+      // 检查弹窗显示逻辑，按优先级检查：版本更新 > 首次登录 > 其他提示
+      const appVersion = APP_VERSION;
+      
+      // 如果用户明确选择了不再提醒并且版本号匹配当前版本，则跳过所有弹窗检查
+      if (preferences.neverRemindCommunity && preferences.lastSeenVersion === appVersion) {
+        logger.info('COMMUNITY', '用户设置了本版本不再提醒，跳过弹窗检查');
+        // 恢复缓存内容并继续
+        await restoreFromCache();
         return;
       }
       
-      // 检查其他常规社群提示
+      // 如果设置了下次提醒时间，检查是否已到时间
+      if (preferences.communityRemindAt) {
+        const nextRemindTime = new Date(preferences.communityRemindAt);
+        if (nextRemindTime > new Date()) {
+          logger.info('COMMUNITY', '未到下次提醒时间，跳过弹窗检查');
+          // 恢复缓存内容并继续
+          await restoreFromCache();
+          return;
+        }
+      }
+
+      // 首选检查是否需要强制显示弹窗（首次登录或从未显示过）
+      const isFirstLogin = preferences.isFirstLogin === true;
+      const neverShownBefore = !preferences.communityShownBefore;
+      
+      if (isFirstLogin || neverShownBefore) {
+        logger.info('COMMUNITY', '首次登录或从未显示过弹窗，强制显示');
+        
+        // 如果是首次显示，优先检查是否有版本更新
+        const updatePrompt = await communityService.checkUpdatePrompt(appVersion);
+        if (updatePrompt.show) {
+          // 获取更新日志
+          try {
+            // 从API获取更新日志或使用默认日志
+            const config = await communityService.getConfig();
+            if (config.updateLogs && Array.isArray(config.updateLogs)) {
+              updatePrompt.updateLogs = config.updateLogs;
+            }
+          } catch (error) {
+            console.error('获取更新日志失败:', error);
+          }
+          
+          // 明确设置 activeTab 为 'updates'，确保版本更新时显示更新日志
+          Object.assign(communityPromptData, updatePrompt, { 
+            activeTab: updatePrompt.reason === 'version_update' ? 'updates' : (updatePrompt.activeTab || 'community') 
+          });
+          
+          setTimeout(() => {
+            showCommunityPrompt.value = true;
+          }, 1000);
+          
+          // 恢复缓存内容并返回
+          await restoreFromCache();
+          return;
+        }
+      }
+      
+      // 如果不是强制显示的情况，按常规逻辑检查
+      // 1. 首先检查版本更新
+      const updatePrompt = await communityService.checkUpdatePrompt(appVersion);     
+      if (updatePrompt.show) {
+        // 获取更新日志
+        try {
+          // 从API获取更新日志或使用默认日志
+          const config = await communityService.getConfig();
+          if (config.updateLogs && Array.isArray(config.updateLogs)) {
+            updatePrompt.updateLogs = config.updateLogs;
+          }
+        } catch (error) {
+          console.error('获取更新日志失败:', error);
+        }
+        
+        // 明确设置 activeTab 为 'updates'，确保版本更新时显示更新日志
+        Object.assign(communityPromptData, updatePrompt, { 
+          activeTab: updatePrompt.reason === 'version_update' ? 'updates' : (updatePrompt.activeTab || 'community') 
+        });
+        
+        setTimeout(() => {
+          showCommunityPrompt.value = true;
+        }, 1000); // 页面加载1秒后显示
+        
+        // 恢复缓存内容并返回
+        await restoreFromCache();
+        return;
+      }
+      
+      // 2. 然后检查是否是首次登录或其他提醒
       const shouldShow = await communityService.shouldShowPrompt();
       if (shouldShow.show) {
         Object.assign(communityPromptData, shouldShow);
-        // 延迟显示，避免页面加载时立即弹出
         setTimeout(() => {
           showCommunityPrompt.value = true;
-        }, 2000);
+        }, 1000); // 页面加载1秒后显示
       }
 
-      // 从缓存恢复生成的内容
+      // 恢复缓存内容
       await restoreFromCache();
 
       // 加载 AI 设置
