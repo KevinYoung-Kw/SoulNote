@@ -10,14 +10,19 @@ const fontPreloaded = ref(false);
 onMounted(() => {
   // 尝试预加载字体
   if ('fonts' in document) {
+    // 只预加载明确的字体名称，不使用CSS变量
     Promise.all([
       document.fonts.load('1em KaitiLocal'),
-      document.fonts.load('1em var(--font-note)')
+      document.fonts.load('1em Kaiti'),
+      document.fonts.load('1em 楷体'),
+      document.fonts.load('1em STKaiti'),
+      document.fonts.load('1em 华文楷体')
     ]).then(() => {
       console.log('字体已预加载');
       fontPreloaded.value = true;
     }).catch(err => {
       console.warn('字体预加载失败', err);
+      // 即使有错误也继续，标记为已加载
       fontPreloaded.value = true;
     });
   } else {
@@ -38,6 +43,7 @@ defineExpose({
   width: 0;
   height: 0;
   overflow: hidden;
-  font-family: var(--font-note);
+  /* 列出所有可能的字体，避免使用CSS变量 */
+  font-family: KaitiLocal, Kaiti, 楷体, STKaiti, 华文楷体, 'Noto Sans SC', sans-serif;
 }
 </style> 

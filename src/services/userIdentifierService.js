@@ -11,9 +11,32 @@
 // 尝试导入FingerprintJS，如果不可用则使用降级方案
 let FingerprintJS;
 try {
-  FingerprintJS = require('@fingerprintjs/fingerprintjs');
+  // 优先检查FingerprintJS是否在全局范围内可用
+  if (typeof window !== 'undefined' && window.FingerprintJS) {
+    FingerprintJS = window.FingerprintJS;
+  } else {
+    // 尝试动态导入，避免阻塞
+    const dynamicImport = async () => {
+      try {
+        return await import('@fingerprintjs/fingerprintjs');
+      } catch (e) {
+        // 失败时静默处理，不打印警告
+        return null;
+      }
+    };
+    
+    // 设置为null，generateUserId会处理降级逻辑
+    FingerprintJS = null;
+    
+    // 在后台尝试加载
+    dynamicImport().then(module => {
+      if (module) {
+        FingerprintJS = module.default;
+      }
+    });
+  }
 } catch (e) {
-  console.warn('FingerprintJS not available, falling back to simple ID generation');
+  // 静默失败，不显示警告
   FingerprintJS = null;
 }
 

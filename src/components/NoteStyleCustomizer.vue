@@ -351,7 +351,7 @@ const textColors = [
 
 // 字体选项
 const fontFamilies = [
-  { value: 'var(--font-note)', label: '默认楷体' },
+  { value: "'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体', 'Noto Sans SC', sans-serif", label: '默认楷体' },
   { value: "'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体'", label: '楷体' },
   { value: "'Noto Sans SC', 'PingFang SC', '微软雅黑', sans-serif", label: '黑体' },
   { value: "'Noto Serif SC', 'SimSun', '宋体', serif", label: '宋体' },
@@ -365,7 +365,7 @@ const defaultStyle = {
   layout: 'paper',
   background: 'paper-1',
   fontSize: props.externalFontSize,
-  fontFamily: 'var(--font-note)',
+  fontFamily: "'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体', 'Noto Sans SC', sans-serif",
   textColor: '#000000',
   textShadow: false,
   textPosition: 'center',
@@ -949,6 +949,36 @@ function handleFilterUpdate(filterData) {
       style: filterData.style || ''
     }
   });
+}
+
+// 根据心情标签设置背景
+function setBackgroundByMood(mood) {
+  // 如果已经有自定义样式，不覆盖用户的设置
+  if (currentStyle.value.imageUrl) return;
+  
+  // 简单的心情到背景映射
+  const moodBackgrounds = {
+    '😊': 'paper-1', // 开心
+    '😄': 'paper-1',
+    '🥰': 'paper-1',
+    '😌': 'paper-2', // 放松
+    '😇': 'paper-2',
+    '🤔': 'paper-3', // 思考
+    '🧐': 'paper-3',
+    '😔': 'paper-4', // 伤感
+    '😢': 'paper-4',
+    '😭': 'paper-4',
+    '😎': 'paper-5', // 酷
+    '🤩': 'paper-5'
+  };
+  
+  // 遍历心情表情，如果找到匹配的就设置背景
+  for (const emoji of mood) {
+    if (moodBackgrounds[emoji]) {
+      currentStyle.value.background = moodBackgrounds[emoji];
+      break; // 只使用第一个匹配的表情
+    }
+  }
 }
 </script>
 

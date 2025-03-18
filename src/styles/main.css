@@ -1,7 +1,7 @@
 /* 定义自定义字体 */
 @font-face {
   font-family: 'KaitiLocal';
-  src: url('/assets/fonts/kaiti.woff2') format('woff2');
+  src: local('Kaiti'), local('楷体'), local('STKaiti'), local('华文楷体');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

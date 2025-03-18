@@ -363,7 +363,7 @@ const contentStyle = computed(() => {
   
   const style = {
     fontSize: `${fontSize}px`,
-    fontFamily: props.customStyle?.fontFamily || 'var(--font-note)',
+    fontFamily: props.customStyle?.fontFamily || 'KaitiLocal, Kaiti, 楷体, STKaiti, 华文楷体, "Noto Sans SC", sans-serif',
     lineHeight: isVerySmallScreen ? 1.5 : isSmallScreen ? 1.5 : 1.6,
     position: 'relative',
     zIndex: '2' // 确保内容在图片层之上
@@ -672,7 +672,7 @@ watch(() => props.customStyle, (newStyle) => {
 
 .note-content {
   position: relative;
-  font-family: var(--font-note);
+  font-family: KaitiLocal, Kaiti, 楷体, STKaiti, 华文楷体, 'Noto Sans SC', sans-serif;
   line-height: 1.6;
   z-index: 2;
   padding: var(--spacing-md);
