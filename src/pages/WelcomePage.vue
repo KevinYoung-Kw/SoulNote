@@ -36,8 +36,26 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { onMounted, ref } from 'vue';
+import { getOnboardingCompleted } from '../services/storageService';
 
 const router = useRouter();
+const hasCompletedOnboarding = ref(false);
+
+// 在组件挂载时检查引导状态
+onMounted(async () => {
+  try {
+    hasCompletedOnboarding.value = await getOnboardingCompleted();
+    
+    // 如果用户已完成引导，直接跳转到首页
+    if (hasCompletedOnboarding.value) {
+      console.log('用户已完成引导，自动跳转到首页');
+      router.push('/home');
+    }
+  } catch (error) {
+    console.error('检查引导状态失败:', error);
+  }
+});
 
 const features = [
   {
@@ -63,7 +81,14 @@ const features = [
 ];
 
 function startExperience() {
-  router.push('/onboarding');
+  // 如果已完成引导，转到Home页面，否则转到引导页
+  if (hasCompletedOnboarding.value) {
+    router.push('/home');
+  } else {
+    // 设置一个会话标记，表示用户是从欢迎页进入的
+    sessionStorage.setItem('from_welcome', 'true');
+    router.push('/onboarding');
+  }
 }
 </script>
 

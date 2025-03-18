@@ -9,7 +9,7 @@
         :key="ageGroup.value"
         class="age-option"
         :class="{ active: modelValue === ageGroup.value }"
-        @click="$emit('update:modelValue', ageGroup.value)"
+        @click="handleSelect(ageGroup.value)"
       >
         <span>{{ ageGroup.label }}</span>
       </div>
@@ -18,17 +18,36 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, inject } from 'vue';
 import OnboardingStep from '../OnboardingStep.vue';
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: String,
     default: null
   }
 });
 
-defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue']);
+
+// 获取注入的事件总线
+const onboardingBus = inject('onboardingBus', null);
+
+// 处理选择
+function handleSelect(value) {
+  // 只有在值变化时才触发
+  if (props.modelValue !== value) {
+    // 更新模型值
+    emit('update:modelValue', value);
+    
+    // 使用事件总线自动前进
+    if (onboardingBus) {
+      setTimeout(() => {
+        onboardingBus.autoAdvance();
+      }, 600); // 适中的延迟时间，平衡动画效果与用户体验
+    }
+  }
+}
 
 // 年龄段数据
 const ageGroups = [
@@ -56,15 +75,32 @@ const ageGroups = [
   background-color: var(--card-bg);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   text-align: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .age-option.active {
   background-color: var(--primary-color);
   color: white;
-  transform: translateX(8px);
-  box-shadow: var(--shadow-md);
+  transform: translateX(15px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.age-option:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 100%;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+  transition: all 0.5s ease;
+}
+
+.age-option.active:after {
+  right: 0;
 }
 
 @media (max-width: 480px) {

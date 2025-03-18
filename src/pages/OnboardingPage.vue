@@ -32,83 +32,95 @@
     />
 
     <div class="onboarding-content scrollable-content">
-      <!-- 步骤1: 使用须知 -->
-      <TermsOfUseStep 
-        v-if="currentStep === 1"
-        @navigate="navigateTo"
-      />
+      <transition name="page-transition" mode="out-in">
+        <!-- 步骤1: 使用须知 -->
+        <TermsOfUseStep 
+          v-if="currentStep === 1"
+          @navigate="navigateTo"
+          key="step-1"
+        />
 
-      <!-- 步骤2: 邀请码验证 -->
-      <InviteCodeStep 
-        v-else-if="currentStep === 2"
-        :initial-invite-code="inviteCode"
-        :initial-verified="inviteCodeVerified"
-        :api-base-url="API_BASE_URL"
-        @verify-success="handleInviteCodeSuccess"
-        @verify-error="handleInviteCodeError"
-        ref="inviteCodeStep"
-      />
+        <!-- 步骤2: 邀请码验证 -->
+        <InviteCodeStep 
+          v-else-if="currentStep === 2"
+          :initial-invite-code="inviteCode"
+          :initial-verified="inviteCodeVerified"
+          :api-base-url="API_BASE_URL"
+          @verify-success="handleInviteCodeSuccess"
+          @verify-error="handleInviteCodeError"
+          ref="inviteCodeStep"
+          key="step-2"
+        />
 
-      <!-- 步骤3: 欢迎 -->
-      <WelcomeStep v-else-if="currentStep === 3" />
-      
-      <!-- 步骤4: 性别选择 -->
-      <GenderStep 
-        v-else-if="currentStep === 4"
-        v-model="userPreferences.gender"
-      />
-      
-      <!-- 步骤5: 年龄选择 -->
-      <AgeStep 
-        v-else-if="currentStep === 5"
-        v-model="userPreferences.age"
-      />
-      
-      <!-- 步骤6: 婚恋状况 -->
-      <RelationshipStep 
-        v-else-if="currentStep === 6"
-        v-model="userPreferences.relationship"
-      />
-      
-      <!-- 步骤7: 星座选择 -->
-      <ZodiacStep 
-        v-else-if="currentStep === 7"
-        v-model="userPreferences.zodiac"
-      />
-      
-      <!-- 步骤8: MBTI选择 -->
-      <MbtiStep 
-        v-else-if="currentStep === 8"
-        v-model="userPreferences.mbti"
-      />
+        <!-- 步骤3: 欢迎 -->
+        <WelcomeStep v-else-if="currentStep === 3" key="step-3" />
+        
+        <!-- 步骤4: 性别选择 -->
+        <GenderStep 
+          v-else-if="currentStep === 4"
+          v-model="userPreferences.gender"
+          key="step-4"
+        />
+        
+        <!-- 步骤5: 年龄选择 -->
+        <AgeStep 
+          v-else-if="currentStep === 5"
+          v-model="userPreferences.age"
+          key="step-5"
+        />
+        
+        <!-- 步骤6: 婚恋状况 -->
+        <RelationshipStep 
+          v-else-if="currentStep === 6"
+          v-model="userPreferences.relationship"
+          key="step-6"
+        />
+        
+        <!-- 步骤7: 星座选择 -->
+        <ZodiacStep 
+          v-else-if="currentStep === 7"
+          v-model="userPreferences.zodiac"
+          key="step-7"
+        />
+        
+        <!-- 步骤8: MBTI选择 -->
+        <MbtiStep 
+          v-else-if="currentStep === 8"
+          v-model="userPreferences.mbti"
+          key="step-8"
+        />
 
-      <!-- 步骤9: 设置个人称呼 -->
-      <NicknameStep 
-        v-else-if="currentStep === 9"
-              v-model="userPreferences.nickname" 
-        :name-suggestions="nameSuggestions"
-        :is-nolan-fan-mode="isNolanFanMode"
-        :is-cyberpunk-mode="isCyberpunkMode"
-        @refresh-suggestions="refreshSuggestions"
-        @select-nickname="selectNickname"
-      />
-      
-      <!-- 步骤10: 语言偏好 -->
-      <LanguageStep 
-        v-else-if="currentStep === 10"
-        v-model="userPreferences.language"
-      />
-      
-    <!-- 步骤11: 完成设置 -->
-      <CompletionStep 
-        v-else-if="currentStep === 11"
-        :welcome-message="getWelcomeMessage()"
-        :welcome-class="getWelcomeClass()"
-        :note-content="getFinalNoteContent()"
-        :note-class="getFinalNoteClass()"
-        :is-nolan-fan-mode="isNolanFanMode"
-        :is-cyberpunk-mode="isCyberpunkMode"
-      />
+        <!-- 步骤9: 设置个人称呼 -->
+        <NicknameStep 
+          v-else-if="currentStep === 9"
+                v-model="userPreferences.nickname" 
+          :name-suggestions="nameSuggestions"
+          :is-nolan-fan-mode="isNolanFanMode"
+          :is-cyberpunk-mode="isCyberpunkMode"
+          @refresh-suggestions="refreshSuggestions"
+          @select-nickname="selectNickname"
+          key="step-9"
+        />
+        
+        <!-- 步骤10: 语言偏好 -->
+        <LanguageStep 
+          v-else-if="currentStep === 10"
+          v-model="userPreferences.language"
+          key="step-10"
+        />
+        
+      <!-- 步骤11: 完成设置 -->
+        <CompletionStep 
+          v-else-if="currentStep === 11"
+          :welcome-message="getWelcomeMessage()"
+          :welcome-class="getWelcomeClass()"
+          :note-content="getFinalNoteContent()"
+          :note-class="getFinalNoteClass()"
+          :is-nolan-fan-mode="isNolanFanMode"
+          :is-cyberpunk-mode="isCyberpunkMode"
+          key="step-11"
+        />
+      </transition>
     </div>
 
     <!-- 导航按钮 -->
@@ -126,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick, provide } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 
@@ -208,6 +220,20 @@ const userPreferences = reactive({
   background: 'paper-1'
 });
 
+// 创建事件总线对象，用于子组件和父组件通信
+const eventBus = reactive({
+  autoAdvanceEnabled: true, // 是否启用自动前进
+  autoAdvance: () => {
+    // 只有在启用的情况下才自动前进
+    if (eventBus.autoAdvanceEnabled && !isNextButtonDisabled.value) {
+      nextStep();
+    }
+  }
+});
+
+// 提供事件总线给所有子组件
+provide('onboardingBus', eventBus);
+
 // 计算下一步按钮是否应该禁用
 const isNextButtonDisabled = computed(() => {
   // 如果是邀请码步骤且未验证，则禁用下一步按钮
@@ -238,6 +264,22 @@ const sanitizedSampleNote = computed(() => sanitizeContent(sampleNote.value));
 
 // 生命周期钩子
 onMounted(async () => {
+  // 检查是否从欢迎页进入
+  const fromWelcome = sessionStorage.getItem('from_welcome') === 'true';
+  
+  // 如果不是从欢迎页进入，重定向回欢迎页
+  if (!fromWelcome) {
+    console.log('未从欢迎页进入引导流程，重定向回欢迎页');
+    router.replace('/');
+    return;
+  }
+  
+  // 清除会话标记，避免重复使用
+  sessionStorage.removeItem('from_welcome');
+  
+  // 尝试恢复之前的步骤
+  restoreCurrentStep();
+  
   // 检查是否已存在验证过的邀请码
   await checkExistingInviteCode();
 
@@ -249,10 +291,27 @@ onMounted(async () => {
   nextTick(() => {
     applyCyberpunkTextEffects();
   });
+  
+  // 添加页面可见性变化的监听
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
+
+// 处理页面可见性变化
+function handleVisibilityChange() {
+  if (document.visibilityState === 'hidden') {
+    // 用户切出应用，保存当前状态
+    saveCurrentStep();
+  } else if (document.visibilityState === 'visible') {
+    // 用户回到应用，状态已经保存，可以在这里做一些额外处理
+    console.log('用户回到了引导页面');
+  }
+}
 
 // 在组件卸载前清理
 onBeforeUnmount(() => {
+  // 移除可见性监听
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  
   // 如果诺兰彩蛋模式处于激活状态，执行清理
   if (isNolanFanMode.value && nolanEasterEgg.value) {
     nolanEasterEgg.value.deactivateNolanFanMode();
@@ -501,10 +560,13 @@ async function completeOnboarding() {
     
     // 设置引导完成标志
     await setOnboardingCompleted(true);
+    
+    // 清理临时存储的引导状态
+    clearOnboardingState();
 
     // 导航到主页
     console.log('引导完成，导航到主页');
-    router.push('/');
+    router.replace('/home');
 
     // 如果诺兰彩蛋模式已激活，先结束彩蛋
     if (isNolanFanMode.value && nolanEasterEgg.value) {
@@ -772,14 +834,82 @@ function getZodiacLabel(zodiacValue) {
   
   return zodiacMap[zodiacValue] || zodiacValue;
 }
-</script>
 
-<style scoped>
-.onboarding-page {
-  background-color: var(--bg-color);
+// 添加用于保存当前步骤的方法
+function saveCurrentStep() {
+  try {
+    // 保存当前引导状态到 localStorage
+    localStorage.setItem('onboarding-current-step', currentStep.value.toString());
+    
+    // 保存当前的用户偏好数据
+    localStorage.setItem('onboarding-user-prefs', JSON.stringify(userPreferences));
+    
+    // 保存特殊状态
+    const specialStates = {
+      inviteCodeVerified: inviteCodeVerified.value,
+      isNolanFanMode: isNolanFanMode.value,
+      isCyberpunkMode: isCyberpunkMode.value
+    };
+    localStorage.setItem('onboarding-special-states', JSON.stringify(specialStates));
+    
+    console.log('保存引导状态:', currentStep.value);
+  } catch (error) {
+    console.error('保存引导状态失败:', error);
+  }
 }
 
-  .onboarding-content {
+// 用于恢复步骤的方法
+function restoreCurrentStep() {
+  try {
+    // 恢复当前步骤
+    const savedStep = localStorage.getItem('onboarding-current-step');
+    if (savedStep) {
+      currentStep.value = parseInt(savedStep, 10);
+      console.log('恢复到引导步骤:', currentStep.value);
+    }
+    
+    // 恢复用户偏好数据
+    const savedPrefs = localStorage.getItem('onboarding-user-prefs');
+    if (savedPrefs) {
+      const parsedPrefs = JSON.parse(savedPrefs);
+      // 使用合并而不是直接替换，防止缺少新字段
+      Object.assign(userPreferences, parsedPrefs);
+      console.log('恢复用户偏好数据');
+    }
+    
+    // 恢复特殊状态
+    const savedSpecialStates = localStorage.getItem('onboarding-special-states');
+    if (savedSpecialStates) {
+      const states = JSON.parse(savedSpecialStates);
+      if (states.inviteCodeVerified !== undefined) {
+        inviteCodeVerified.value = states.inviteCodeVerified;
+      }
+      if (states.isNolanFanMode !== undefined && states.isNolanFanMode) {
+        // 只在需要时重新激活模式
+        activateNolanMode(states.isNolanFanMode);
+      }
+      if (states.isCyberpunkMode !== undefined && states.isCyberpunkMode) {
+        // 只在需要时重新激活模式
+        activateCyberpunkMode(states.isCyberpunkMode);
+      }
+      console.log('恢复特殊状态');
+    }
+  } catch (error) {
+    console.error('恢复引导状态失败:', error);
+  }
+}
+
+// 导出清理方法，供完成后使用
+function clearOnboardingState() {
+  localStorage.removeItem('onboarding-current-step');
+  localStorage.removeItem('onboarding-user-prefs');
+  localStorage.removeItem('onboarding-special-states');
+  console.log('清理引导状态');
+}
+</script>
+
+<style>
+.onboarding-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -797,6 +927,22 @@ function getZodiacLabel(zodiacValue) {
   letter-spacing: 2px;
   text-transform: uppercase;
   text-shadow: 0 0 10px rgba(255, 0, 84, 0.7);
+}
+
+/* 页面过渡动画 */
+.page-transition-enter-active,
+.page-transition-leave-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.page-transition-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-transition-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
 }
 
 .cp77-text-layers {

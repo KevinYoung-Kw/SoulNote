@@ -9,7 +9,7 @@
         :key="zodiac.value"
         class="zodiac-item"
         :class="{ active: modelValue === zodiac.value }"
-        @click="$emit('update:modelValue', zodiac.value)"
+        @click="handleSelect(zodiac.value)"
       >
         <i :class="zodiac.icon"></i>
         <span>{{ zodiac.label }}</span>
@@ -19,17 +19,36 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, inject } from 'vue';
 import OnboardingStep from '../OnboardingStep.vue';
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: String,
     default: null
   }
 });
 
-defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue']);
+
+// 获取注入的事件总线
+const onboardingBus = inject('onboardingBus', null);
+
+// 处理选择
+function handleSelect(value) {
+  // 只有在值变化时才触发
+  if (props.modelValue !== value) {
+    // 更新模型值
+    emit('update:modelValue', value);
+    
+    // 使用事件总线自动前进
+    if (onboardingBus) {
+      setTimeout(() => {
+        onboardingBus.autoAdvance();
+      }, 700); // 星座选择给适当的动画时间
+    }
+  }
+}
 
 // 星座数据
 const zodiacs = [
@@ -66,28 +85,52 @@ const zodiacs = [
   background-color: var(--card-bg);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .zodiac-item i {
   font-size: 24px;
   margin-bottom: var(--spacing-sm);
   color: var(--text-secondary);
+  transition: all 0.4s ease;
 }
 
 .zodiac-item span {
   font-size: 14px;
+  transition: all 0.4s ease;
 }
 
 .zodiac-item.active {
   background-color: var(--primary-color);
   color: white;
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-6px) scale(1.05);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.zodiac-item:before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  transform: scale(0.2);
+  transition: all 0.6s ease;
+}
+
+.zodiac-item.active:before {
+  opacity: 0.15;
+  transform: scale(1);
 }
 
 .zodiac-item.active i {
   color: white;
+  transform: scale(1.2);
 }
 
 @media (max-width: 480px) {

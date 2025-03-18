@@ -69,18 +69,40 @@ router.beforeEach(async (to, from, next) => {
     // 异步获取引导完成状态
     const hasCompletedOnboarding = await getOnboardingCompleted();
     
-    // 如果需要完成引导但尚未完成，重定向到引导页
-    if (to.meta.requiresOnboarding && !hasCompletedOnboarding) {
-      next({ name: 'Onboarding' });
-    } 
-    // 如果已完成引导且访问欢迎/引导页面，重定向到首页
-    else if (hasCompletedOnboarding && (to.name === 'Welcome' || to.name === 'Onboarding')) {
-      next({ name: 'Home' });
-    }
-    // 其他情况正常导航
-    else {
+    // 处理管理员页面 - 不受引导流程限制
+    if (to.name === 'AdminPanel') {
       next();
+      return;
     }
+    
+    // 处理静态信息页面 - 不受引导流程限制
+    if (to.name === 'PrivacyPolicy' || to.name === 'AboutUs') {
+      next();
+      return;
+    }
+    
+    // 如果尝试直接访问OnboardingPage但不是从WelcomePage来的
+    if (to.name === 'Onboarding' && from.name !== 'Welcome' && from.name) {
+      console.log('非法访问引导页，重定向到欢迎页', from.name, '->', to.name);
+      next({ name: 'Welcome' });
+      return;
+    }
+    
+    // 如果需要完成引导但尚未完成，重定向到欢迎页
+    if (to.meta.requiresOnboarding && !hasCompletedOnboarding) {
+      console.log('需要引导但未完成，重定向到欢迎页');
+      next({ name: 'Welcome' });
+      return;
+    } 
+    
+    // 如果已完成引导且访问欢迎/引导页面，重定向到首页
+    if (hasCompletedOnboarding && (to.name === 'Welcome' || to.name === 'Onboarding')) {
+      next({ name: 'Home' });
+      return;
+    }
+    
+    // 其他情况正常导航
+    next();
   } catch (error) {
     console.error('路由守卫错误:', error);
     // 出错时默认导航到欢迎页

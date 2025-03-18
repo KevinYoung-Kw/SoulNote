@@ -36,7 +36,7 @@
                 :key="mbti.value"
                 class="mbti-card"
                 :class="{ 'active': modelValue === mbti.value }"
-                @click="$emit('update:modelValue', mbti.value)"
+                @click="handleSelect(mbti.value)"
               >
                 <div class="mbti-code">{{ mbti.value }}</div>
                 <div class="mbti-name">{{ mbti.label }}</div>
@@ -59,18 +59,21 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, inject } from 'vue';
 import { defineProps, defineEmits } from 'vue';
 import OnboardingStep from '../OnboardingStep.vue';
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: String,
     default: null
   }
 });
 
-defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue']);
+
+// 获取注入的事件总线
+const onboardingBus = inject('onboardingBus', null);
 
 const activeCategoryIndex = ref(0);
 
@@ -162,6 +165,22 @@ function getTraits(mbtiType) {
 function openMBTITest() {
   window.open('https://www.16personalities.com/zh-hans/', '_blank');
 }
+
+// 处理选择
+function handleSelect(value) {
+  // 只有在值变化时才触发
+  if (props.modelValue !== value) {
+    // 更新模型值
+    emit('update:modelValue', value);
+    
+    // 使用事件总线自动前进
+    if (onboardingBus) {
+      setTimeout(() => {
+        onboardingBus.autoAdvance();
+      }, 800); // MBTI需要适当的动画效果时间
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -251,20 +270,21 @@ function openMBTITest() {
   border-radius: var(--radius-md);
   padding: var(--spacing-lg);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 1px solid transparent;
   overflow: hidden;
 }
 
 .mbti-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .mbti-card.active {
   border-color: var(--primary-color);
-  box-shadow: 0 5px 20px rgba(123, 158, 137, 0.2);
+  box-shadow: 0 8px 25px rgba(123, 158, 137, 0.4);
+  transform: translateY(-8px) scale(1.03);
 }
 
 .mbti-code {

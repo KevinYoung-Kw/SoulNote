@@ -9,7 +9,7 @@
         :key="status.value"
         class="relationship-option"
         :class="{ active: modelValue === status.value }"
-        @click="$emit('update:modelValue', status.value)"
+        @click="handleSelect(status.value)"
       >
         <i :class="status.icon"></i>
         <span>{{ status.label }}</span>
@@ -19,17 +19,36 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, inject } from 'vue';
 import OnboardingStep from '../OnboardingStep.vue';
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: String,
     default: null
   }
 });
 
-defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue']);
+
+// 获取注入的事件总线
+const onboardingBus = inject('onboardingBus', null);
+
+// 处理选择
+function handleSelect(value) {
+  // 只有在值变化时才触发
+  if (props.modelValue !== value) {
+    // 更新模型值
+    emit('update:modelValue', value);
+    
+    // 使用事件总线自动前进
+    if (onboardingBus) {
+      setTimeout(() => {
+        onboardingBus.autoAdvance();
+      }, 600); // 适中的延迟时间，平衡动画效果与用户体验
+    }
+  }
+}
 
 // 婚恋状况数据
 const relationshipStatuses = [
@@ -58,24 +77,52 @@ const relationshipStatuses = [
   background-color: var(--card-bg);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .relationship-option i {
   font-size: 24px;
   margin-bottom: var(--spacing-sm);
   color: var(--text-secondary);
+  transition: all 0.4s ease;
+}
+
+.relationship-option span {
+  font-size: 14px;
+  transition: all 0.4s ease;
 }
 
 .relationship-option.active {
   background-color: var(--primary-color);
   color: white;
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-6px) scale(1.05);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.relationship-option:before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  transform: scale(0.2);
+  transition: all 0.6s ease;
+}
+
+.relationship-option.active:before {
+  opacity: 0.15;
+  transform: scale(1);
 }
 
 .relationship-option.active i {
   color: white;
+  transform: scale(1.2);
 }
 
 @media (max-width: 480px) {
