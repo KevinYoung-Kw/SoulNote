@@ -11,7 +11,13 @@
     <div class="about-content scrollable-content">
       <div class="about-section app-info">
         <div class="logo-container">
-          <img src="../assets/logo.png" alt="星语心笺" class="app-logo" />
+          <InlineSvg 
+            src="../assets/welcome-logo.svg" 
+            alt="星语心笺" 
+            width="80px" 
+            height="80px" 
+            class="app-logo"
+          />
         </div>
         <h2 class="app-name">星语心笺</h2>
         <p class="app-slogan">心笺一瞬，暖意自生</p>
@@ -22,11 +28,25 @@
           <h3 class="support-title">支持我们</h3>
           <div class="qr-container">
             <div class="qr-item">
-              <img src="../assets/donate-qr.png" alt="请作者喝杯咖啡" class="qr-code" />
+              <LazyImage 
+                src="../assets/donate-qr.png" 
+                alt="请作者喝杯咖啡" 
+                class="qr-code"
+                width="120px"
+                height="120px"
+                objectFit="contain"
+              />
               <p class="qr-label">请作者喝杯咖啡</p>
             </div>
             <div class="qr-item">
-              <img src="../../public/assets/community-qr.png" alt="加入体验群" class="qr-code" />
+              <LazyImage 
+                src="../../public/assets/community-qr.png" 
+                alt="加入体验群" 
+                class="qr-code"
+                width="120px"
+                height="120px"
+                objectFit="contain"
+              />
               <p class="qr-label">扫码加入产品体验群</p>
             </div>
           </div>
@@ -73,6 +93,8 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { APP_VERSION } from '../config/version';
+import LazyImage from '../components/common/LazyImage.vue';
+import InlineSvg from '../components/common/InlineSvg.vue';
 
 const router = useRouter();
 

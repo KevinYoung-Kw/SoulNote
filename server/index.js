@@ -43,6 +43,28 @@ if (!process.env.VITE_API_KEY) {
 const app = express();
 const port = process.env.PORT || 4000;
 
+// 添加静态文件服务中间件
+// 设置静态资源缓存时间 (单位为毫秒)
+const staticOptions = {
+  maxAge: process.env.NODE_ENV === 'production' ? '30d' : 0,
+  etag: true,
+  lastModified: true
+};
+
+// 设置不同的静态资源目录和相应的缓存策略
+app.use(express.static(path.join(__dirname, '../dist'), staticOptions));
+app.use('/assets', express.static(path.join(__dirname, '../dist/assets'), staticOptions));
+app.use('/js', express.static(path.join(__dirname, '../dist/js'), staticOptions));
+
+// 添加处理静态资源的中间件
+// 确保字体文件请求能够正确路由
+app.use('/assets/fonts', express.static(path.join(__dirname, '../dist/assets/fonts'), {
+  ...staticOptions,
+  // 字体通常需要更长的缓存时间
+  maxAge: process.env.NODE_ENV === 'production' ? '90d' : 0,
+  immutable: process.env.NODE_ENV === 'production'
+}));
+
 // 数据文件路径
 const DATA_DIR = path.join(__dirname, 'data');
 const INVITE_CODES_FILE = path.join(DATA_DIR, 'invite-codes.json');
@@ -660,6 +682,25 @@ app.use((err, req, res, next) => {
     success: false,
     message: '服务器内部错误',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// 添加通配路由，处理所有SPA请求
+app.get('*', (req, res, next) => {
+  // 如果是API请求，继续到下一个处理程序
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  
+  // 所有其他请求返回主HTML文件
+  res.sendFile(path.join(__dirname, '../dist/index.html'), {}, (err) => {
+    if (err) {
+      logger.error('STATIC', '发送index.html文件失败', {
+        path: req.path,
+        error: err.message
+      });
+      next(err);
+    }
   });
 });
 

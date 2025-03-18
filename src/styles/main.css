@@ -1,3 +1,12 @@
+/* 定义自定义字体 */
+@font-face {
+  font-family: 'KaitiLocal';
+  src: url('/assets/fonts/kaiti.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* 色彩系统 */
   --primary-color: #7B9E89;
@@ -247,22 +256,12 @@ body.savage-mode .btn-secondary:hover {
   white-space: pre-line; /* 保留内容中的换行 */
 }
 
-/* 替换当前的字体预加载部分 */
-/* 添加字体预加载指令，提高字体加载优先级 */
-@font-face {
-  font-family: 'KaitiLocal';
-  src: url('../assets/fonts/kaiti.woff2') format('woff2'),
-       url('../assets/fonts/kaiti.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;  /* 使用swap策略平衡加载性能和显示效果 */
-}
-
 /* 添加一个类，在纸条渲染之前可以应用，确保字体已加载 */
 .font-preload {
   position: absolute;
   visibility: hidden;
-  font-family: var(--font-note);
+  font-family: 'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体';
+  font-size: 1em;
 }
 
 .note-glow {

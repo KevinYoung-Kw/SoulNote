@@ -1,16 +1,20 @@
 /**
  * 前端日志工具 - 提供统一的日志记录功能
  */
+import ENV from './envService';
+
 class Logger {
   constructor() {
     this.debugMode = this.checkDebugMode();
     
     // 监听localStorage变化
-    window.addEventListener('storage', (event) => {
-      if (event.key === 'debug') {
-        this.debugMode = event.newValue === 'true';
-      }
-    }, { passive: true });
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('storage', (event) => {
+        if (event.key === 'debug') {
+          this.debugMode = event.newValue === 'true';
+        }
+      }, { passive: true });
+    }
   }
   
   /**
@@ -19,14 +23,15 @@ class Logger {
    */
   checkDebugMode() {
     // 优先使用localStorage存储的值
-    const localDebug = localStorage.getItem('debug');
-    if (localDebug !== null) {
-      return localDebug === 'true';
+    if (typeof localStorage !== 'undefined') {
+      const localDebug = localStorage.getItem('debug');
+      if (localDebug !== null) {
+        return localDebug === 'true';
+      }
     }
     
     // 其次使用环境变量
-    const envDebug = import.meta.env.VITE_DEBUG_MODE;
-    return envDebug === 'true' || envDebug === true;
+    return ENV.DEBUG_MODE;
   }
   
   /**
@@ -107,7 +112,9 @@ class Logger {
    */
   setDebugMode(enabled) {
     this.debugMode = enabled;
-    localStorage.setItem('debug', enabled.toString());
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('debug', enabled.toString());
+    }
   }
   
   /**

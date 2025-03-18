@@ -18,6 +18,29 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
   
+  <!-- 预加载关键字体和资源 -->
+  <link rel="preload" href="/src/assets/welcome-logo.svg" as="image" type="image/svg+xml">
+  <link rel="preload" href="/src/assets/onboarding-welcome.svg" as="image" type="image/svg+xml">
+  
+  <!-- 添加字体预加载 -->
+  <style>
+    /* 字体预加载 */
+    @font-face {
+      font-family: 'KaitiLocal';
+      src: local('Kaiti'), local('楷体'), local('KaiTi');
+      font-display: swap;
+    }
+    
+    .font-preload {
+      position: absolute;
+      visibility: hidden;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      font-family: KaitiLocal, var(--font-note);
+    }
+  </style>
+  
   <!-- Base Styles -->
   <style>
     :root {
@@ -51,6 +74,7 @@
       /* 字体 */
       --font-body: 'Noto Sans SC', sans-serif;
       --font-decorative: 'Dancing Script', cursive, var(--font-body);
+      --font-note: KaitiLocal, 'Noto Sans SC', sans-serif;
       
       /* 过渡动画 */
       --transition-fast: 0.2s ease;
@@ -181,19 +205,84 @@
         transform: rotate(360deg);
       }
     }
+    
+    /* 内联SVG占位符 - 避免初始加载闪烁 */
+    .logo-svg-container {
+      width: 95%;
+      height: 95%;
+      position: relative;
+    }
+    
+    /* 脉动动画 */
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 0.6;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- 添加字体预加载容器 -->
+  <div class="font-preload">楷体预加载</div>
+  
   <div id="app">
     <div class="loading-container">
       <div class="logo-placeholder">
-        <img src="/assets/welcome-logo.svg" alt="星语心笺" class="loading-logo" />
+        <!-- 使用内联SVG替代图片请求，减少初始网络请求 -->
+        <div class="logo-svg-container">
+          <!-- 简化版的logo作为占位符，减少SVG大小 -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595.28 841.89" style="width:100%;height:100%;">
+            <path fill="#FFFCF2" d="M424.65,616.46H138.26c-35.05,0-63.46-28.41-63.46-63.46V266.61c0-35.05,28.41-63.46,63.46-63.46h286.39 c35.05,0,63.46,28.41,63.46,63.46V553C488.12,588.05,459.7,616.46,424.65,616.46z"/>
+            <path fill="#7B9E89" d="M85.56,296.44l319.57,45.12c6.89,0.97,11.51,7.57,10.07,14.38l-20.58,258.2c-1.18,5.59-6.13,9.57-11.85,9.53L76.31,636.35 c-6.58-0.05-11.89-5.38-11.92-11.96l7.47-316C71.84,301.07,78.31,295.42,85.56,296.44z"/>
+          </svg>
+        </div>
       </div>
       <h1>星语心笺</h1>
       <div class="loading-spinner"></div>
       <p class="loading-text">正在加载心语...</p>
     </div>
   </div>
+  
+  <!-- 预加载字体 -->
+  <script>
+    // 预加载字体
+    if ('fonts' in document) {
+      Promise.all([
+        document.fonts.load('1em KaitiLocal'),
+        document.fonts.load('1em var(--font-note)')
+      ]).then(() => {
+        console.log('字体已预加载');
+      }).catch(err => {
+        console.warn('字体预加载失败', err);
+      });
+    }
+    
+    // 预加载图像
+    function preloadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(src);
+        img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+        img.src = src;
+      });
+    }
+    
+    // 预加载关键图像
+    const criticalImages = [
+      '/src/assets/welcome-logo.svg',
+      '/src/assets/onboarding-welcome.svg'
+    ];
+    
+    Promise.allSettled(criticalImages.map(src => preloadImage(src)))
+      .then(results => {
+        const loadedCount = results.filter(r => r.status === 'fulfilled').length;
+        console.log(`预加载完成: ${loadedCount}/${results.length} 张图片已加载`);
+      });
+  </script>
+  
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

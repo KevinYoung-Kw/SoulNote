@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --base=./",
+    "preview:custom": "node preview.js",
+    "preview:full": "node start-preview.js",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
   "dependencies": {
@@ -23,6 +25,8 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "eslint": "^8.45.0",
     "eslint-plugin-vue": "^9.15.1",
+    "javascript-obfuscator": "^4.1.1",
+    "rollup-plugin-obfuscator": "^1.1.0",
     "terser": "^5.19.2",
     "vite": "^6.2.0"
   }
