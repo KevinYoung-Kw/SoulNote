@@ -206,7 +206,7 @@ const versions = ref(props.updateLogs.length > 0 ? props.updateLogs : [
   },
   {
     number: '1.5.0',
-    date: '2023-12-15T10:30:00',
+    date: '2025-3-17T10:30:00',
     updates: [
       {
         type: 'feature',
@@ -240,7 +240,7 @@ const versions = ref(props.updateLogs.length > 0 ? props.updateLogs : [
   },
   {
     number: '1.4.0',
-    date: '2023-11-30T14:45:00',
+    date: '2025-3-16T14:45:00',
     updates: [
       {
         type: 'feature',
@@ -272,7 +272,7 @@ const versions = ref(props.updateLogs.length > 0 ? props.updateLogs : [
   },
   {
     number: '1.3.0',
-    date: '2023-11-15T09:20:00',
+    date: '2025-3-15T09:20:00',
     updates: [
       {
         type: 'feature',
