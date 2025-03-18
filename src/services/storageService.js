@@ -20,40 +20,100 @@ const DB_VERSION = 1;
  */
 async function openDatabase() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let request;
+    
+    try {
+      request = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (error) {
+      console.error('IndexedDB API 不可用:', error);
+      reject(new Error('IndexedDB API 不可用'));
+      return;
+    }
     
     request.onerror = (event) => {
-      console.error('打开数据库失败:', event.target.error);
+      const errorMessage = event.target.error.message || '未知错误';
+      console.error('打开数据库失败:', errorMessage);
       reject(event.target.error);
     };
     
+    request.onblocked = (event) => {
+      console.warn('数据库连接被阻塞，可能有其他标签页正在使用此数据库');
+      // 尝试关闭其他连接
+      try {
+        if (request.result) {
+          request.result.close();
+        }
+      } catch (e) {
+        console.warn('关闭数据库连接失败:', e);
+      }
+      reject(new Error('数据库连接被阻塞'));
+    };
+    
     request.onsuccess = (event) => {
-      resolve(event.target.result);
+      const db = event.target.result;
+      
+      // 设置错误处理器
+      db.onerror = (event) => {
+        console.error('数据库错误:', event.target.error);
+      };
+      
+      // 监听数据库版本变化
+      db.onversionchange = () => {
+        db.close();
+        console.warn('数据库版本已变更，请刷新页面');
+        alert('应用数据已更新，请刷新页面以使用最新版本');
+      };
+      
+      console.log(`成功打开 IndexedDB 数据库: ${DB_NAME} v${db.version}`);
+      resolve(db);
     };
     
     request.onupgradeneeded = (event) => {
+      console.log(`正在升级/创建数据库: ${DB_NAME} v${event.newVersion}`);
       const db = event.target.result;
       
-      // 创建用户偏好存储
-      if (!db.objectStoreNames.contains('preferences')) {
-        const store = db.createObjectStore('preferences', { keyPath: 'userId' });
-        store.createIndex('userId', 'userId', { unique: true });
-      }
-      
-      // 创建笔记存储
-      if (!db.objectStoreNames.contains('notes')) {
-        const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
-        notesStore.createIndex('userId', 'userId', { unique: false });
-        notesStore.createIndex('savedAt', 'savedAt', { unique: false });
-      }
-      
-      // 创建设置存储
-      if (!db.objectStoreNames.contains('settings')) {
-        const settingsStore = db.createObjectStore('settings', { keyPath: 'key' });
-        settingsStore.createIndex('userId', 'userId', { unique: false });
+      try {
+        // 创建用户偏好存储
+        if (!db.objectStoreNames.contains('preferences')) {
+          const store = db.createObjectStore('preferences', { keyPath: 'userId' });
+          store.createIndex('userId', 'userId', { unique: true });
+          console.log('已创建 preferences 存储');
+        }
+        
+        // 创建笔记存储
+        if (!db.objectStoreNames.contains('notes')) {
+          const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+          notesStore.createIndex('userId', 'userId', { unique: false });
+          notesStore.createIndex('savedAt', 'savedAt', { unique: false });
+          console.log('已创建 notes 存储');
+        }
+        
+        // 创建设置存储
+        if (!db.objectStoreNames.contains('settings')) {
+          const settingsStore = db.createObjectStore('settings', { keyPath: 'key' });
+          settingsStore.createIndex('userId', 'userId', { unique: false });
+          console.log('已创建 settings 存储');
+        }
+      } catch (error) {
+        console.error('数据库升级失败:', error);
+        event.target.transaction.abort();
+        reject(error);
       }
     };
   });
+}
+
+// 初始化函数 - 在应用启动时调用以确保数据库已创建
+export async function initStorage() {
+  try {
+    // 尝试打开数据库连接并立即关闭
+    const db = await openDatabase();
+    db.close();
+    return true;
+  } catch (error) {
+    console.error('存储初始化失败:', error);
+    return false;
+  }
 }
 
 /**
@@ -258,16 +318,41 @@ export async function saveNote(note) {
     // 确保数据可以被序列化
     const cleanNote = cleanDataForStorage(noteWithMeta);
     
+    console.log('正在保存纸条到数据库:', cleanNote);
+    
     // 首先尝试保存到 IndexedDB
     const db = await openDatabase();
     await new Promise((resolve, reject) => {
-      const transaction = db.transaction(['notes'], 'readwrite');
-      const store = transaction.objectStore('notes');
-      
-      const request = store.put(cleanNote);
-      
-      request.onsuccess = () => resolve();
-      request.onerror = (event) => reject(event.target.error);
+      try {
+        const transaction = db.transaction(['notes'], 'readwrite');
+        const store = transaction.objectStore('notes');
+        
+        const request = store.put(cleanNote);
+        
+        request.onsuccess = () => {
+          console.log('纸条已成功存储到 IndexedDB');
+          resolve();
+        };
+        
+        request.onerror = (event) => {
+          console.error('IndexedDB 存储错误:', event.target.error);
+          reject(event.target.error);
+        };
+        
+        // 添加事务完成监听器
+        transaction.oncomplete = () => {
+          console.log('事务完成');
+          resolve();
+        };
+        
+        transaction.onerror = (event) => {
+          console.error('事务错误:', event.target.error);
+          reject(event.target.error);
+        };
+      } catch (error) {
+        console.error('创建事务时出错:', error);
+        reject(error);
+      }
     });
     
     // 同时更新 localStorage 中的笔记列表
@@ -288,6 +373,7 @@ export async function saveNote(note) {
       
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
       localStorage.setItem(storageKey, JSON.stringify(savedNotes));
+      console.log('纸条已成功存储到 localStorage');
     } catch (error) {
       console.warn('更新 localStorage 中的笔记列表失败 (备份):', error);
     }
@@ -326,6 +412,7 @@ export async function saveNote(note) {
       
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
       localStorage.setItem(storageKey, JSON.stringify(savedNotes));
+      console.log('降级: 纸条已成功存储到 localStorage');
       
       return cleanNote;
     } catch (fallbackError) {
@@ -341,25 +428,37 @@ export async function saveNote(note) {
  */
 export async function getSavedNotes() {
   const userId = await userIdentifierService.getOrCreateUserId();
+  console.log('获取用户纸条, 用户ID:', userId);
   
   try {
     // 首先尝试从 IndexedDB 获取
     const db = await openDatabase();
     const notes = await new Promise((resolve, reject) => {
-      const transaction = db.transaction(['notes'], 'readonly');
-      const store = transaction.objectStore('notes');
-      const index = store.index('userId');
-      const request = index.getAll(userId);
-      
-      request.onsuccess = () => {
-        // 按保存时间排序（最新的在前面）
-        const sortedNotes = request.result.sort((a, b) => 
-          new Date(b.savedAt) - new Date(a.savedAt)
-        );
-        resolve(sortedNotes);
-      };
-      
-      request.onerror = (event) => reject(event.target.error);
+      try {
+        const transaction = db.transaction(['notes'], 'readonly');
+        const store = transaction.objectStore('notes');
+        const index = store.index('userId');
+        
+        // 确保使用正确的查询方式
+        const request = index.getAll(userId);
+        
+        request.onsuccess = () => {
+          console.log(`从 IndexedDB 获取到 ${request.result.length} 条纸条`);
+          // 按保存时间排序（最新的在前面）
+          const sortedNotes = request.result.sort((a, b) => 
+            new Date(b.savedAt) - new Date(a.savedAt)
+          );
+          resolve(sortedNotes);
+        };
+        
+        request.onerror = (event) => {
+          console.error('从 IndexedDB 获取纸条失败:', event.target.error);
+          reject(event.target.error);
+        };
+      } catch (error) {
+        console.error('创建事务时出错:', error);
+        reject(error);
+      }
     });
     
     if (notes && notes.length > 0) {
@@ -381,9 +480,11 @@ export async function getSavedNotes() {
   try {
     const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
     const data = localStorage.getItem(storageKey);
+    console.log('从 localStorage 获取纸条, 键名:', storageKey);
     
     if (data) {
       const notes = JSON.parse(data);
+      console.log(`从 localStorage 获取到 ${notes.length} 条纸条`);
       
       // 如果从 localStorage 获取成功，尝试同步到 IndexedDB
       try {
@@ -393,11 +494,13 @@ export async function getSavedNotes() {
         
         for (const note of notes) {
           // 确保每个笔记都有用户ID
-          store.put({
-            ...note,
-            userId
-          });
+          if (!note.userId) {
+            note.userId = userId;
+          }
+          store.put(note);
         }
+        
+        console.log('已将纸条从 localStorage 同步到 IndexedDB');
       } catch (syncError) {
         console.warn('同步笔记到 IndexedDB 失败:', syncError);
       }
@@ -408,6 +511,7 @@ export async function getSavedNotes() {
     // 尝试从旧存储位置读取
     const oldData = localStorage.getItem(BASE_KEYS.NOTES);
     if (oldData) {
+      console.log('尝试从旧存储位置读取纸条');
       const parsedData = JSON.parse(oldData);
       // 如果成功从旧位置读取，则迁移到新位置
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
@@ -420,11 +524,13 @@ export async function getSavedNotes() {
         const store = transaction.objectStore('notes');
         
         for (const note of parsedData) {
-          store.put({
-            ...note,
-            userId
-          });
+          if (!note.userId) {
+            note.userId = userId;
+          }
+          store.put(note);
         }
+        
+        console.log('已将旧纸条同步到 IndexedDB');
       } catch (syncError) {
         console.warn('同步旧笔记到 IndexedDB 失败:', syncError);
       }
@@ -435,6 +541,7 @@ export async function getSavedNotes() {
     console.error('从 localStorage 获取笔记失败:', error);
   }
   
+  console.log('未找到任何纸条');
   return [];
 }
 
@@ -1252,4 +1359,95 @@ export async function updateSavedNote(note) {
       return false;
     }
   }
+}
+
+/**
+ * 诊断存储状态 (开发工具用)
+ * 此函数可在控制台中调用以检查存储状态
+ */
+async function diagnoseStorage() {
+  try {
+    console.group('Storage Diagnostics');
+    
+    // 获取用户ID
+    const userId = await userIdentifierService.getOrCreateUserId();
+    console.log('Current userId:', userId);
+    
+    // 检查 IndexedDB 连接
+    try {
+      const db = await openDatabase();
+      console.log('IndexedDB connection successful:', db.name, 'v' + db.version);
+      console.log('Object stores:', Array.from(db.objectStoreNames));
+      
+      // 检查 notes 存储
+      if (db.objectStoreNames.contains('notes')) {
+        const transaction = db.transaction(['notes'], 'readonly');
+        const store = transaction.objectStore('notes');
+        const countRequest = store.count();
+        
+        countRequest.onsuccess = () => {
+          console.log('Total notes in IndexedDB:', countRequest.result);
+        };
+        
+        // 获取用户的笔记
+        const index = store.index('userId');
+        const userNotesRequest = index.getAll(userId);
+        
+        userNotesRequest.onsuccess = () => {
+          console.log(`Notes for current user (${userId}):`, userNotesRequest.result);
+        };
+      } else {
+        console.warn('Notes object store not found in IndexedDB');
+      }
+    } catch (error) {
+      console.error('IndexedDB diagnostic failed:', error);
+    }
+    
+    // 检查 localStorage
+    try {
+      const notesKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
+      const notesData = localStorage.getItem(notesKey);
+      
+      if (notesData) {
+        const notes = JSON.parse(notesData);
+        console.log('Notes in localStorage:', notes);
+      } else {
+        console.log('No notes found in localStorage under key:', notesKey);
+      }
+      
+      // 检查旧的存储键
+      const oldNotesData = localStorage.getItem(BASE_KEYS.NOTES);
+      if (oldNotesData) {
+        console.log('Found notes in old storage location');
+      }
+    } catch (error) {
+      console.error('localStorage diagnostic failed:', error);
+    }
+    
+    // 总结
+    console.log('Run getSavedNotes() to attempt retrieving all notes');
+    console.log('Run diagnoseHealthCheck() to check storage health');
+    
+    console.groupEnd();
+  } catch (error) {
+    console.error('Diagnostic failed:', error);
+  }
+}
+
+/**
+ * 健康检查诊断 (开发工具用)
+ */
+async function diagnoseHealthCheck() {
+  const health = await checkStorageHealth();
+  console.group('Storage Health Check');
+  console.log('IndexedDB:', health.indexedDB);
+  console.log('localStorage:', health.localStorage);
+  console.groupEnd();
+  return health;
+}
+
+// 导出诊断函数到全局，以便从控制台访问
+if (typeof window !== 'undefined') {
+  window.diagnoseSoulNoteStorage = diagnoseStorage;
+  window.diagnoseSoulNoteHealth = diagnoseHealthCheck;
 }

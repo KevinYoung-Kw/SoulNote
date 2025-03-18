@@ -195,13 +195,35 @@
             <i class="fas fa-chevron-right"></i>
           </div>
         </div>
+
         
+        <div class="setting-item">
+          <label class="setting-label">更新日志与社群</label>
+          <div class="setting-value" @click="openCommunityPrompt">
+            <i class="fas fa-chevron-right"></i>
+          </div>
+        </div>
+
         <div class="app-version">
           版本: {{ APP_VERSION }}
         </div>
       </section>
     </div>
-    
+
+    <!-- CommunityPrompt 组件 -->
+    <CommunityPrompt
+      v-if="showCommunityPrompt"
+      :visible="showCommunityPrompt"
+      :title="communityPromptData.title"
+      :message="communityPromptData.message"
+      :qrcodeUrl="communityPromptData.qrcodeUrl"
+      :updateLogs="communityPromptData.updateLogs"
+      :activeTab="communityPromptData.activeTab"
+      @close="showCommunityPrompt = false"
+      @later="showCommunityPrompt = false"
+      @never="showCommunityPrompt = false"
+    />
+
     <!-- 性别选择弹窗 -->
     <div class="modal" v-if="showGenderSelector" @click="showGenderSelector = false">
       <div class="modal-content" @click.stop>
@@ -347,6 +369,8 @@
 import { ref, reactive, onMounted, onErrorCaptured, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserPreferences, saveUserPreferences, resetUserData, checkStorageHealth, backupUserData, restoreUserData } from '../services/storageService';
+import { communityService } from '../services/communityService';
+import CommunityPrompt from '../components/CommunityPrompt.vue';
 
 import logger from '../utils/logger';
 import { APP_VERSION } from '../config/version';
@@ -360,6 +384,14 @@ const isDarkMode = ref(false);
 const isSavageMode = ref(false); // 添加毒舌模式状态
 const isResetting = ref(false);
 
+const showCommunityPrompt = ref(false); // 社群弹窗显示状态
+const communityPromptData = reactive({
+  title: '星语心笺社群',
+  message: '',
+  qrcodeUrl: '/assets/community-qr.png',
+  activeTab: 'updates',
+  updateLogs: []
+});
 
 // 状态变量
 const storageHealth = ref(null);
@@ -592,9 +624,38 @@ function openPrivacyPolicy() {
   router.push('/privacy-policy');
 }
 
+
 function openAboutUs() {
   router.push('/about-us');
 }
+
+async function openCommunityPrompt() {
+  try {
+    // 获取社群配置
+    const config = await communityService.getConfig();
+    
+    // 检查是否有更新日志
+    if (config.updateLogs && Array.isArray(config.updateLogs)) {
+      communityPromptData.updateLogs = config.updateLogs;
+    }
+    
+    // 更新社群信息
+    if (config.community) {
+      communityPromptData.title = config.community.title || '星语心笺社群';
+      communityPromptData.message = config.community.description || '';
+      communityPromptData.qrcodeUrl = config.community.qrcode || '/assets/community-qr.png';
+    }
+    
+    // 显示社群弹窗，默认显示更新日志标签页
+    communityPromptData.activeTab = 'updates';
+    showCommunityPrompt.value = true;
+  } catch (error) {
+    console.error('获取社群信息失败:', error);
+    // 即使出错也显示弹窗，使用默认值
+    showCommunityPrompt.value = true;
+  }
+}
+
 
 /**
  * 重置应用
@@ -756,6 +817,20 @@ onMounted(async () => {
     checkStorage().catch(error => {
       logger.error('SETTINGS', '挂载时检查存储状态失败:', error);
     });
+
+    // 初始化社群弹窗数据
+    try {
+      const config = await communityService.getConfig();
+      if (config.updateLogs && Array.isArray(config.updateLogs)) {
+        communityPromptData.updateLogs = config.updateLogs;
+      }
+      if (config.community) {
+        communityPromptData.qrcodeUrl = config.community.qrcode || '/assets/community-qr.png';
+      }
+    } catch (error) {
+      logger.error('SETTINGS', '初始化社群数据失败:', error);
+    }
+    
     // 检查并打印当前激活的模式
     logger.info('SETTINGS', '当前模式设置', {
       darkMode: isDarkMode.value,

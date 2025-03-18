@@ -2,7 +2,7 @@
   <div class="params-card" :class="{'savage-panel': params.savageMode}">
     <div class="params-preview" @click="openParamsPanel">
       <!-- 修改心情参数预览，只显示第一个心情 -->
-      <div class="params-item mood-container">
+      <div class="params-item mood-container" :class="{'highlight-change': highlightMood}">
         <template v-if="params.moods && params.moods.length > 0">
           <!-- 只显示第一个emoji，但在后面添加提示点表示还有更多 -->
           <span class="mood-emoji">{{ params.moods[0] }}</span>
@@ -14,12 +14,16 @@
         </template>
       </div>
       <!-- 添加主题参数显示 -->
-      <div class="params-item" :class="{'unsupported': isUnsupportedTheme}">
+      <div class="params-item" :class="{'unsupported': isUnsupportedTheme, 'highlight-change': highlightTheme}">
         <i :class="themeOptions.find(t => t.value === params.theme)?.icon || 'fas fa-comment-dots'"></i>
         <span>{{ themeOptions.find(t => t.value === params.theme)?.label || '聊天' }}</span>
         <span v-if="isUnsupportedTheme" class="unsupported-badge" title="当前模型不支持此功能">!</span>
       </div>
-      <div class="params-item" v-if="params.enableFortune">
+      <div class="params-item" :class="{'highlight-change': highlightSavage}">
+        <i :class="params.savageMode ? 'fas fa-fire' : 'fas fa-smile'"></i>
+        <span>{{ params.savageMode ? '毒舌' : '暖心' }}</span>
+      </div>
+      <div class="params-item" v-if="params.enableFortune" :class="{'highlight-change': highlightFortune}">
         <i :class="fortuneAspects.find(a => a.value === params.fortuneAspect)?.icon || 'fas fa-star'"></i>
         <span>{{ getFortuneAspectLabel() }}</span>
       </div>
@@ -54,6 +58,21 @@ const supportsHaiku = ref(true);
 const currentModel = ref('qwen-turbo');
 const apiSettingsChangeListener = ref(null);
 
+// 高亮动画控制
+const highlightMood = ref(false);
+const highlightTheme = ref(false);
+const highlightSavage = ref(false);
+const highlightFortune = ref(false);
+
+// 上一次的参数值
+const previousParams = ref({
+  moods: [],
+  theme: '',
+  savageMode: false,
+  enableFortune: false,
+  fortuneAspect: ''
+});
+
 // Computed
 const isSavageMode = computed(() => props.params.savageMode);
 
@@ -62,6 +81,55 @@ const isUnsupportedTheme = computed(() => {
   return (props.params.theme === 'poetry' && !supportsPoetry.value) || 
          (props.params.theme === 'haiku' && !supportsHaiku.value);
 });
+
+// 监视参数变化，触发高亮动画
+watch(() => props.params, (newParams, oldParams) => {
+  // 深拷贝当前值到 previous 对象
+  if (oldParams) {
+    previousParams.value = {
+      moods: [...oldParams.moods],
+      theme: oldParams.theme,
+      savageMode: oldParams.savageMode,
+      enableFortune: oldParams.enableFortune,
+      fortuneAspect: oldParams.fortuneAspect
+    };
+  }
+  
+  // 检测心情变化
+  if (JSON.stringify(newParams.moods) !== JSON.stringify(previousParams.value.moods)) {
+    highlightMood.value = true;
+    setTimeout(() => {
+      highlightMood.value = false;
+    }, 1500);
+  }
+  
+  // 检测主题变化
+  if (newParams.theme !== previousParams.value.theme) {
+    highlightTheme.value = true;
+    setTimeout(() => {
+      highlightTheme.value = false;
+    }, 1500);
+  }
+  
+  // 检测情感风格变化
+  if (newParams.savageMode !== previousParams.value.savageMode) {
+    highlightSavage.value = true;
+    setTimeout(() => {
+      highlightSavage.value = false;
+    }, 1500);
+  }
+  
+  // 检测运势设置变化
+  if (
+    newParams.enableFortune !== previousParams.value.enableFortune ||
+    (newParams.enableFortune && newParams.fortuneAspect !== previousParams.value.fortuneAspect)
+  ) {
+    highlightFortune.value = true;
+    setTimeout(() => {
+      highlightFortune.value = false;
+    }, 1500);
+  }
+}, { deep: true });
 
 // Methods
 function openParamsPanel() {
@@ -140,6 +208,17 @@ watch(() => props.params, async () => {
 onMounted(async () => {
   await checkModelFeatures();
   setupApiSettingsChangeListener();
+
+  
+  // 初始化上一次参数的值
+  previousParams.value = {
+    moods: [...props.params.moods],
+    theme: props.params.theme,
+    savageMode: props.params.savageMode,
+    enableFortune: props.params.enableFortune,
+    fortuneAspect: props.params.fortuneAspect
+  };
+
 });
 
 onBeforeUnmount(() => {
@@ -187,6 +266,28 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-md);
   font-size: 14px;
   position: relative;
+}
+
+/* 添加高亮动画样式 */
+.params-item.highlight-change {
+  animation: highlight-pulse 1.5s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(123, 158, 137, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(123, 158, 137, 0); background-color: rgba(123, 158, 137, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(123, 158, 137, 0); }
+}
+
+/* 为毒舌模式添加特殊高亮 */
+.savage-panel .params-item.highlight-change {
+  animation: highlight-pulse-savage 1.5s ease-in-out;
+}
+
+@keyframes highlight-pulse-savage {
+  0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(255, 82, 82, 0); background-color: rgba(255, 82, 82, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
 }
 
 .params-item i {

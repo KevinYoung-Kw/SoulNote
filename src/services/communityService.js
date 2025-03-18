@@ -1,5 +1,6 @@
 import { getUserPreferences, saveUserPreferences } from './storageService';
 import axios from 'axios';
+import { APP_VERSION } from '../config/version';
 
 // 获取API基础URL
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';

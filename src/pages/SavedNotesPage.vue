@@ -15,7 +15,16 @@
       <div class="empty-state" v-if="!savedNotes.length">
         <i class="fas fa-bookmark empty-icon"></i>
         <p>还没有收藏任何心语纸条</p>
-        <button class="btn btn-primary" @click="goHome">去生成心语</button>
+        <div class="empty-state-actions">
+          <button class="btn btn-primary" @click="goHome">去生成心语</button>
+          <button class="btn btn-text" @click="refreshNotes">
+            <i class="fas fa-sync-alt"></i> 刷新列表
+          </button>
+        </div>
+        <div class="debug-info" v-if="showDebugInfo">
+          <p class="debug-text">应用状态：{{ storageState }}</p>
+          <button class="btn btn-small btn-outline" @click="checkStorage">检查存储状态</button>
+        </div>
       </div>
       
       <!-- 网格布局展示收藏 -->
@@ -100,7 +109,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import NoteCard from '../components/NoteCard.vue';
 import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
@@ -114,16 +123,23 @@ const showActionMenu = ref(false);
 const currentNote = ref(null);
 const detailNoteRef = ref(null);
 const showStyleCustomizer = ref(false);
+const storageState = ref('');
+const showDebugInfo = ref(false);
+let refreshTimer = null;
 
 const { exportAsImage, saveToDevice } = useNoteExport();
 
 // 获取收藏的笔记
 async function loadSavedNotes() {
   try {
+    console.log('加载收藏笔记...');
     savedNotes.value = await getSavedNotes();
+    console.log(`成功加载了 ${savedNotes.value.length} 条笔记`);
+    storageState.value = savedNotes.value.length > 0 ? '正常' : '没有数据';
   } catch (error) {
     console.error('加载收藏笔记失败:', error);
     savedNotes.value = [];
+    storageState.value = '加载失败: ' + error.message;
   }
 }
 
@@ -221,6 +237,24 @@ function formatDateForFile(dateString) {
 // 生命周期
 onMounted(() => {
   loadSavedNotes();
+  
+  // 设置定时刷新 - 每60秒刷新一次收藏列表
+  refreshTimer = setInterval(loadSavedNotes, 60000);
+  
+  // 双击标题时显示调试信息
+  const titleEl = document.querySelector('.page-title');
+  if (titleEl) {
+    titleEl.addEventListener('dblclick', () => {
+      showDebugInfo.value = !showDebugInfo.value;
+    });
+  }
+});
+
+// 清理定时器
+onBeforeUnmount(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
 });
 
 // 自定义当前笔记样式
@@ -292,6 +326,23 @@ function getDefaultFontSize() {
   // 根据屏幕宽度返回合适的字体大小
   return window.innerWidth <= 375 ? 18 : 24;
 }
+
+// 刷新笔记列表
+async function refreshNotes() {
+  storageState.value = '刷新中...';
+  await loadSavedNotes();
+}
+
+// 检查存储状态
+function checkStorage() {
+  showDebugInfo.value = true;
+  if (typeof window.diagnoseSoulNoteStorage === 'function') {
+    window.diagnoseSoulNoteStorage();
+    storageState.value = '已在控制台输出诊断信息';
+  } else {
+    storageState.value = '诊断工具不可用';
+  }
+}
 </script>
 
 <style scoped>
@@ -338,6 +389,63 @@ function getDefaultFontSize() {
 .empty-state p {
   color: var(--text-secondary);
   margin-bottom: var(--spacing-lg);
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.btn-text {
+  background: none;
+  color: var(--primary-color);
+  border: none;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+}
+
+.btn-text:hover {
+  text-decoration: underline;
+}
+
+.debug-info {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-md);
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  max-width: 270px;
+}
+
+.debug-text {
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.btn-small {
+  font-size: 12px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.btn-outline {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.fa-sync-alt {
+  animation: spin 1s linear infinite;
 }
 
 .notes-grid {

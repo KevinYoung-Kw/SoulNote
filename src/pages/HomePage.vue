@@ -363,6 +363,9 @@ async function saveNote() {
   if (!noteContent.value) return;
   
   try {
+    loadingMessage.value = '正在保存...';
+    isGenerating.value = true;
+    
     // 创建一个可序列化的参数对象
     const serializableParams = JSON.parse(JSON.stringify(params));
     
@@ -372,18 +375,82 @@ async function saveNote() {
       fontSize: fontSize.value,
       customStyle: customStyle.value || {},
       params: serializableParams,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      mood: params.moods && params.moods.length > 0 ? params.moods.join('') : ''
     };
     
     const savedNote = await saveNoteToStorage(note);
+    isGenerating.value = false;
+    
     if (savedNote) {
-      alert('保存成功！');
+      // 成功保存后显示确认信息
+      showSaveConfirmation('收藏成功！');
+      
+      // 更新统计
+      incrementGenerationCount();
+      
+      // 记录日志
+      logger.info('SAVE', '保存笔记成功', { noteId: savedNote.id });
+      
+      // 延迟后提示访问收藏页
+      setTimeout(() => {
+        if (!showCommunityPrompt.value && !showParamsPanel.value) {
+          showCollectionReminder();
+        }
+      }, 2000);
     } else {
-      alert('保存失败，请重试');
+      // 保存失败时尝试降级保存方式
+      logger.warn('SAVE', '使用主要存储保存失败，尝试备份方法');
+      
+      try {
+        // 备用方法：尝试序列化保存到sessionStorage
+        const backupKey = `soul-note-backup-${Date.now()}`;
+        sessionStorage.setItem(backupKey, JSON.stringify(note));
+        showSaveConfirmation('临时保存成功！请立即导出或复制内容', 'warning');
+        logger.info('SAVE', '使用备份存储方式保存成功', { backupKey });
+      } catch (backupError) {
+        // 备份也失败，显示更详细的错误
+        logger.error('SAVE', '所有保存方式均失败', backupError);
+        showSaveConfirmation('保存失败，请尝试截图保存或复制内容', 'error');
+      }
     }
   } catch (error) {
-    logger.error('SAVE', '保存笔记失败:', error);
-    alert('保存失败，请重试');
+    isGenerating.value = false;
+    logger.error('SAVE', '保存笔记出错:', error);
+    showSaveConfirmation('保存出错，请重试', 'error');
+  }
+}
+
+// 显示保存确认信息
+function showSaveConfirmation(message, type = 'success') {
+  let icon = '✅';
+  if (type === 'warning') icon = '⚠️';
+  if (type === 'error') icon = '❌';
+  
+  alert(`${icon} ${message}`);
+}
+
+// 显示收藏提醒
+function showCollectionReminder() {
+  const shouldShow = Math.random() > 0.7; // 30%概率显示
+  
+  if (shouldShow) {
+    const confirmed = confirm('心语已保存到收藏！现在要查看吗？');
+    if (confirmed) {
+      router.push('/saved-notes');
+    }
+  }
+}
+
+// 增加生成计数
+function incrementGenerationCount() {
+  try {
+    const countKey = 'soul-note-generation-count';
+    const currentCount = parseInt(localStorage.getItem(countKey) || '0', 10);
+    localStorage.setItem(countKey, (currentCount + 1).toString());
+  } catch (error) {
+    // 静默处理计数错误
+    logger.warn('STATS', '更新计数失败', error);
   }
 }
 

@@ -212,6 +212,74 @@
       </div>
     </div>
   </transition>
+
+  <!-- 随机动画弹窗 -->
+  <transition name="fade">
+    <div v-if="showRandomAnimation" class="random-animation-overlay" @click.stop>
+      <div class="random-animation-content">
+        <div class="random-animation-header">
+          <i class="fas fa-dice-d20 pulse"></i>
+          <span>随机生成中...</span>
+        </div>
+        <div class="random-result">
+          <!-- 表情结果 -->
+          <div class="random-item">
+            <div class="random-label">心情/场景：</div>
+            <div class="random-value emoji-result">
+              <span v-for="(emoji, index) in animationParams.moods" :key="`anim-${index}`" class="anim-emoji">
+                {{ emoji }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- 主题结果 -->
+          <div class="random-item">
+            <div class="random-label">内容主题：</div>
+            <div class="random-value">
+              <template v-if="animationParams.theme">
+                <i :class="getThemeIcon(animationParams.theme)" class="animate-icon"></i>
+                <span class="animate-text">{{ getThemeLabel(animationParams.theme) }}</span>
+              </template>
+              <template v-else>
+                <div class="theme-placeholder">
+                  <div class="pulse-dot"></div>
+                  <div class="pulse-dot"></div>
+                  <div class="pulse-dot"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- 情感风格结果 -->
+          <div class="random-item">
+            <div class="random-label">情感风格：</div>
+            <div class="random-value">
+              <template v-if="animationParams.savageMode !== null">
+                <i :class="animationParams.savageMode ? 'fas fa-fire' : 'fas fa-smile'" class="animate-icon"></i>
+                <span class="animate-text">{{ animationParams.savageMode ? '毒舌' : '暖心' }}</span>
+              </template>
+              <template v-else>
+                <div class="style-placeholder">
+                  <div class="pulse-dot"></div>
+                  <div class="pulse-dot"></div>
+                  <div class="pulse-dot"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- 运势结果 -->
+          <div class="random-item" v-if="animationParams.enableFortune">
+            <div class="random-label">今日运势：</div>
+            <div class="random-value">
+              <i :class="getFortuneIcon(animationParams.fortuneAspect)" class="animate-icon"></i>
+              <span class="animate-text">{{ getFortuneLabel(animationParams.fortuneAspect) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
 </template>
 
 <script setup>
@@ -250,6 +318,15 @@ const supportsPoetry = ref(true);
 const supportsHaiku = ref(true);
 const currentModel = ref('qwen-turbo');
 const apiSettingsChangeListener = ref(null);
+
+const showRandomAnimation = ref(false);
+const animationParams = reactive({
+  moods: [],
+  theme: '',  // 修改为空字符串，使其不显示直到动画开始
+  savageMode: null,  // 设为null，表示初始时不显示
+  enableFortune: false,
+  fortuneAspect: 'general'
+});
 
 // Computed
 const isPanelSavageMode = computed(() => params.savageMode);
@@ -826,8 +903,18 @@ function clearMoods() {
   params.moods = [];
 }
 
-// 修改随机参数函数，考虑模型支持的功能
+// 修改随机参数函数，添加动画效果
 async function randomizeParams() {
+  // 清空动画参数，准备新的随机值
+  animationParams.moods = [];
+  animationParams.theme = '';  // 修改为空字符串，使其不显示直到动画开始
+  animationParams.savageMode = null;  // 设为null，表示初始时不显示
+  animationParams.enableFortune = false;
+  animationParams.fortuneAspect = 'general';
+  
+  // 显示动画
+  showRandomAnimation.value = true;
+  
   // 1. 随机选择1-5个表情
   const randomEmojiCount = Math.floor(Math.random() * 5) + 1; // 生成1到5的随机数
   const allEmojis = getAllEmojis();
@@ -835,42 +922,121 @@ async function randomizeParams() {
   // 清空当前表情
   params.moods = [];
   
-  // 添加随机表情
+  // 添加随机表情（动画效果）
   const shuffledEmojis = [...allEmojis].sort(() => 0.5 - Math.random());
-  for (let i = 0; i < randomEmojiCount; i++) {
-    if (i < shuffledEmojis.length) {
-      params.moods.push(shuffledEmojis[i]);
+  
+  // 循环动画展示表情选择过程
+  setTimeout(() => {
+    for (let i = 0; i < randomEmojiCount; i++) {
+      if (i < shuffledEmojis.length) {
+        // 使用timeout来创建序列动画效果
+        setTimeout(() => {
+          animationParams.moods.push(shuffledEmojis[i]);
+          // 同时添加到实际参数
+          params.moods.push(shuffledEmojis[i]);
+        }, i * 200); // 每200ms添加一个表情
+      }
     }
-  }
+  }, 300);
   
-  // 2. 随机选择主题，但排除不支持的主题
-  const availableThemes = filteredThemeOptions.value;
-  if (availableThemes.length > 0) {
-    const randomThemeIndex = Math.floor(Math.random() * availableThemes.length);
-    params.theme = availableThemes[randomThemeIndex].value;
-  } else {
-    // 如果没有可用主题（极端情况），默认使用聊天
-    params.theme = 'chat';
-  }
+  // 2. 随机选择主题，但排除不支持的主题（带动画）
+  setTimeout(() => {
+    const availableThemes = filteredThemeOptions.value;
+    if (availableThemes.length > 0) {
+      const randomThemeIndex = Math.floor(Math.random() * availableThemes.length);
+      const newTheme = availableThemes[randomThemeIndex].value;
+      
+      // 添加2-3个随机主题切换的动画效果
+      const themesToShow = [
+        ...availableThemes
+          .filter(t => t.value !== newTheme)
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 2),
+        availableThemes[randomThemeIndex]
+      ];
+      
+      // 顺序显示几个主题，最后停在选中的主题上
+      themesToShow.forEach((theme, index) => {
+        setTimeout(() => {
+          animationParams.theme = theme.value;
+          // 只在最后一次迭代时更新实际参数
+          if (index === themesToShow.length - 1) {
+            params.theme = theme.value;
+          }
+        }, index * 200);
+      });
+    } else {
+      // 如果没有可用主题（极端情况），默认使用聊天
+      animationParams.theme = 'chat';
+      params.theme = 'chat';
+    }
+  }, 800 + randomEmojiCount * 200); // 等待表情动画基本完成后开始
   
-  // 3. 随机选择情感风格 (暖心/毒舌)
-  const previousSavageMode = params.savageMode;
-  params.savageMode = Math.random() > 0.5;
-  
-  // 如果毒舌模式状态改变，立即更新body类
-  if (previousSavageMode !== params.savageMode) {
-    document.body.classList.toggle('savage-mode', params.savageMode);
-  }
+  // 3. 随机选择情感风格 (暖心/毒舌)（带动画）
+  setTimeout(() => {
+    const previousSavageMode = params.savageMode;
+    const newSavageMode = Math.random() > 0.5;
+    
+    // 情感风格切换动画：先显示一个，再显示另一个，最后停在随机选择的上
+    const oppositeSavageMode = !newSavageMode;
+    
+    // 先展示相反的模式，然后切换到最终选择的模式
+    setTimeout(() => {
+      animationParams.savageMode = oppositeSavageMode;
+    }, 0);
+    
+    setTimeout(() => {
+      animationParams.savageMode = newSavageMode;
+      params.savageMode = newSavageMode;
+      
+      // 如果毒舌模式状态改变，立即更新body类
+      if (previousSavageMode !== newSavageMode) {
+        document.body.classList.toggle('savage-mode', newSavageMode);
+      }
+    }, 300);
+  }, 1200 + randomEmojiCount * 200); // 等待表情和主题动画后开始
   
   // 4. 随机运势设置
-  params.enableFortune = Math.random() > 0.3; // 70%概率启用运势
-  if (params.enableFortune) {
-    const randomFortuneIndex = Math.floor(Math.random() * fortuneAspects.length);
-    params.fortuneAspect = fortuneAspects[randomFortuneIndex].value;
-  }
+  setTimeout(() => {
+    const enableFortune = Math.random() > 0.3; // 70%概率启用运势
+    animationParams.enableFortune = enableFortune;
+    params.enableFortune = enableFortune;
+    
+    if (enableFortune) {
+      // 随机选择几个运势项快速切换，最后停在选中的运势上
+      const fortuneOptions = [...fortuneAspects];
+      const randomFortuneIndex = Math.floor(Math.random() * fortuneOptions.length);
+      const finalFortuneAspect = fortuneOptions[randomFortuneIndex].value;
+      
+      // 创建一个包含3个随机运势的数组，最后一个是最终选择的
+      const fortunesToShow = [
+        ...fortuneOptions
+          .filter(f => f.value !== finalFortuneAspect)
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 2),
+        fortuneOptions[randomFortuneIndex]
+      ];
+      
+      // 依次显示运势选项
+      fortunesToShow.forEach((fortune, index) => {
+        setTimeout(() => {
+          animationParams.fortuneAspect = fortune.value;
+          // 只在最后一次迭代时更新实际参数
+          if (index === fortunesToShow.length - 1) {
+            params.fortuneAspect = fortune.value;
+          }
+        }, index * 200);
+      });
+    }
+  }, 1600 + randomEmojiCount * 200); // 等待前面的动画后开始
   
-  // 提示用户参数已随机生成
-  console.log(`已随机生成参数：${params.moods.length}个表情，主题：${params.theme}，风格：${params.savageMode ? '毒舌' : '暖心'}`);
+  // 设置超时后隐藏动画，时间根据动画总长度调整
+  setTimeout(() => {
+    showRandomAnimation.value = false;
+  }, 2500 + randomEmojiCount * 200); // 动画持续时间根据表情数量调整
+  
+  // 记录随机生成事件
+  logger.info('PARAMS_PANEL', `已随机生成参数：${randomEmojiCount}个表情，主题：${params.theme}，风格：${params.savageMode ? '毒舌' : '暖心'}`);
 }
 
 function closePanel() {
@@ -1010,6 +1176,31 @@ watch(() => props.initialParams, (newParams) => {
 function toggleFortune() {
   params.enableFortune = !params.enableFortune;
 }
+
+// 新增的辅助函数，获取主题图标
+function getThemeIcon(themeValue) {
+  const theme = themeOptions.find(t => t.value === themeValue);
+  return theme ? theme.icon : 'fas fa-comment-dots';
+}
+
+// 新增的辅助函数，获取主题名称
+function getThemeLabel(themeValue) {
+  const theme = themeOptions.find(t => t.value === themeValue);
+  return theme ? theme.label : '聊天';
+}
+
+// 新增的辅助函数，获取运势图标
+function getFortuneIcon(aspectValue) {
+  const aspect = fortuneAspects.find(a => a.value === aspectValue);
+  return aspect ? aspect.icon : 'fas fa-star';
+}
+
+// 新增的辅助函数，获取运势名称
+function getFortuneLabel(aspectValue) {
+  const aspect = fortuneAspects.find(a => a.value === aspectValue);
+  return aspect ? aspect.label : '整体';
+}
+
 </script>
 
 <style scoped>
@@ -1869,5 +2060,190 @@ function toggleFortune() {
 .emoji-tabs::-webkit-scrollbar-track,
 .selected-emojis::-webkit-scrollbar-track {
   background-color: transparent;
+}
+
+/* 随机动画弹窗样式 */
+.random-animation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.random-animation-content {
+  background-color: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  width: 90%;
+  max-width: 320px;
+  box-shadow: var(--shadow-lg);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid var(--border-color);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.random-animation-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-sm);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.savage-panel .random-animation-header {
+  color: var(--savage-primary-color, #ff5252);
+}
+
+.pulse {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.random-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.random-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  background-color: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border-color);
+  animation: fadeSlideIn 0.5s ease;
+}
+
+@keyframes fadeSlideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.random-label {
+  font-weight: 500;
+  margin-right: var(--spacing-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  min-width: 90px;
+}
+
+.random-value {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.random-value i {
+  color: var(--primary-color);
+}
+
+.savage-panel .random-value i {
+  color: var(--savage-primary-color, #ff5252);
+}
+
+.emoji-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.anim-emoji {
+  font-size: 20px;
+  animation: zoomIn 0.3s ease;
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 主题占位符样式 */
+.theme-placeholder, .style-placeholder {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  height: 20px;
+}
+
+/* 脉冲点样式 */
+.pulse-dot {
+  width: 5px;
+  height: 5px;
+  background-color: var(--text-secondary);
+  border-radius: 50%;
+  animation: pulseDot 1s infinite ease-in-out;
+}
+
+.pulse-dot:nth-child(1) { animation-delay: 0s; }
+.pulse-dot:nth-child(2) { animation-delay: 0.2s; }
+.pulse-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.5); opacity: 1; }
+}
+
+/* 动画效果类 */
+.animate-icon {
+  animation: popIcon 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-text {
+  animation: fadeText 0.4s ease forwards;
+}
+
+@keyframes popIcon {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeText {
+  from { transform: translateX(-5px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
