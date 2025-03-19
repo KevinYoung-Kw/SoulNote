@@ -1,0 +1,114 @@
+/* 毒舌模式样式 - 独立样式文件 */
+
+/* 毒舌模式变量 - 亮色基础 */
+body.savage-mode:not(.dark-mode) {
+  /* 保持原有的页面背景色 */
+  --bg-color: #F9F3E5;
+  --card-bg: #FFFFFF;
+  
+  --primary-color: #ff5252;
+  --accent-color: #ff8a80;
+  --success-color: #ff5252;
+  
+  /* 毒舌模式专用变量 */
+  --savage-primary-color: #ff5252;
+  --savage-shadow: 0 4px 12px rgba(255, 123, 123, 0.15);
+  
+  /* 纸条背景 - 毒舌亮色 */
+  --note-bg-1: linear-gradient(to right bottom, #FFF4E0, #FFD8A9);
+  --note-bg-2: linear-gradient(to right bottom, #FFEBEB, #FFCCD5);
+  --note-bg-3: linear-gradient(to right bottom, #E3FFFD, #CAFFFE);
+  --note-bg-4: linear-gradient(to right bottom, #FFF7D4, #FFE15D);
+}
+
+/* 毒舌模式 + 暗黑模式组合 */
+body.dark-mode.savage-mode {
+  --primary-color: #ff5252;
+  --accent-color: #ff8a80;
+  --bg-color: #1A1A1A; /* 确保黑暗背景 */
+  --card-bg: #2C2C2C;
+  --border-color: #444444;
+  
+  /* 毒舌模式专用变量 - 暗色 */
+  --savage-primary-color: #ff5252;
+  --savage-shadow: 0 4px 12px rgba(255, 82, 82, 0.2);
+  
+  /* 纸条背景 - 毒舌暗色 */
+  --note-bg-1: linear-gradient(to right bottom, #4A3030, #5C3D3D);
+  --note-bg-2: linear-gradient(to right bottom, #4A3035, #5C3D47);
+  --note-bg-3: linear-gradient(to right bottom, #304A47, #3D5C58);
+  --note-bg-4: linear-gradient(to right bottom, #4A4730, #5C593D);
+}
+
+/* 毒舌模式按钮样式 */
+body.savage-mode .btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  box-shadow: var(--savage-shadow);
+}
+
+body.savage-mode .btn-primary:hover {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+body.savage-mode .btn-secondary {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+body.savage-mode .btn-secondary:hover {
+  background-color: rgba(255, 82, 82, 0.1);
+}
+
+/* 毒舌模式图标和链接 */
+body.savage-mode .icon-btn:hover {
+  background-color: rgba(255, 82, 82, 0.1);
+  color: var(--primary-color);
+}
+
+body.savage-mode a:not(.btn) {
+  color: var(--primary-color);
+}
+
+body.savage-mode a:not(.btn):hover {
+  color: var(--accent-color);
+  text-decoration: underline;
+}
+
+/* 毒舌模式其他元素 */
+body.savage-mode .active-item,
+body.savage-mode .active-tab,
+body.savage-mode .active-icon {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+body.savage-mode .active-border,
+body.savage-mode .active-outline {
+  border-color: var(--primary-color) !important;
+  color: var(--primary-color) !important;
+}
+
+/* 毒舌模式表单元素 */
+body.savage-mode .form-input:focus,
+body.savage-mode .form-textarea:focus,
+body.savage-mode select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(255, 82, 82, 0.2);
+}
+
+/* 毒舌模式切换开关 */
+body.savage-mode .toggle-switch:checked + .toggle-label {
+  background-color: var(--primary-color);
+}
+
+body.savage-mode .toggle-switch:checked + .toggle-label .toggle-inner {
+  transform: translateX(24px);
+}
+
+/* 毒舌模式加载动画 */
+body.savage-mode .loading-spinner {
+  border-color: rgba(255, 82, 82, 0.2);
+  border-top-color: var(--primary-color);
+} 

@@ -92,38 +92,7 @@ body.dark-mode {
   --note-bg-4: linear-gradient(to right bottom, #384038, #3F4A3F);
 }
 
-/* 毒舌模式变量 - 亮色基础 */
-body.savage-mode:not(.dark-mode) {
-  /* 保持原有的页面背景色 */
-  --bg-color: #F9F3E5;
-  --card-bg: #FFFFFF;
-  
-  --primary-color: #ff5252;
-  --accent-color: #ff8a80;
-  --success-color: #ff5252;
-  
-  /* 毒舌模式专用变量 */
-  --savage-primary-color: #ff5252;
-  --savage-shadow: 0 4px 12px rgba(255, 123, 123, 0.15);
-  
-  /* 纸条背景 - 毒舌亮色 */
-  --note-bg-1: linear-gradient(to right bottom, #FFF4E0, #FFD8A9);
-  --note-bg-2: linear-gradient(to right bottom, #FFEBEB, #FFCCD5);
-  --note-bg-3: linear-gradient(to right bottom, #E3FFFD, #CAFFFE);
-  --note-bg-4: linear-gradient(to right bottom, #FFF7D4, #FFE15D);
-}
-
-/* 毒舌模式 + 暗黑模式组合 */
-body.dark-mode.savage-mode {
-  --primary-color: #ff5252;
-  --accent-color: #ff8a80;
-  --bg-color: #1A1A1A; /* 确保黑暗背景 */
-  --card-bg: #2C2C2C;
-  --border-color: #444444;
-  
-  /* 毒舌模式专用变量 - 暗色 */
-  --savage-primary-color: #ff5252;
-}
+/* 移除毒舌模式变量定义，改为使用独立的CSS文件 */
 
 /* 基础样式重置 */
 * {
@@ -196,24 +165,6 @@ body {
 
 .btn-secondary:hover {
   background-color: rgba(123, 158, 137, 0.05);
-}
-
-/* 毒舌模式按钮样式 */
-body.savage-mode .btn-primary {
-  background-color: var(--savage-primary-color, #ff5252);
-}
-
-body.savage-mode .btn-primary:hover {
-  box-shadow: 0 4px 12px rgba(255, 82, 82, 0.25);
-}
-
-body.savage-mode .btn-secondary {
-  border-color: var(--savage-primary-color, #ff5252);
-  color: var(--savage-primary-color, #ff5252);
-}
-
-body.savage-mode .btn-secondary:hover {
-  background-color: rgba(255, 82, 82, 0.05);
 }
 
 /* 卡片样式 */
@@ -303,13 +254,6 @@ body.savage-mode .btn-secondary:hover {
   outline: none;
 }
 
-/* 毒舌模式下的表单元素样式 */
-body.savage-mode .form-input:focus {
-  border-color: var(--savage-primary-color, #ff5252);
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(255, 82, 82, 0.2);
-}
-
 /* 选择器样式 */
 select {
   appearance: none;
@@ -318,13 +262,6 @@ select {
   background-position: right 8px center;
   background-size: 16px;
   padding-right: 32px;
-}
-
-/* 毒舌模式下的选择器样式 */
-body.savage-mode select:focus {
-  border-color: var(--savage-primary-color, #ff5252);
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(255, 82, 82, 0.2);
 }
 
 /* 动画类 */
@@ -469,11 +406,6 @@ body.savage-mode select:focus {
   body.dark-mode {
     background-color: #121212;
   }
-}
-
-/* 在主CSS文件 (例如 app.css 或 main.css) 中 */
-body.savage-mode {
-  --savage-primary-color: #ff5252;
 }
 
 /* 添加固定布局辅助类 */

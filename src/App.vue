@@ -89,15 +89,36 @@ onMounted(async () => {
       logger.info('THEME', 'Savage mode activated on app load');
     }
     
-    // 添加全局事件监听，用于处理偏好设置更新
+    // 修改偏好设置更新事件监听器
     document.addEventListener('preferences-updated', async (event) => {
       logger.info('PREFERENCES', 'Preferences updated event received:', event.detail);
-      const updatedPrefs = await getUserPreferences();
       
-      // 更新页面状态以适应新的偏好设置
-      if (updatedPrefs) {
-        document.body.classList.toggle('dark-mode', updatedPrefs.theme === 'dark');
-        document.body.classList.toggle('savage-mode', updatedPrefs.savageMode);
+      // 如果事件包含详细的更新信息，直接使用它避免额外的数据库请求
+      if (event.detail) {
+        // 处理字体大小更新
+        if (event.detail.fontSize) {
+          logger.info('PREFERENCES', '应用更新的字体大小:', event.detail.fontSize);
+        }
+        
+        // 处理毒舌模式更新 - 直接从事件详情获取
+        if (event.detail.savageMode !== undefined) {
+          const isSavageMode = event.detail.savageMode === true;
+          logger.info('PREFERENCES', '从事件应用毒舌模式:', isSavageMode);
+          document.body.classList.toggle('savage-mode', isSavageMode);
+        }
+      } else {
+        // 如果事件没有提供详细信息，从数据库获取完整的偏好设置
+        const updatedPrefs = await getUserPreferences();
+        
+        // 更新页面状态以适应新的偏好设置
+        if (updatedPrefs) {
+          document.body.classList.toggle('dark-mode', updatedPrefs.theme === 'dark');
+          
+          // 明确记录和应用毒舌模式状态
+          const isSavageMode = updatedPrefs.savageMode === true;
+          logger.info('PREFERENCES', '从数据库应用毒舌模式:', isSavageMode);
+          document.body.classList.toggle('savage-mode', isSavageMode);
+        }
       }
     });
     

@@ -488,6 +488,8 @@ async function cacheGeneratedContent() {
     // 更新本地保存的设置，添加缓存的内容
     await saveUserPreferences({
       ...currentPrefs,
+      // 明确保存当前毒舌模式设置到用户偏好
+      savageMode: params.savageMode,
       cachedContent
     });
     
@@ -603,6 +605,9 @@ async function restoreFromCache() {
       if (cacheTime && cacheAgeHours > 24) {
         logger.info('CACHE', '缓存内容已过期，不恢复');
         await clearContentCache(); // 清除过期缓存
+        // 确保清除毒舌模式状态
+        params.savageMode = false;
+        document.body.classList.remove('savage-mode');
         return;
       }
       
@@ -611,6 +616,9 @@ async function restoreFromCache() {
       if (!content || content === defaultMessage || content.trim() === '') {
         logger.info('CACHE', '缓存内容无效，不恢复');
         await clearContentCache();
+        // 确保清除毒舌模式状态
+        params.savageMode = false;
+        document.body.classList.remove('savage-mode');
         return;
       }
       
@@ -640,10 +648,12 @@ async function restoreFromCache() {
         params.theme = theme;
       }
       
-      // 恢复毒舌模式
+      // 恢复毒舌模式 - 只在当前页面应用
       if (savageMode !== undefined) {
         params.savageMode = savageMode === true;
+        // 确保应用毒舌模式class
         document.body.classList.toggle('savage-mode', params.savageMode);
+        logger.info('CACHE', '恢复毒舌模式状态:', params.savageMode);
       }
       
       // 恢复运势参数
@@ -658,9 +668,15 @@ async function restoreFromCache() {
       logger.info('CACHE', '从缓存恢复内容成功');
     } else {
       logger.info('CACHE', '没有找到有效的缓存内容');
+      // 确保没有缓存内容时，毒舌模式被关闭
+      params.savageMode = false;
+      document.body.classList.remove('savage-mode');
     }
   } catch (error) {
     logger.error('CACHE', '恢复缓存内容失败:', error);
+    // 出错时确保毒舌模式被关闭
+    params.savageMode = false;
+    document.body.classList.remove('savage-mode');
   }
 }
 
@@ -911,6 +927,15 @@ onBeforeUnmount(() => {
   
   // 移除事件监听器
   window.removeEventListener('resize', handleResize);
+  
+  // 如果没有生成过内容或不是毒舌模式，确保离开页面时清除savage-mode类
+  if (!hasGeneratedContent.value || !params.savageMode) {
+    document.body.classList.remove('savage-mode');
+    logger.info('HOME', '组件卸载时移除毒舌模式class');
+  } else {
+    // 确保生成的内容被缓存，这样状态才能正确恢复
+    cacheGeneratedContent();
+  }
 });
 
 // 监听暗黑模式变化

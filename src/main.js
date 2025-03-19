@@ -3,6 +3,7 @@ import App from './App.vue';
 import router from './router';
 import './styles/main.css';
 import './styles/dark-mode.css'; // 添加暗黑模式专用样式
+import './styles/savage-mode.css'; // 添加毒舌模式专用样式
 import logger from './utils/logger';
 import { preloadCriticalImages } from './services/imagePreloader'; // 导入图片预加载服务
 import { checkStorageHealth, initStorage } from './services/storageService'; // 导入存储健康检查

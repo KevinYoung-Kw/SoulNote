@@ -388,7 +388,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onErrorCaptured, watch, computed, inject } from 'vue';
+import { ref, reactive, onMounted, onErrorCaptured, watch, computed, inject, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   getUserPreferences, 
@@ -620,7 +620,7 @@ function toggleDarkMode() {
 function toggleSavageMode() {
   preferences.savageMode = isSavageMode.value;
   document.body.classList.toggle('savage-mode', isSavageMode.value);
-  console.log('Savage mode toggled:', preferences.savageMode);
+  logger.info('SETTINGS', '毒舌模式已切换为:', preferences.savageMode);
   savePreferences();
 }
 
@@ -629,22 +629,16 @@ async function savePreferences() {
     // 调试：检查偏好设置对象中的数组
     console.log('保存偏好设置前检查:', preferences);
     
-    // 检查是否有数组类型的属性
-    for (const key in preferences) {
-      if (Array.isArray(preferences[key])) {
-        console.log(`发现数组属性: ${key}`, preferences[key]);
-        
-        // 检查数组内的每个元素
-        preferences[key].forEach((item, index) => {
-          console.log(`${key}[${index}] 类型:`, typeof item, item);
-        });
-      }
-    }
+    // 保存前确保body的class与当前设置同步
+    document.body.classList.toggle('savage-mode', preferences.savageMode);
     
     await saveUserPreferences(preferences);
     // 通知应用字体大小已经更新
     document.dispatchEvent(new CustomEvent('preferences-updated', {
-      detail: { fontSize: preferences.fontSize }
+      detail: { 
+        fontSize: preferences.fontSize,
+        savageMode: preferences.savageMode // 添加毒舌模式状态到事件
+      }
     }));
   } catch (error) {
     console.error('保存偏好设置失败:', error);
@@ -847,6 +841,7 @@ onMounted(async () => {
     isDarkMode.value = preferences.theme === 'dark';
     document.body.classList.toggle('dark-mode', isDarkMode.value);
 
+    // 设置毒舌模式
     isSavageMode.value = preferences.savageMode || false;
     document.body.classList.toggle('savage-mode', isSavageMode.value);  
     
@@ -886,6 +881,15 @@ onMounted(async () => {
     }
   } catch (error) {
     logger.error('SETTINGS', '加载用户偏好失败', error);
+  }
+});
+
+// 添加新的onBeforeUnmount钩子
+onBeforeUnmount(() => {
+  // 在组件销毁时清除页面上的毒舌模式class，避免影响其他页面
+  if (document.body.classList.contains('savage-mode') && !preferences.savageMode) {
+    document.body.classList.remove('savage-mode');
+    logger.info('SETTINGS', '组件卸载时移除毒舌模式class');
   }
 });
 
