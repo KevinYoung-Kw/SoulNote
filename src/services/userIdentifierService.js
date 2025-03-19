@@ -43,6 +43,10 @@ try {
 // 存储密钥
 const USER_ID_KEY = 'soul-note-user-id';
 const STORAGE_PREFIX = 'soul-note-user-';
+// 添加备用存储密钥，用于跨域和隐身模式下的恢复
+const BACKUP_USER_ID_KEY = 'soul-note-backup-id';
+// 添加持久性存储密钥，用于cookie持久化
+const COOKIE_USER_ID_KEY = 'snuid';
 
 // 初始化 FingerprintJS
 let fpPromise = null;
@@ -58,20 +62,83 @@ function initFingerprint() {
 }
 
 /**
+ * 从cookie中获取userId
+ */
+function getUserIdFromCookie() {
+  const cookies = document.cookie.split('; ');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.split('=');
+    if (name === COOKIE_USER_ID_KEY) {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+}
+
+/**
+ * 将userId保存到cookie中，设置较长的过期时间
+ */
+function saveUserIdToCookie(userId) {
+  // 设置cookie有效期为一年
+  const expiryDate = new Date();
+  expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+  
+  // 设置cookie，不限定路径以便在整个网站可用
+  document.cookie = `${COOKIE_USER_ID_KEY}=${encodeURIComponent(userId)};expires=${expiryDate.toUTCString()};path=/;SameSite=Lax`;
+}
+
+/**
  * 获取或创建用户ID
  * 优先从localStorage获取，无则创建新ID
  */
 async function getOrCreateUserId() {
-  // 检查localStorage中是否有已存储的ID
-  let userId = localStorage.getItem(USER_ID_KEY);
-  
-  if (!userId) {
-    // 如果没有，创建新的用户ID
-    userId = await generateUserId();
-    localStorage.setItem(USER_ID_KEY, userId);
+  try {
+    // 首先检查localStorage中是否有已存储的ID
+    let userId = localStorage.getItem(USER_ID_KEY);
+    
+    // 如果localStorage中没有找到，尝试从cookie获取
+    if (!userId) {
+      userId = getUserIdFromCookie();
+      
+      // 如果从cookie获取成功，立即保存到localStorage
+      if (userId) {
+        console.log('从cookie恢复用户ID:', userId);
+        localStorage.setItem(USER_ID_KEY, userId);
+      }
+    }
+    
+    // 还是没有找到，检查备用存储
+    if (!userId) {
+      userId = sessionStorage.getItem(BACKUP_USER_ID_KEY);
+      
+      if (userId) {
+        console.log('从备用存储恢复用户ID:', userId);
+        localStorage.setItem(USER_ID_KEY, userId);
+      }
+    }
+    
+    // 如果还是没有找到，创建新的用户ID
+    if (!userId) {
+      userId = await generateUserId();
+      console.log('生成新的用户ID:', userId);
+      localStorage.setItem(USER_ID_KEY, userId);
+      
+      // 同时保存到备用存储和cookie
+      sessionStorage.setItem(BACKUP_USER_ID_KEY, userId);
+      saveUserIdToCookie(userId);
+    } else {
+      // 确保cookie和备用存储也是最新的
+      sessionStorage.setItem(BACKUP_USER_ID_KEY, userId);
+      saveUserIdToCookie(userId);
+    }
+    
+    return userId;
+  } catch (error) {
+    console.error('获取用户ID失败:', error);
+    
+    // 降级方案：使用内存中的临时ID
+    return 'temp-' + Math.random().toString(36).substring(2, 15);
   }
-  
-  return userId;
 }
 
 /**
@@ -161,6 +228,10 @@ async function resetUserId() {
     
     // 删除用户ID本身
     localStorage.removeItem(USER_ID_KEY);
+    sessionStorage.removeItem(BACKUP_USER_ID_KEY);
+    
+    // 删除cookie
+    document.cookie = `${COOKIE_USER_ID_KEY}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
     
     return true;
   } catch (error) {

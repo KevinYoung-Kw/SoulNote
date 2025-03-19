@@ -599,6 +599,8 @@ export async function clearSavedNotes() {
   const userId = await userIdentifierService.getOrCreateUserId();
   
   try {
+    console.log('正在清空用户的纸条, 用户ID:', userId);
+    
     // 首先从 IndexedDB 清空
     const db = await openDatabase();
     await new Promise((resolve, reject) => {
@@ -624,6 +626,11 @@ export async function clearSavedNotes() {
     try {
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
       localStorage.removeItem(storageKey);
+      
+      // 清除可能的旧存储位置
+      localStorage.removeItem(BASE_KEYS.NOTES);
+      
+      console.log('成功清空用户纸条');
     } catch (error) {
       console.warn('清空 localStorage 中的笔记失败 (备份):', error);
     }
@@ -636,6 +643,10 @@ export async function clearSavedNotes() {
     try {
       const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
       localStorage.removeItem(storageKey);
+      
+      // 清除可能的旧存储位置
+      localStorage.removeItem(BASE_KEYS.NOTES);
+      
       return true;
     } catch (fallbackError) {
       console.error('降级清空也失败:', fallbackError);
@@ -1121,80 +1132,140 @@ export async function resetUserData() {
 
 /**
  * 检查存储健康状态
- * @returns {Promise<Object>} 存储健康状态
+ * @returns {Promise<Object>} 存储健康状态对象
  */
 export async function checkStorageHealth() {
-  const health = {
+  const healthResult = {
     indexedDB: {
       available: false,
-      writable: false
+      writable: false,
+      message: ''
     },
     localStorage: {
       available: false,
       writable: false,
-      spaceAvailable: 0
-    }
+      message: ''
+    },
+    userId: '',
+    quotaExceeded: false
   };
   
-  // 检查 IndexedDB
   try {
-    const db = await openDatabase();
-    health.indexedDB.available = true;
+    // 获取用户ID，这对后续检查很重要
+    const userId = await userIdentifierService.getOrCreateUserId();
+    healthResult.userId = userId.substring(0, 8) + '...'; // 截断用户ID，只显示前8个字符
     
-    // 测试写入
+    // 检查 IndexedDB 可用性
     try {
-      const testKey = 'storage-health-test';
-      const testValue = { test: 'value', timestamp: Date.now() };
-      const userId = await userIdentifierService.getOrCreateUserId();
+      const db = await openDatabase();
+      healthResult.indexedDB.available = true;
       
-      await saveSettingToIDB(testKey, testValue, userId);
-      health.indexedDB.writable = true;
-    } catch (error) {
-      console.warn('IndexedDB 写入测试失败:', error);
-    }
-  } catch (error) {
-    console.warn('IndexedDB 不可用:', error);
-  }
-  
-  // 检查 localStorage
-  try {
-    const testKey = 'storage-health-test';
-    const testValue = JSON.stringify({ test: 'value', timestamp: Date.now() });
-    
-    // 检查是否可用
-    localStorage.setItem(testKey, testValue);
-    localStorage.removeItem(testKey);
-    health.localStorage.available = true;
-    health.localStorage.writable = true;
-    
-    // 估计可用空间
-    try {
-      let i = 0;
-      const chunk = '0'.repeat(1024 * 1024); // 1MB
-      const maxIterations = 10; // 最多测试 10MB
-      
-      localStorage.setItem(testKey, '');
-      
-      while (i < maxIterations) {
-        try {
-          const currentValue = localStorage.getItem(testKey) || '';
-          localStorage.setItem(testKey, currentValue + chunk);
-          i++;
-        } catch (e) {
-          break;
+      // 尝试写入测试数据
+      try {
+        const testStore = 'settings';
+        const testKey = `test-${Date.now()}`;
+        const testData = { timestamp: Date.now(), test: true };
+        
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction([testStore], 'readwrite');
+          const store = transaction.objectStore(testStore);
+          
+          const request = store.put({
+            key: `${userId}-${testKey}`,
+            userId,
+            value: testData,
+            updatedAt: new Date().toISOString()
+          });
+          
+          request.onsuccess = () => resolve();
+          request.onerror = (event) => reject(event.target.error);
+        });
+        
+        // 测试写入成功，现在删除测试数据
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction([testStore], 'readwrite');
+          const store = transaction.objectStore(testStore);
+          const request = store.delete(`${userId}-${testKey}`);
+          
+          request.onsuccess = () => resolve();
+          request.onerror = (event) => reject(event.target.error);
+        });
+        
+        healthResult.indexedDB.writable = true;
+        healthResult.indexedDB.message = 'IndexedDB 工作正常';
+      } catch (writeError) {
+        healthResult.indexedDB.message = `写入错误: ${writeError.message || '未知错误'}`;
+        
+        // 检查是否为配额超出错误
+        if (writeError.name === 'QuotaExceededError' || 
+            writeError.message.includes('quota') || 
+            writeError.message.includes('storage')) {
+          healthResult.quotaExceeded = true;
         }
       }
-      
-      health.localStorage.spaceAvailable = i;
-      localStorage.removeItem(testKey);
-    } catch (error) {
-      console.warn('localStorage 空间测试失败:', error);
+    } catch (dbError) {
+      healthResult.indexedDB.message = `打开数据库错误: ${dbError.message || '未知错误'}`;
     }
+    
+    // 检查 localStorage 可用性
+    try {
+      // 先检查是否可以访问 localStorage
+      const testKey = `test-ls-${Date.now()}`;
+      localStorage.setItem(testKey, 'test');
+      
+      if (localStorage.getItem(testKey) === 'test') {
+        healthResult.localStorage.available = true;
+        
+        // 检查存储的笔记数量
+        const notesKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.NOTES);
+        const notesData = localStorage.getItem(notesKey);
+        let noteCount = 0;
+        
+        if (notesData) {
+          try {
+            const notes = JSON.parse(notesData);
+            noteCount = Array.isArray(notes) ? notes.length : 0;
+          } catch (e) {
+            console.warn('解析笔记数据失败:', e);
+          }
+        }
+        
+        // 尝试读取用户偏好
+        const prefsKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.PREFERENCES);
+        const prefsAvailable = localStorage.getItem(prefsKey) !== null;
+        
+        // 测试写入偏好设置
+        try {
+          const testPrefs = { testValue: true, timestamp: Date.now() };
+          localStorage.setItem(testKey + '-prefs', JSON.stringify(testPrefs));
+          localStorage.removeItem(testKey + '-prefs');
+          healthResult.localStorage.writable = true;
+          healthResult.localStorage.message = `localStorage 工作正常, 笔记数: ${noteCount}, 有用户偏好: ${prefsAvailable}`;
+        } catch (writeError) {
+          healthResult.localStorage.message = `写入错误: ${writeError.message || '未知错误'}`;
+          
+          // 检查是否为配额超出错误
+          if (writeError.name === 'QuotaExceededError' || 
+              writeError.message.includes('quota') || 
+              writeError.message.includes('storage')) {
+            healthResult.quotaExceeded = true;
+          }
+        }
+      } else {
+        healthResult.localStorage.message = 'localStorage 可访问但有读写问题';
+      }
+      
+      // 清理测试数据
+      localStorage.removeItem(testKey);
+    } catch (lsError) {
+      healthResult.localStorage.message = `localStorage 错误: ${lsError.message || '未知错误'}`;
+    }
+    
   } catch (error) {
-    console.warn('localStorage 不可用:', error);
+    console.error('健康检查过程中出错:', error);
   }
   
-  return health;
+  return healthResult;
 }
 
 /**

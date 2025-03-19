@@ -133,13 +133,26 @@ const { exportAsImage, saveToDevice } = useNoteExport();
 async function loadSavedNotes() {
   try {
     console.log('加载收藏笔记...');
+    // 获取用户的笔记
     savedNotes.value = await getSavedNotes();
     console.log(`成功加载了 ${savedNotes.value.length} 条笔记`);
-    storageState.value = savedNotes.value.length > 0 ? '正常' : '没有数据';
+    
+    // 保存当前的笔记数量，用于后续恢复检查
+    localStorage.setItem('soul-note-last-notes-count', savedNotes.value.length.toString());
+    
+    // 如果笔记数量为0，但之前有笔记，显示提示
+    const lastKnownCount = parseInt(localStorage.getItem('soul-note-last-notes-count') || '0');
+    if (savedNotes.value.length === 0 && lastKnownCount > 0) {
+      storageState.value = '警告：之前检测到有 ' + lastKnownCount + ' 条笔记，请检查存储';
+      showDebugInfo.value = true;
+    } else {
+      storageState.value = savedNotes.value.length > 0 ? '正常' : '没有数据';
+    }
   } catch (error) {
     console.error('加载收藏笔记失败:', error);
     savedNotes.value = [];
     storageState.value = '加载失败: ' + error.message;
+    showDebugInfo.value = true;
   }
 }
 
@@ -235,11 +248,15 @@ function formatDateForFile(dateString) {
 }
 
 // 生命周期
-onMounted(() => {
-  loadSavedNotes();
+onMounted(async () => {
+  await loadSavedNotes();
   
-  // 设置定时刷新 - 每60秒刷新一次收藏列表
-  refreshTimer = setInterval(loadSavedNotes, 60000);
+  // 设置定时刷新 - 修改为较长时间间隔，避免频繁刷新导致性能问题
+  // 也可以考虑使用页面可见性API来优化
+  refreshTimer = setInterval(loadSavedNotes, 5 * 60 * 1000); // 改为5分钟刷新一次
+  
+  // 添加页面可见性变化的监听，用户回到页面时刷新数据
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   
   // 双击标题时显示调试信息
   const titleEl = document.querySelector('.page-title');
@@ -250,11 +267,20 @@ onMounted(() => {
   }
 });
 
-// 清理定时器
+// 处理页面可见性变化
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    // 页面变为可见时刷新笔记
+    loadSavedNotes();
+  }
+}
+
+// 清理定时器与事件监听
 onBeforeUnmount(() => {
   if (refreshTimer) {
     clearInterval(refreshTimer);
   }
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 
 // 自定义当前笔记样式

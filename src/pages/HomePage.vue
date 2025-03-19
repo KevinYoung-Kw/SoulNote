@@ -432,12 +432,12 @@ function showSaveConfirmation(message, type = 'success') {
 
 // 显示收藏提醒
 function showCollectionReminder() {
-  const shouldShow = Math.random() > 0.7; // 30%概率显示
+  const shouldShow = Math.random() > 0.9; // 10%概率显示
   
   if (shouldShow) {
     const confirmed = confirm('心语已保存到收藏！现在要查看吗？');
     if (confirmed) {
-      router.push('/saved-notes');
+      router.push('/saved');
     }
   }
 }
