@@ -20,8 +20,13 @@
       <button class="icon-btn action-btn" @click="regenerateNote" :disabled="isGenerating">
         <i class="fas fa-redo"></i>
       </button>
-      <button class="icon-btn action-btn" @click="saveNote" :disabled="!noteContent || isGenerating">
-        <i class="fas fa-heart"></i>
+      <button 
+        class="icon-btn action-btn" 
+        :class="{'favorite-active': isNoteFavorited}" 
+        @click="toggleFavorite" 
+        :disabled="!noteContent || isGenerating"
+      >
+        <i :class="isNoteFavorited ? 'fas fa-heart' : 'far fa-heart'"></i>
       </button>
       <button class="icon-btn action-btn" @click="customizeNote" :disabled="!noteContent || isGenerating">
         <i class="fas fa-palette"></i>
@@ -34,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import LoadingIndicator from './LoadingIndicator.vue';
 
 // Props
@@ -58,6 +63,14 @@ const props = defineProps({
   savageMode: {
     type: Boolean,
     default: false
+  },
+  isNoteFavorited: {
+    type: Boolean,
+    default: false
+  },
+  noteId: {
+    type: String,
+    default: ''
   }
 });
 
@@ -67,7 +80,8 @@ const emit = defineEmits([
   'regenerate', 
   'save', 
   'customize', 
-  'openAISettings'
+  'openAISettings',
+  'toggle-favorite'
 ]);
 
 // Methods
@@ -78,6 +92,15 @@ function generateNote() {
 function regenerateNote() {
   if (!props.isGenerating) {
     emit('regenerate');
+  }
+}
+
+function toggleFavorite() {
+  if (props.noteContent) {
+    emit('toggle-favorite', {
+      id: props.noteId,
+      isFavorited: props.isNoteFavorited
+    });
   }
 }
 
@@ -96,6 +119,14 @@ function customizeNote() {
 function openAISettings() {
   emit('openAISettings');
 }
+
+// 监视noteContent的变化，当内容变化时重置收藏状态
+watch(() => props.noteContent, (newContent, oldContent) => {
+  if (newContent !== oldContent && newContent && oldContent) {
+    // 只有在内容确实发生改变且不是初始加载时才触发
+    emit('check-favorite-status', props.noteId);
+  }
+});
 </script>
 
 <style scoped>
@@ -135,6 +166,56 @@ function openAISettings() {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn:active {
+  transform: translateY(2px);
+  box-shadow: var(--shadow-xs);
+}
+
+.action-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%, -50%);
+  transform-origin: 50% 50%;
+}
+
+.action-btn:active::after {
+  opacity: 1;
+  width: 100%;
+  height: 100%;
+  transform: scale(0, 0) translate(-50%, -50%);
+  transition: all 0.4s ease-out;
+}
+
+.favorite-active {
+  color: var(--primary-color) !important;
+  transform: scale(1.1);
+  animation: heartBeat 0.5s ease-in-out;
+  box-shadow: 0 0 10px rgba(123, 158, 137, 0.3);
+}
+
+.favorite-active:active {
+  transform: scale(1) translateY(2px);
+}
+
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  15% { transform: scale(1.3); }
+  30% { transform: scale(1.15); }
+  45% { transform: scale(1.25); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1.1); }
 }
 
 .icon-btn {
@@ -170,6 +251,11 @@ function openAISettings() {
 
 :global(.savage-mode) .action-btn:hover {
   background-color: #444444;
+}
+
+:global(.savage-mode) .favorite-active {
+  color: var(--savage-primary-color, #ff5252) !important;
+  box-shadow: 0 0 10px rgba(255, 82, 82, 0.3);
 }
 
 /* 针对较小屏幕的优化 */

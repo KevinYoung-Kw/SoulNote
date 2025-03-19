@@ -172,8 +172,44 @@ const selectedVersion = ref('all');
 // 版本历史数据（如果未提供则使用默认数据）
 const versions = ref(props.updateLogs.length > 0 ? props.updateLogs : [
   {
-    number: '1.6.0',
+    number: '1.7.0',
     date: new Date().toISOString(), // 使用当前日期作为最新版本日期
+    updates: [
+      {
+        type: 'feature',
+        items: [
+          '增强笔记收藏功能和状态管理，提升用户体验',
+          '优化收藏功能和存储管理，提升用户体验',
+          '实现更稳定的收藏状态持久化，解决页面切换后状态丢失问题',
+          '改进收藏按钮样式，包括在普通模式和毒舌模式下的不同颜色表现'
+        ]
+      },
+      {
+        type: 'improvement',
+        items: [
+          '优化路由检测，确保收藏状态在页面重新激活时正确恢复',
+          '改进localStorage存储机制，提高数据一致性',
+          '优化笔记ID的存储和清除逻辑，确保用户体验的一致性和流畅度'
+        ]
+      },
+      {
+        type: 'fix',
+        items: [
+          '修复在页面切换后收藏状态丢失的问题',
+          '修复收藏按钮在毒舌模式下颜色显示不正确的问题'
+        ]
+      },
+      {
+        type: 'chore',
+        items: [
+          '添加备份目录到.gitignore，优化版本控制'
+        ]
+      }
+    ]
+  },
+  {
+    number: '1.6.0',
+    date: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString(), // 上一个版本的日期
     updates: [
       {
         type: 'feature',
@@ -344,6 +380,7 @@ function getCategoryIcon(type) {
     'feature': 'fas fa-star',
     'improvement': 'fas fa-arrow-up',
     'fix': 'fas fa-bug',
+    'chore': 'fas fa-tasks',
     'default': 'fas fa-info-circle'
   };
   return icons[type] || icons.default;
@@ -355,6 +392,7 @@ function getCategoryTitle(type) {
     'feature': '新功能',
     'improvement': '优化改进',
     'fix': '问题修复',
+    'chore': '其他更新',
     'default': '其他更新'
   };
   return titles[type] || titles.default;
