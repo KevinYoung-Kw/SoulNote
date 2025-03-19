@@ -1542,3 +1542,23 @@ if (typeof window !== 'undefined') {
   window.diagnoseSoulNoteStorage = diagnoseStorage;
   window.diagnoseSoulNoteHealth = diagnoseHealthCheck;
 }
+
+/**
+ * 检查笔记是否已经被收藏
+ * @param {string} noteId 笔记ID
+ * @returns {Promise<boolean>} 是否已收藏
+ */
+export async function isNoteFavorited(noteId) {
+  if (!noteId) return false;
+  
+  try {
+    // 获取所有已收藏的笔记
+    const savedNotes = await getSavedNotes();
+    
+    // 检查指定ID的笔记是否存在于收藏列表中
+    return savedNotes.some(note => note.id === noteId);
+  } catch (error) {
+    console.error('检查笔记收藏状态失败:', error);
+    return false;
+  }
+}
