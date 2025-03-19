@@ -27,10 +27,6 @@
       </div>
       
       <div class="header-right">
-        <!-- 添加清除按钮 -->
-        <button class="icon-btn" @click="clearContent" v-if="hasGeneratedContent">
-          <i class="fas fa-times"></i>
-        </button>
         <button class="icon-btn" @click="goToSavedNotes">
           <i class="fas fa-bookmark"></i>
         </button>

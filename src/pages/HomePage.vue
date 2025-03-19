@@ -57,7 +57,9 @@
     <ParamsPanel
       v-model:visible="showParamsPanel"
       :initialParams="params"
+      :hasGeneratedContent="hasGeneratedContent"
       @save-params="updateParams"
+      @clear-content="clearGeneratedContent"
     />
     
     <!-- 社区提示 -->
@@ -534,98 +536,47 @@ async function cacheGeneratedContent() {
 
 // 添加清除内容方法
 function clearGeneratedContent() {
-  if (confirm('确定要清除当前内容吗？')) {
-    // 重置内容
-    noteContent.value = '点击下方"生成心语"按钮，开始您的心灵之旅...';
-    
-    // 重置所有参数
-    params.moods = [];
-    params.theme = 'chat';
-    params.savageMode = false;
-    params.enableFortune = false;
-    params.fortuneAspect = 'overall';
-    
-    // 重置生成状态
-    hasGeneratedContent.value = false;
-    
-    // 清除缓存
-    clearContentCache();
-    
-    // 保存重置后的参数 - 确保完全清除所有相关参数
-    updateLocalPreferencesAfterClear();
-    
-    // 确保样式更新
-    document.body.classList.remove('savage-mode');
-    
-    // 记录清除操作
-    logger.info('CLEAR', '已清除内容和参数');
-
-    // 重置收藏状态和ID
-    currentNoteId.value = '';
-    isCurrentNoteFavorited.value = false;
-    // 清除LocalStorage中保存的笔记ID
-    localStorage.removeItem('soulnote_current_note_id');
-  }
+  // 无需确认，直接清除内容
+  // 重置内容
+  noteContent.value = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+  
+  // 重置生成状态
+  hasGeneratedContent.value = false;
+  
+  // 清除缓存内容，但保留用户参数设置
+  clearCachedContentOnly();
+  
+  // 重置收藏状态和ID
+  currentNoteId.value = '';
+  isCurrentNoteFavorited.value = false;
+  // 清除LocalStorage中保存的笔记ID
+  localStorage.removeItem('soulnote_current_note_id');
+  
+  // 记录清除操作
+  logger.info('CLEAR', '已清除内容');
 }
 
-// 清除内容缓存
-async function clearContentCache() {
+// 添加一个只清除缓存内容的函数，保留其他设置
+async function clearCachedContentOnly() {
   try {
     const currentPrefs = await getUserPreferences();
+    
+    // 只删除缓存的内容和笔记ID，保留其他所有设置
     if (currentPrefs.cachedContent) {
       delete currentPrefs.cachedContent;
     }
-    // 同时清除缓存的笔记ID
     if (currentPrefs.cachedNoteId) {
       delete currentPrefs.cachedNoteId;
     }
+    if (currentPrefs.lastGeneratedNoteId) {
+      delete currentPrefs.lastGeneratedNoteId;
+    }
+    
+    // 保存更新的设置
     await saveUserPreferences(currentPrefs);
-    logger.info('CACHE', '已清除缓存内容');
+    logger.info('CACHE', '已清除缓存内容，保留其他设置');
   } catch (error) {
-    logger.error('CACHE', '清除缓存失败:', error);
-  }
-}
-
-// 添加一个专门用于清除后更新偏好的方法
-async function updateLocalPreferencesAfterClear() {
-  try {
-    // 获取当前偏好
-    const currentPrefs = await getUserPreferences();
-    
-    // 创建一个新的偏好对象，只保留必要的用户信息，重置其他所有设置
-    const cleanedPrefs = {
-      // 保留用户个人信息
-      gender: currentPrefs.gender,
-      age: currentPrefs.age,
-      relationship: currentPrefs.relationship,
-      zodiac: currentPrefs.zodiac,
-      mbti: currentPrefs.mbti,
-      
-      // 重置所有其他设置
-      fontSize: fontSize.value,
-      background: currentBackground.value,
-      savageMode: false,
-      theme: 'chat',
-      moods: [],
-      enableFortune: false,
-      fortuneAspect: 'overall',
-      
-      // 保留其他不相关的设置
-      language: currentPrefs.language || 'zh',
-      darkMode: currentPrefs.darkMode,
-      headerCollapsed: currentPrefs.headerCollapsed,
-      hideAppreciation: currentPrefs.hideAppreciation,
-      
-      // 明确设置缓存为null
-      cachedContent: null
-    };
-    
-    // 保存清理后的偏好
-    await saveUserPreferences(cleanedPrefs);
-    
-    logger.info('PREFERENCES', '已完全重置所有参数');
-  } catch (error) {
-    logger.error('PREFERENCES', '重置参数失败:', error);
+    logger.error('CACHE', '清除缓存内容失败:', error);
   }
 }
 

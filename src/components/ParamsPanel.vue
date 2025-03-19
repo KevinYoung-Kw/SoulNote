@@ -3,6 +3,11 @@
   <transition name="slide-up">
     <div class="params-panel" v-if="visible" :class="{'savage-panel': params.savageMode}">
       <div class="params-panel-header">
+        <!-- 清除按钮，始终显示 -->
+        <button class="icon-btn clear-content-btn" @click="clearContent">
+          <i class="fas fa-trash-alt"></i>
+          <span class="tooltip">清除所有参数</span>
+        </button>
         <h2>心语参数设置</h2>
         <button class="icon-btn close-btn" @click="closePanel">
           <i class="fas fa-times"></i>
@@ -298,11 +303,15 @@ const props = defineProps({
   initialParams: {
     type: Object,
     required: true
+  },
+  hasGeneratedContent: {
+    type: Boolean,
+    default: false
   }
 });
 
 // Emits
-const emit = defineEmits(['update:visible', 'save-params']);
+const emit = defineEmits(['update:visible', 'save-params', 'clear-content']);
 
 // State
 const params = reactive({ ...props.initialParams });
@@ -905,6 +914,8 @@ function clearMoods() {
 
 // 修改随机参数函数，添加动画效果
 async function randomizeParams() {
+  // 不再清除当前内容
+  
   // 清空动画参数，准备新的随机值
   animationParams.moods = [];
   animationParams.theme = '';  // 修改为空字符串，使其不显示直到动画开始
@@ -1201,6 +1212,25 @@ function getFortuneLabel(aspectValue) {
   return aspect ? aspect.label : '整体';
 }
 
+// 清除参数方法
+function clearContent() {
+  // 弹出确认对话框
+  if (confirm('确定要清除所有参数吗？此操作将重置所有设置。')) {
+    // 清除所有设置的参数
+    params.moods = [];
+    params.theme = 'chat';
+    params.savageMode = false;
+    params.enableFortune = false;
+    params.fortuneAspect = 'general';
+    
+    // 更新UI，移除毒舌模式类
+    document.body.classList.remove('savage-mode');
+    
+    // 记录日志
+    logger.info('PARAMS_PANEL', '已清除所有参数');
+  }
+}
+
 </script>
 
 <style scoped>
@@ -1247,10 +1277,47 @@ function getFortuneLabel(aspectValue) {
   margin: 0;
   font-size: 18px;
   font-weight: 500;
+  flex: 1;
+  text-align: center;
 }
 
 .close-btn {
   font-size: 20px;
+}
+
+.clear-content-btn {
+  font-size: 18px;
+  position: relative;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.clear-content-btn:hover {
+  color: var(--danger-color, #f44336);
+  transform: scale(1.1);
+}
+
+.clear-content-btn .tooltip {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(244, 67, 54, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  pointer-events: none;
+  font-weight: bold;
+}
+
+.clear-content-btn:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
 }
 
 .params-panel-content {
