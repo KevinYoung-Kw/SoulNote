@@ -180,6 +180,28 @@
       </div>
             
       <section class="settings-section">
+        <h2 class="section-title">分享与邀请</h2>
+        
+        <div class="setting-item">
+          <label class="setting-label">生成分享链接</label>
+          <div class="setting-value" @click="generateShareLink">
+            <span v-if="!isGeneratingLink">复制邀请链接</span>
+            <span v-else><i class="fas fa-spinner fa-spin"></i></span>
+            <i class="fas fa-share-alt"></i>
+          </div>
+        </div>
+        
+        <!-- 添加复制成功提示 -->
+        <div 
+          class="copy-success-toast" 
+          v-if="showCopySuccess"
+          @animationend="showCopySuccess = false"
+        >
+          <i class="fas fa-check-circle"></i> 链接已复制到剪贴板
+        </div>
+      </section>
+
+      <section class="settings-section">
         <h2 class="section-title">关于</h2>
         
         <div class="setting-item">
@@ -366,14 +388,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onErrorCaptured, watch } from 'vue';
+import { ref, reactive, onMounted, onErrorCaptured, watch, computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { getUserPreferences, saveUserPreferences, resetUserData, checkStorageHealth, backupUserData, restoreUserData } from '../services/storageService';
+import { 
+  getUserPreferences, 
+  saveUserPreferences, 
+  resetUserData, 
+  checkStorageHealth, 
+  backupUserData, 
+  restoreUserData, 
+  getInviteCodeVerified 
+} from '../services/storageService';
 import { communityService } from '../services/communityService';
 import CommunityPrompt from '../components/CommunityPrompt.vue';
-
 import logger from '../utils/logger';
-import { APP_VERSION } from '../config/version';
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '开发版本';
 
 const showZodiacSelector = ref(false);
 const showMbtiSelector = ref(false);
@@ -502,7 +532,13 @@ const backgrounds = [
   { value: 'paper-4', label: '淡绿色' }
 ];
 
+// 注入分享链接生成函数
+const getShareLinkWithInviteCode = inject('getShareLinkWithInviteCode');
 
+// 分享链接相关状态
+const isGeneratingLink = ref(false);
+const showCopySuccess = ref(false);
+const currentInviteCode = ref('');
 
 function getGenderLabel(value) {
   if (!value) return '未设置';
@@ -837,6 +873,17 @@ onMounted(async () => {
       savageMode: isSavageMode.value
     });
     logger.info('DOM', 'Body classes:', document.body.classList);
+
+    // 在组件挂载时获取当前用户已验证的邀请码
+    try {
+      // 尝试获取已验证的邀请码
+      const inviteResult = await getInviteCodeVerified();
+      if (inviteResult.verified && inviteResult.code) {
+        currentInviteCode.value = inviteResult.code;
+      }
+    } catch (error) {
+      console.error('获取邀请码失败:', error);
+    }
   } catch (error) {
     logger.error('SETTINGS', '加载用户偏好失败', error);
   }
@@ -846,6 +893,47 @@ onMounted(async () => {
 watch(preferences, () => {
   savePreferences();
 }, { deep: true });
+
+// 生成并复制分享链接
+async function generateShareLink() {
+  if (isGeneratingLink.value) return;
+  
+  try {
+    isGeneratingLink.value = true;
+    
+    // 如果没有当前邀请码，尝试获取
+    if (!currentInviteCode.value) {
+      const inviteResult = await getInviteCodeVerified();
+      if (inviteResult.verified && inviteResult.code) {
+        currentInviteCode.value = inviteResult.code;
+      }
+    }
+    
+    // 获取分享链接
+    let shareLink;
+    
+    if (currentInviteCode.value) {
+      shareLink = await getShareLinkWithInviteCode(currentInviteCode.value);
+    } else {
+      // 没有邀请码，使用默认链接
+      shareLink = await getShareLinkWithInviteCode();
+      console.log('未找到验证过的邀请码，使用默认分享链接');
+    }
+    
+    // 复制到剪贴板
+    await navigator.clipboard.writeText(shareLink);
+    
+    // 显示成功提示
+    showCopySuccess.value = true;
+    
+    console.log('成功复制分享链接:', shareLink);
+  } catch (error) {
+    console.error('复制分享链接失败:', error);
+    alert('复制链接失败，请重试');
+  } finally {
+    isGeneratingLink.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -1415,7 +1503,6 @@ watch(preferences, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
 }
 
 .close-btn:hover {
@@ -1827,6 +1914,42 @@ input:checked + .switch-label::after {
   
   .modal-body {
     max-height: 70vh;
+  }
+}
+
+/* 复制成功提示样式 */
+.copy-success-toast {
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--success-color-light);
+  color: var(--success-color);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  animation: toast-fade 3s ease-in-out;
+}
+
+.copy-success-toast i {
+  margin-right: 8px;
+}
+
+@keyframes toast-fade {
+  0%, 20% {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  30%, 70% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20px);
   }
 }
 </style>

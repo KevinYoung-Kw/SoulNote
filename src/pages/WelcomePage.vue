@@ -39,6 +39,13 @@ import { useRouter } from 'vue-router';
 import { onMounted, ref } from 'vue';
 import { getOnboardingCompleted } from '../services/storageService';
 
+const props = defineProps({
+  inviteCode: {
+    type: String,
+    default: ''
+  }
+});
+
 const router = useRouter();
 const hasCompletedOnboarding = ref(false);
 
@@ -51,6 +58,14 @@ onMounted(async () => {
     if (hasCompletedOnboarding.value) {
       console.log('用户已完成引导，自动跳转到首页');
       router.push('/home');
+      return;
+    }
+    
+    // 如果有邀请码参数，保存到sessionStorage但不自动跳转
+    if (props.inviteCode) {
+      console.log('检测到邀请码参数，保存到会话中:', props.inviteCode);
+      sessionStorage.setItem('invite_code', props.inviteCode);
+      // 不再自动跳转到引导页，而是让用户主动点击"开始体验"按钮
     }
   } catch (error) {
     console.error('检查引导状态失败:', error);
@@ -87,7 +102,19 @@ function startExperience() {
   } else {
     // 设置一个会话标记，表示用户是从欢迎页进入的
     sessionStorage.setItem('from_welcome', 'true');
-    router.push('/onboarding');
+    
+    // 从会话中获取保存的邀请码
+    const savedInviteCode = sessionStorage.getItem('invite_code') || props.inviteCode;
+    
+    // 如果有邀请码，加入到query中
+    if (savedInviteCode) {
+      router.push({ 
+        path: '/onboarding',
+        query: { invitecode: savedInviteCode }
+      });
+    } else {
+      router.push('/onboarding');
+    }
   }
 }
 </script>
@@ -129,12 +156,13 @@ function startExperience() {
   align-items: center;
   justify-content: center;
   margin: 0 auto var(--spacing-md);
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 .logo-image {
-  width: 95%;
-  height: 95%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
@@ -190,8 +218,8 @@ function startExperience() {
 }
 
 .feature-icon {
-  width: 48px;
-  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border-radius: 50%;
   background-color: rgba(123, 158, 137, 0.1);
   display: flex;

@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import OnboardingStep from '../OnboardingStep.vue';
 import { setInviteCodeVerified } from '../../../services/storageService';
@@ -71,6 +71,22 @@ const inviteCodeVerified = ref(props.initialVerified);
 const isVerifying = ref(false);
 const inviteCodeError = ref(false);
 const inviteCodeErrorMessage = ref('');
+
+// 在组件挂载时自动验证初始邀请码
+onMounted(async () => {
+  // 如果已验证，无需再次验证
+  if (inviteCodeVerified.value) {
+    console.log('邀请码已经验证，无需再次验证');
+    emit('verify-success');
+    return;
+  }
+  
+  // 如果有初始邀请码但未验证，自动触发验证
+  if (inviteCode.value && !inviteCodeVerified.value) {
+    console.log('检测到初始邀请码，自动验证:', inviteCode.value);
+    await verifyInviteCode();
+  }
+});
 
 async function verifyInviteCode() {
   if (!inviteCode.value || isVerifying.value) return;

@@ -139,7 +139,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick, provide } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
 
 // 导入服务和工具
@@ -174,7 +174,15 @@ import {
 // 后端API URL - 应该从环境变量获取
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
+const props = defineProps({
+  inviteCode: {
+    type: String,
+    default: ''
+  }
+});
+
 const router = useRouter();
+const route = useRoute();
 const fontPreloader = ref(null);
 
 // 步骤控制
@@ -262,38 +270,79 @@ const sampleNote = computed(() => {
 // 清理后的示例笔记内容
 const sanitizedSampleNote = computed(() => sanitizeContent(sampleNote.value));
 
-// 生命周期钩子
+// 初始化页面
 onMounted(async () => {
-  // 检查是否从欢迎页进入
-  const fromWelcome = sessionStorage.getItem('from_welcome') === 'true';
-  
-  // 如果不是从欢迎页进入，重定向回欢迎页
-  if (!fromWelcome) {
-    console.log('未从欢迎页进入引导流程，重定向回欢迎页');
-    router.replace('/');
-    return;
+  try {
+    // 检查是否是从欢迎页进入的
+    const fromWelcome = sessionStorage.getItem('from_welcome') === 'true';
+    
+    // 设置邀请码 - 优先级：
+    // 1. 从props获取
+    // 2. 从URL查询参数获取
+    // 3. 从sessionStorage获取
+    if (props.inviteCode) {
+      inviteCode.value = props.inviteCode;
+      console.log('从props接收到邀请码:', inviteCode.value);
+    } else if (route.query.invitecode) {
+      inviteCode.value = route.query.invitecode.toString();
+      console.log('从URL查询参数接收到邀请码:', inviteCode.value);
+    } else {
+      // 尝试从sessionStorage获取
+      const savedInviteCode = sessionStorage.getItem('invite_code');
+      if (savedInviteCode) {
+        inviteCode.value = savedInviteCode;
+        console.log('从sessionStorage获取到邀请码:', inviteCode.value);
+        // 使用后清除
+        sessionStorage.removeItem('invite_code');
+      }
+    }
+    
+    // 如果不是从欢迎页进入且没有邀请码，重定向回欢迎页
+    if (!fromWelcome && route.name === 'Onboarding' && !inviteCode.value) {
+      console.log('未经欢迎页直接访问引导页且无邀请码，重定向到欢迎页');
+      router.replace('/');
+      return;
+    }
+    
+    // 清除会话标记，避免重复使用
+    sessionStorage.removeItem('from_welcome');
+    
+    // 尝试恢复之前的步骤
+    restoreCurrentStep();
+    
+    // 如果有邀请码，检查是否已验证过
+    if (inviteCode.value) {
+      const inviteResult = await getInviteCodeVerified();
+      if (inviteResult.verified) {
+        console.log('邀请码已验证过，自动跳过验证步骤');
+        inviteCodeVerified.value = true;
+        
+        // 如果当前在邀请码步骤且已验证，自动前进到下一步
+        if (currentStep.value === 2) {
+          console.log('在邀请码步骤发现预验证码，自动前进');
+          nextTick(() => nextStep());
+        }
+      }
+    } else {
+      // 检查是否已存在其他验证过的邀请码
+      await checkExistingInviteCode();
+    }
+    
+    // 预加载字体
+    if (fontPreloader.value) {
+      await fontPreloader.value.preloadFonts();
+    }
+    
+    nextTick(() => {
+      applyCyberpunkTextEffects();
+    });
+    
+    // 添加页面可见性变化的监听
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+  } catch (error) {
+    console.error('引导页初始化错误:', error);
   }
-  
-  // 清除会话标记，避免重复使用
-  sessionStorage.removeItem('from_welcome');
-  
-  // 尝试恢复之前的步骤
-  restoreCurrentStep();
-  
-  // 检查是否已存在验证过的邀请码
-  await checkExistingInviteCode();
-
-  // 如果是邀请码步骤且已经验证过，可以自动前进
-  if (currentStep.value === 2 && inviteCodeVerified.value) {
-    console.log('邀请码已验证，自动跳到下一步');
-  }
-
-  nextTick(() => {
-    applyCyberpunkTextEffects();
-  });
-  
-  // 添加页面可见性变化的监听
-  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 
 // 处理页面可见性变化
@@ -385,15 +434,13 @@ watch(() => currentStep.value, (newStep) => {
 // 检查是否已验证过邀请码
 async function checkExistingInviteCode() {
   // 从服务获取验证状态
-  inviteCodeVerified.value = await getInviteCodeVerified();
+  const result = await getInviteCodeVerified();
+  inviteCodeVerified.value = result.verified;
   
-  if (inviteCodeVerified.value) {
-    // 获取存储的邀请码
-    const storedCode = localStorage.getItem('soul-note-invite-code');
-    if (storedCode) {
-      inviteCode.value = storedCode;
-      console.log('已存在验证过的邀请码:', storedCode);
-    }
+  if (inviteCodeVerified.value && result.code) {
+    // 使用返回的邀请码
+    inviteCode.value = result.code;
+    console.log('已存在验证过的邀请码:', result.code);
   }
   
   return inviteCodeVerified.value;

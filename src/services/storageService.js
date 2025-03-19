@@ -785,16 +785,22 @@ export async function setOnboardingCompleted(completed = true) {
 
 /**
  * 获取邀请码验证状态
- * @returns {Promise<boolean>} 是否已验证邀请码
+ * @returns {Promise<{verified: boolean, code: string|null}>} 是否已验证邀请码和验证过的邀请码
  */
 export async function getInviteCodeVerified() {
   const userId = await userIdentifierService.getOrCreateUserId();
+  let inviteCode = null;
   
   try {
-    // 首先从 IndexedDB 获取
+    // 首先从 IndexedDB 获取验证状态
     const verified = await getSettingFromIDB(BASE_KEYS.INVITE_CODE_VERIFIED, userId);
-    if (verified !== null) {
-      return verified === true;
+    
+    // 如果已验证，获取邀请码
+    if (verified === true) {
+      inviteCode = await getSettingFromIDB(BASE_KEYS.INVITE_CODE, userId);
+      return { verified: true, code: inviteCode };
+    } else if (verified !== null) {
+      return { verified: false, code: null };
     }
   } catch (error) {
     console.warn('从 IndexedDB 获取邀请码验证状态失败:', error);
@@ -802,24 +808,38 @@ export async function getInviteCodeVerified() {
   
   // 如果 IndexedDB 失败或没有数据，尝试从 localStorage 获取
   try {
-    const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.INVITE_CODE_VERIFIED);
+    const verifiedStorageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.INVITE_CODE_VERIFIED);
+    const codeStorageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.INVITE_CODE);
+    
     // 检查用户特定设置
-    const userVerified = localStorage.getItem(storageKey) === 'true';
+    const userVerified = localStorage.getItem(verifiedStorageKey) === 'true';
     
     // 检查全局设置（兼容旧版）
     const globalVerified = localStorage.getItem('soul-note-invite-verified') === 'true';
     
     const isVerified = userVerified || globalVerified;
     
-    // 同步到 IndexedDB
+    // 如果已验证，获取邀请码
     if (isVerified) {
+      // 尝试从用户存储获取
+      inviteCode = localStorage.getItem(codeStorageKey);
+      
+      // 如果不存在，尝试从全局存储获取 
+      if (!inviteCode) {
+        inviteCode = localStorage.getItem('soul-note-invite-code');
+      }
+      
+      // 同步到 IndexedDB
       await saveSettingToIDB(BASE_KEYS.INVITE_CODE_VERIFIED, true, userId);
+      if (inviteCode) {
+        await saveSettingToIDB(BASE_KEYS.INVITE_CODE, inviteCode, userId);
+      }
     }
     
-    return isVerified;
+    return { verified: isVerified, code: inviteCode };
   } catch (error) {
     console.error('获取邀请码验证状态失败:', error);
-    return false;
+    return { verified: false, code: null };
   }
 }
 

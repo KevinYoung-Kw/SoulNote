@@ -17,14 +17,47 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, provide } from 'vue';
 import { useRouter } from 'vue-router';
-import { getUserPreferences } from './services/storageService';
+import { getUserPreferences, getInviteCodeVerified } from './services/storageService';
 import logger from './utils/logger';
 
 const router = useRouter();
 const showAdminButton = ref(false);
 const appReady = ref(false);
+
+// 提供生成分享链接的函数，可在全局使用
+const getShareLinkWithInviteCode = async (inviteCode) => {
+  // 获取当前环境的基础URL
+  const getBaseUrl = () => {
+    const { protocol, hostname, port, pathname } = window.location;
+    // 对于localhost环境，我们需要包含端口号
+    const baseUrl = `${protocol}//${hostname}${port ? `:${port}` : ''}${pathname}`;
+    return baseUrl;
+  };
+  
+  if (!inviteCode) {
+    // 如果没有提供邀请码，返回普通的分享链接
+    return getBaseUrl() + '#/';
+  }
+  
+  try {
+    // 验证邀请码是否有效
+    const inviteResult = await getInviteCodeVerified();
+    if (!inviteResult.verified) {
+      console.warn('尝试分享未验证的邀请码:', inviteCode);
+    }
+    
+    // 生成带邀请码的分享链接
+    return `${getBaseUrl()}#/?invitecode=${encodeURIComponent(inviteCode)}`;
+  } catch (error) {
+    console.error('生成分享链接时出错:', error);
+    return getBaseUrl() + '#/';
+  }
+};
+
+// 将函数提供给所有组件
+provide('getShareLinkWithInviteCode', getShareLinkWithInviteCode);
 
 // 监听特殊组合键
 function handleKeyDown(e) {

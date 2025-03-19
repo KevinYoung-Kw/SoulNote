@@ -1411,7 +1411,7 @@ defineExpose({
 
 .nolan-interstellar .nickname-suggestion:hover {
   background-color: rgba(87, 160, 255, 0.2);
-}
+} 
 
 /* 盗梦空间风格 - 修正为电影实际的冷色调 */
 .nolan-inception {

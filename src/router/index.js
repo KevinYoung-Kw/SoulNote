@@ -11,7 +11,9 @@ const routes = [
     path: '/',
     name: 'Welcome',
     component: () => import('../pages/WelcomePage.vue'),
-    meta: { requiresOnboarding: false }
+    meta: { requiresOnboarding: false },
+    // 添加查询参数配置，允许invitecode作为查询参数
+    props: (route) => ({ inviteCode: route.query.invitecode })
   },
   {
     path: '/home',
@@ -35,7 +37,9 @@ const routes = [
     path: '/onboarding',
     name: 'Onboarding',
     component: () => import('../pages/OnboardingPage.vue'),
-    meta: { requiresOnboarding: false }
+    meta: { requiresOnboarding: false },
+    // 添加查询参数配置，允许invitecode作为查询参数
+    props: (route) => ({ inviteCode: route.query.invitecode })
   },
   {
     path: '/privacy-policy',
@@ -81,8 +85,11 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
     
+    // 如果包含邀请码参数并访问欢迎页，让用户正常访问欢迎页
+    // 而不是直接跳转到引导页，这允许用户看到欢迎页内容
+    
     // 如果尝试直接访问OnboardingPage但不是从WelcomePage来的
-    if (to.name === 'Onboarding' && from.name !== 'Welcome' && from.name) {
+    if (to.name === 'Onboarding' && from.name !== 'Welcome' && from.name && !to.query.invitecode) {
       console.log('非法访问引导页，重定向到欢迎页', from.name, '->', to.name);
       next({ name: 'Welcome' });
       return;
