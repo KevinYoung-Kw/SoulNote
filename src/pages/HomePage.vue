@@ -96,6 +96,14 @@
       v-model:visible="showAISettings"
       @update:apiSettings="updateAPISettings"
     />
+
+    <!-- 用户引导组件 -->
+    <UserGuide
+      v-if="showUserGuide"
+      :visible="showUserGuide"
+      @close="showUserGuide = false"
+      @finished="handleGuideFinished"
+    />
   </div>
 </template>
 
@@ -114,6 +122,7 @@ import AppreciationBanner from '../components/AppreciationBanner.vue';
 import CommunityPrompt from '../components/CommunityPrompt.vue';
 import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
 import AISetting from '../components/AISetting.vue';
+import UserGuide from '../components/UserGuide.vue';
 
 // 导入服务和工具
 import { generateNote, getEstimatedResponseTime } from '../services/aiService';
@@ -147,6 +156,7 @@ const showParamsPanel = ref(false);
 const showCommunityPrompt = ref(false);
 const showStyleCustomizer = ref(false);
 const showAISettings = ref(false);
+const showUserGuide = ref(false);
 const customStyle = ref({});
 const apiSettings = ref(null);
 const currentNoteId = ref(''); // 当前笔记ID
@@ -833,6 +843,26 @@ onMounted(async () => {
       // 确保毒舌模式的样式正确应用
       document.body.classList.toggle('savage-mode', params.savageMode);
 
+      // 检查是否需要显示用户引导
+      const isFirstLogin = preferences.isFirstLogin === true;
+      const guideTaken = preferences.guideTaken === true;
+      
+      // 如果是首次登录或未完成引导，显示用户引导
+      if (isFirstLogin || !guideTaken) {
+        // 延迟显示引导，确保页面完全加载
+        setTimeout(() => {
+          showUserGuide.value = true;
+        }, 1500);
+        
+        // 更新首次登录标记
+        if (isFirstLogin) {
+          saveUserPreferences({
+            ...preferences,
+            isFirstLogin: false
+          });
+        }
+      }
+
       // 检查弹窗显示逻辑，按优先级检查：版本更新 > 首次登录 > 其他提示
       const appVersion = APP_VERSION;
       
@@ -855,12 +885,11 @@ onMounted(async () => {
         }
       }
 
-      // 首选检查是否需要强制显示弹窗（首次登录或从未显示过）
-      const isFirstLogin = preferences.isFirstLogin === true;
+      // 首选检查是否需要强制显示弹窗（从未显示过）
       const neverShownBefore = !preferences.communityShownBefore;
       
-      if (isFirstLogin || neverShownBefore) {
-        logger.info('COMMUNITY', '首次登录或从未显示过弹窗，强制显示');
+      if (neverShownBefore) {
+        logger.info('COMMUNITY', '从未显示过弹窗，强制显示');
         
         // 如果是首次显示，优先检查是否有版本更新
         const updatePrompt = await communityService.checkUpdatePrompt(appVersion);
@@ -920,7 +949,7 @@ onMounted(async () => {
         return;
       }
       
-      // 2. 然后检查是否是首次登录或其他提醒
+      // 2. 然后检查是否是其他提醒
       const shouldShow = await communityService.shouldShowPrompt();
       if (shouldShow.show) {
         Object.assign(communityPromptData, shouldShow);
@@ -996,7 +1025,7 @@ onMounted(async () => {
     }
     
   } catch (error) {
-    logger.error('PREFERENCES', '加载用户偏好设置失败:', error);
+    logger.error('PREFERENCES', '加载用户偏好失败', error);
   }
 });
 
@@ -1138,6 +1167,12 @@ function checkCommunityPrompt() {
   }).catch(error => {
     logger.error('COMMUNITY', '检查社区提示失败', error);
   });
+}
+
+// 处理引导完成事件
+function handleGuideFinished() {
+  showUserGuide.value = false;
+  // 可以在这里添加引导完成后的特殊处理逻辑
 }
 </script>
 

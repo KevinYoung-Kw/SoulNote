@@ -226,6 +226,14 @@
           </div>
         </div>
 
+        <!-- 添加用户引导选项 -->
+        <div class="setting-item">
+          <label class="setting-label">用户引导</label>
+          <div class="setting-value" @click="openUserGuide">
+            <i class="fas fa-chevron-right"></i>
+          </div>
+        </div>
+
         <div class="app-version">
           版本: {{ APP_VERSION }}
         </div>
@@ -384,6 +392,13 @@
         </div>
       </div>
     </div>
+
+    <!-- UserGuide 组件 -->
+    <UserGuide
+      v-if="showUserGuide"
+      :visible="showUserGuide"
+      @close="showUserGuide = false"
+    />
   </div>
 </template>
 
@@ -401,6 +416,7 @@ import {
 } from '../services/storageService';
 import { communityService } from '../services/communityService';
 import CommunityPrompt from '../components/CommunityPrompt.vue';
+import UserGuide from '../components/UserGuide.vue'; // 导入用户引导组件
 import logger from '../utils/logger';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '开发版本';
@@ -415,6 +431,7 @@ const isSavageMode = ref(false); // 添加毒舌模式状态
 const isResetting = ref(false);
 
 const showCommunityPrompt = ref(false); // 社群弹窗显示状态
+const showUserGuide = ref(false); // 用户引导显示状态
 const communityPromptData = reactive({
   title: '星语心笺社群',
   message: '',
@@ -937,6 +954,11 @@ async function generateShareLink() {
   } finally {
     isGeneratingLink.value = false;
   }
+}
+
+// 打开用户引导
+function openUserGuide() {
+  showUserGuide.value = true;
 }
 </script>
 
