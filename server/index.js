@@ -12,9 +12,12 @@ const fs = require('fs').promises;
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger'); // 引入增强的logger
+const db = require('./db'); // 引入SQLite数据库连接
 
 // 导入路由
 const noteRoutes = require('./routes/noteRoutes');
+const eventRoutes = require('./routes/eventRoutes'); // 添加事件路由
+const adminRoutes = require('./routes/adminRoutes'); // 添加管理员路由
 
 // 输出环境变量是否成功读取
 logger.system('ENV', '环境变量加载状态', {
@@ -43,6 +46,117 @@ if (!process.env.VITE_API_KEY) {
 const app = express();
 const port = process.env.PORT || 4000;
 
+// ===== 中间件配置 =====
+
+// CORS配置
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(',');
+app.use(cors({
+  origin: function(origin, callback) {
+    // 允许没有origin的请求（如Postman测试）
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      logger.debug('CORS', '允许跨域请求', { origin });
+      callback(null, true);
+    } else {
+      logger.warn('CORS', '拒绝跨域请求', { origin });
+      callback(new Error('不允许的跨域请求'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
+// 配置请求体解析
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 请求日志中间件
+app.use((req, res, next) => {
+  const start = Date.now();
+  logger.debug('REQUEST', `${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent']
+  });
+  
+  // 拦截响应完成
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.debug('RESPONSE', `${req.method} ${req.originalUrl} - ${res.statusCode}`, {
+      duration: `${duration}ms`,
+      contentLength: res.getHeader('content-length')
+    });
+  });
+  
+  next();
+});
+
+// 防止暴力破解的请求限制
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 100, // 每个IP最多100个请求
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 429,
+    message: '请求过于频繁，请稍后再试'
+  },
+  handler: (req, res, next, options) => {
+    logger.warn('RATE_LIMIT', 'API请求达到频率限制', {
+      ip: req.ip.replace(/\d+\.\d+$/, 'XX.XX'),
+      path: req.path,
+      headers: req.headers['user-agent']
+    });
+    res.status(options.statusCode).json(options.message);
+  }
+});
+
+// 更严格的限流，用于登录和敏感操作
+const loginLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1小时
+  max: 5, // 每个IP最多5次尝试
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 429,
+    message: '尝试次数过多，请稍后再试'
+  },
+  handler: (req, res, next, options) => {
+    logger.warn('RATE_LIMIT', '敏感操作达到频率限制', {
+      ip: req.ip.replace(/\d+\.\d+$/, 'XX.XX'),
+      path: req.path
+    });
+    res.status(options.statusCode).json(options.message);
+  }
+});
+
+// ===== 应用限流中间件 =====
+app.use('/api/', apiLimiter);
+app.use('/api/generate-invite-code', loginLimiter);
+app.use('/api/verify-invite', loginLimiter);
+
+// ===== 注册API路由 =====
+app.use('/api/note', noteRoutes);
+app.use('/api', eventRoutes); // 注册事件路由
+app.use('/api/admin', adminRoutes); // 注册管理员路由
+
+// ===== 错误处理中间件 =====
+app.use((err, req, res, next) => {
+  logger.error('SERVER_ERROR', '未捕获的服务器错误', {
+    path: req.path,
+    method: req.method,
+    error: err.message,
+    stack: process.env.DEBUG_MODE === 'true' ? err.stack : undefined
+  });
+  
+  res.status(500).json({
+    success: false,
+    message: '服务器内部错误',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// ===== 静态文件服务 =====
 // 添加静态文件服务中间件
 // 设置静态资源缓存时间 (单位为毫秒)
 const staticOptions = {
@@ -70,6 +184,17 @@ const DATA_DIR = path.join(__dirname, 'data');
 const INVITE_CODES_FILE = path.join(DATA_DIR, 'invite-codes.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const STATS_FILE = path.join(DATA_DIR, 'stats.json');
+
+// 连接到MongoDB数据库
+async function connectToMongoDB() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    logger.info('DATABASE', 'MongoDB连接成功');
+  } catch (error) {
+    logger.error('DATABASE', 'MongoDB连接失败', { error: error.message });
+    // 不退出程序，让文件存储作为备份机制继续运行
+  }
+}
 
 // 确保数据目录存在
 async function ensureDataDir() {
@@ -317,95 +442,6 @@ function generateUserTrends(users) {
   
   return result;
 }
-
-// CORS配置
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(',');
-app.use(cors({
-  origin: function(origin, callback) {
-    // 允许没有origin的请求（如Postman测试）
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      logger.debug('CORS', '允许跨域请求', { origin });
-      callback(null, true);
-    } else {
-      logger.warn('CORS', '拒绝跨域请求', { origin });
-      callback(new Error('不允许的跨域请求'));
-    }
-  },
-  methods: ['GET', 'POST'],
-  credentials: true
-}));
-
-// 中间件
-app.use(express.json());
-
-// 请求日志中间件
-app.use((req, res, next) => {
-  const start = Date.now();
-  logger.debug('REQUEST', `${req.method} ${req.originalUrl}`, {
-    ip: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-  
-  // 拦截响应完成
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    logger.debug('RESPONSE', `${req.method} ${req.originalUrl} - ${res.statusCode}`, {
-      duration: `${duration}ms`,
-      contentLength: res.getHeader('content-length')
-    });
-  });
-  
-  next();
-});
-
-// 防止暴力破解的请求限制
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 每个IP最多100个请求
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    status: 429,
-    message: '请求过于频繁，请稍后再试'
-  },
-  handler: (req, res, next, options) => {
-    logger.warn('RATE_LIMIT', 'API请求达到频率限制', {
-      ip: req.ip.replace(/\d+\.\d+$/, 'XX.XX'),
-      path: req.path,
-      headers: req.headers['user-agent']
-    });
-    res.status(options.statusCode).json(options.message);
-  }
-});
-
-// 更严格的限流，用于登录和敏感操作
-const loginLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1小时
-  max: 5, // 每个IP最多5次尝试
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    status: 429,
-    message: '尝试次数过多，请稍后再试'
-  },
-  handler: (req, res, next, options) => {
-    logger.warn('RATE_LIMIT', '敏感操作达到频率限制', {
-      ip: req.ip.replace(/\d+\.\d+$/, 'XX.XX'),
-      path: req.path
-    });
-    res.status(options.statusCode).json(options.message);
-  }
-});
-
-// 应用限流中间件
-app.use('/api/', apiLimiter);
-app.use('/api/generate-invite-code', loginLimiter);
-
-
-// 注册noteRoutes路由
-app.use('/api/note', noteRoutes);
 
 // 路由：验证邀请码
 app.post('/api/verify-invite-code', async (req, res) => {
@@ -669,21 +705,6 @@ app.post('/api/record-generation', async (req, res) => {
   }
 });
 
-// 添加中间件处理错误
-app.use((err, req, res, next) => {
-  logger.error('SERVER_ERROR', '未捕获的服务器错误', {
-    path: req.path,
-    method: req.method,
-    error: err.message,
-    stack: process.env.DEBUG_MODE === 'true' ? err.stack : undefined
-  });
-  
-  res.status(500).json({
-    success: false,
-    message: '服务器内部错误',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
 
 // 添加通配路由，处理所有SPA请求
 app.get('*', (req, res, next) => {
@@ -699,20 +720,32 @@ app.get('*', (req, res, next) => {
         path: req.path,
         error: err.message
       });
-      next(err);
+      res.status(500).end();
     }
   });
 });
 
-// 启动服务器前初始化数据
+// 初始化并启动服务器
 (async function initialize() {
-  await ensureDataDir();
-  await initDataFiles();
-  
-  app.listen(port, () => {
-    logger.system('SERVER', `SoulNote后端服务已启动，监听端口 ${port}`, {
-      nodeEnv: process.env.NODE_ENV,
-      debugMode: process.env.DEBUG_MODE === 'true'
+  try {
+    // 确保数据目录存在
+    await ensureDataDir();
+    
+    // 初始化数据文件
+    await initDataFiles();
+    
+    // SQLite数据库已在导入db.js时自动初始化
+    logger.info('DATABASE', 'SQLite数据库已初始化');
+    
+    // 启动服务器
+    app.listen(port, () => {
+      logger.info('SERVER', `服务器已启动，监听端口：${port}`, {
+        env: process.env.NODE_ENV,
+        address: `http://localhost:${port}`
+      });
     });
-  });
+  } catch (error) {
+    logger.error('SERVER', '服务器初始化失败', { error: error.message });
+    process.exit(1);
+  }
 })();

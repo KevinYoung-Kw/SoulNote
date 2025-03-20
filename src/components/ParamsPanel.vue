@@ -288,11 +288,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { saveUserPreferences, getApiSettings } from '../services/storageService';
 import { isFeatureSupported } from '../services/aiService';
 import logger from '../utils/logger';
 import { emojiCategories, themeOptions, fortuneAspects, getAllEmojis, isValidEmoji, isKnownEmoji } from '../data/emojiData';
+import eventService from '../services/eventService'; // 导入埋点服务
 
 // Props
 const props = defineProps({
@@ -1044,6 +1045,30 @@ async function randomizeParams() {
   // 设置超时后隐藏动画，时间根据动画总长度调整
   setTimeout(() => {
     showRandomAnimation.value = false;
+    
+    // 埋点代码 - 在动画完成后记录事件
+    try {
+      // 记录随机参数生成事件
+      eventService.trackParamSelect('zodiac', params.zodiac, true);
+      eventService.trackParamSelect('mbti', params.mbti, true);
+      eventService.trackParamSelect('mood', params.moods.join(','), true);
+      eventService.trackParamSelect('theme', params.theme, true);
+      eventService.trackParamSelect('savageMode', params.savageMode ? 'enabled' : 'disabled', true);
+      eventService.trackParamSelect('fortune', params.enableFortune ? params.fortuneAspect : 'disabled', true);
+      
+      // 记录使用随机功能事件
+      eventService.trackFeatureUse('random_params_generator', {
+        zodiac: params.zodiac,
+        mbti: params.mbti,
+        moodCount: params.moods.length,
+        theme: params.theme,
+        savageMode: params.savageMode,
+        enableFortune: params.enableFortune,
+        fortuneAspect: params.fortuneAspect
+      });
+    } catch (error) {
+      console.error('记录随机参数选择失败:', error);
+    }
   }, 2500 + randomEmojiCount * 200); // 动画持续时间根据表情数量调整
   
   // 记录随机生成事件
@@ -1063,6 +1088,13 @@ function saveAndClosePanel() {
   
   // 立即更新body类，确保样式立即生效
   document.body.classList.toggle('savage-mode', params.savageMode);
+  
+  // 记录参数保存事件
+  try {
+    eventService.trackButtonClick('save_params_button', '保存参数', 'ParamsPanel');
+  } catch (error) {
+    console.error('记录参数保存按钮点击失败:', error);
+  }
 }
 
 function setSavageMode(mode) {
@@ -1074,6 +1106,13 @@ function setSavageMode(mode) {
     localStorage.setItem('soulnote_savage_mode', 'true');
   } else {
     localStorage.removeItem('soulnote_savage_mode');
+  }
+  
+  // 记录毒舌模式选择事件
+  try {
+    eventService.trackParamSelect('savageMode', mode ? 'enabled' : 'disabled', false);
+  } catch (error) {
+    console.error('记录毒舌模式选择失败:', error);
   }
 }
 
@@ -1236,6 +1275,77 @@ function clearContent() {
     // 记录日志
     logger.info('PARAMS_PANEL', '已清除所有参数');
   }
+}
+
+function setZodiac(zodiacSign) {
+  params.zodiac = zodiacSign;
+  
+  // 记录星座选择事件
+  try {
+    eventService.trackParamSelect('zodiac', zodiacSign, false);
+  } catch (error) {
+    console.error('记录星座选择失败:', error);
+  }
+}
+
+function setMbti(mbtiType) {
+  params.mbti = mbtiType;
+  
+  // 记录MBTI选择事件
+  try {
+    eventService.trackParamSelect('mbti', mbtiType, false);
+  } catch (error) {
+    console.error('记录MBTI选择失败:', error);
+  }
+}
+
+function setMood(mood) {
+  params.mood = mood;
+  
+  // 记录心情选择事件
+  try {
+    eventService.trackParamSelect('mood', mood, false);
+  } catch (error) {
+    console.error('记录心情选择失败:', error);
+  }
+}
+
+function setTheme(theme) {
+  params.theme = theme;
+  
+  // 记录主题选择事件
+  try {
+    eventService.trackParamSelect('theme', theme, false);
+  } catch (error) {
+    console.error('记录主题选择失败:', error);
+  }
+}
+
+// 修改随机生成函数，添加埋点
+function generateRandomParams() {
+  // ... 现有代码保持不变 ...
+  
+  // 记录随机生成事件
+  try {
+    eventService.trackParamSelect('zodiac', params.zodiac, true);
+    eventService.trackParamSelect('mbti', params.mbti, true);
+    eventService.trackParamSelect('mood', params.mood, true);
+    eventService.trackParamSelect('theme', params.theme, true);
+    eventService.trackParamSelect('savageMode', params.savageMode ? 'enabled' : 'disabled', true);
+    
+    // 记录使用随机功能
+    eventService.trackFeatureUse('random_params_generator', {
+      zodiac: params.zodiac,
+      mbti: params.mbti, 
+      mood: params.mood,
+      theme: params.theme,
+      savageMode: params.savageMode
+    });
+  } catch (error) {
+    console.error('记录随机参数选择失败:', error);
+  }
+  
+  logger.info('PARAMS_PANEL', `已随机生成参数：${randomEmojiCount}个表情，主题：${params.theme}，风格：${params.savageMode ? '毒舌' : '暖心'}`);
 }
 
 </script>

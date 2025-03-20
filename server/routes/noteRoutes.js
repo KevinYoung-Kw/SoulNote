@@ -1,5 +1,5 @@
 const express = require('express');
-const rateLimiter = require('../middleware/rateLimiter.js');
+const { rateLimiter } = require('../middleware/rateLimiter.js');
 const logger = require('../utils/logger');
 const aiService = require('../services/aiService');
 
@@ -19,7 +19,7 @@ router.use(requestLogger);
  * @desc 生成心灵纸条内容
  * @access Public (with rate limiting)
  */
-router.post('/generate', rateLimiter, async (req, res) => {
+router.post('/generate', rateLimiter(5, 120), async (req, res) => {
   try {
     const result = await aiService.generateNote(req.body, req.headers);
     res.json(result);

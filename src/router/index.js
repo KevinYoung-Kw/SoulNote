@@ -2,16 +2,14 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import { getOnboardingCompleted } from '../services/storageService';
 import PrivacyPolicyPage from '../pages/PrivacyPolicyPage.vue';
 import AboutUsPage from '../pages/AboutUsPage.vue';
-
-// 导入管理面板组件
-const AdminPanel = () => import('../pages/AdminPanel.vue');
+import eventService from '../services/eventService'; // 导入埋点服务
 
 const routes = [
   {
     path: '/',
     name: 'Welcome',
     component: () => import('../pages/WelcomePage.vue'),
-    meta: { requiresOnboarding: false },
+    meta: { requiresOnboarding: false, title: '欢迎 - 星语心笺' },
     // 添加查询参数配置，允许invitecode作为查询参数
     props: (route) => ({ inviteCode: route.query.invitecode })
   },
@@ -19,47 +17,40 @@ const routes = [
     path: '/home',
     name: 'Home',
     component: () => import('../pages/HomePage.vue'),
-    meta: { requiresOnboarding: true }
+    meta: { requiresOnboarding: true, title: '主页 - 星语心笺' }
   },
   {
     path: '/saved',
     name: 'SavedNotes',
     component: () => import('../pages/SavedNotesPage.vue'),
-    meta: { requiresOnboarding: true }
+    meta: { requiresOnboarding: true, title: '我的收藏 - 星语心笺' }
   },
   {
     path: '/settings',
     name: 'Settings',
     component: () => import('../pages/SettingsPage.vue'),
-    meta: { requiresOnboarding: true }
+    meta: { requiresOnboarding: true, title: '设置 - 星语心笺' }
   },
   {
     path: '/onboarding',
     name: 'Onboarding',
     component: () => import('../pages/OnboardingPage.vue'),
-    meta: { requiresOnboarding: false },
+    meta: { requiresOnboarding: false, title: '新手引导 - 星语心笺' },
     // 添加查询参数配置，允许invitecode作为查询参数
     props: (route) => ({ inviteCode: route.query.invitecode })
   },
   {
     path: '/privacy-policy',
     name: 'PrivacyPolicy',
-    component: PrivacyPolicyPage
+    component: PrivacyPolicyPage,
+    meta: { title: '隐私政策 - 星语心笺' }
   },
   {
     path: '/about-us',
     name: 'AboutUs',
-    component: AboutUsPage
+    component: AboutUsPage,
+    meta: { title: '关于我们 - 星语心笺' }
   },
-  // 添加管理面板路由
-  {
-    path: '/admin',
-    name: 'AdminPanel',
-    component: AdminPanel,
-    meta: {
-      title: '管理面板 - 星语心笺'
-    }
-  }
 ];
 
 const router = createRouter({
@@ -81,7 +72,8 @@ router.beforeEach(async (to, from, next) => {
     
     // 处理管理员页面 - 不受引导流程限制
     if (to.name === 'AdminPanel') {
-      next();
+      console.log('管理面板已迁移到单独的后端系统');
+      next({ name: 'Home' });
       return;
     }
     
@@ -124,6 +116,34 @@ router.beforeEach(async (to, from, next) => {
     } else {
       next();
     }
+  }
+});
+
+// 添加全局后置钩子，记录页面访问事件
+router.afterEach((to) => {
+  // 设置文档标题
+  document.title = to.meta.title || '星语心笺';
+  
+  // 记录页面访问事件
+  try {
+    // 收集路由参数(排除敏感信息)
+    const routeParams = {};
+    
+    // 仅记录部分查询参数，避免记录敏感信息
+    if (to.query) {
+      // 例如可以记录来源渠道等非敏感信息
+      if (to.query.source) routeParams.source = to.query.source;
+      if (to.query.channel) routeParams.channel = to.query.channel;
+      // 不记录邀请码等可能包含敏感信息的参数
+    }
+    
+    // 发送埋点数据
+    eventService.trackPageView(to.name, {
+      path: to.path,
+      params: routeParams
+    });
+  } catch (error) {
+    console.error('页面访问埋点失败:', error);
   }
 });
 

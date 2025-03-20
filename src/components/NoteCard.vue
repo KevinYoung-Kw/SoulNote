@@ -79,11 +79,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, inject, nextTick } from 'vue';
 import { useNoteAnimation } from '../composables/useNoteAnimation';
 import { useRouter } from 'vue-router';
+import eventService from '../services/eventService'; // 导入埋点服务
 
 const router = useRouter();
+const emit = defineEmits(['save', 'share', 'export']);
 
 const props = defineProps({
   content: {
@@ -114,6 +116,14 @@ const props = defineProps({
   customStyle: {
     type: Object,
     default: () => ({})
+  },
+  noteParams: {
+    type: Object,
+    default: () => ({})
+  },
+  fromSaved: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -567,6 +577,70 @@ function navigateToAbout() {
   router.push('/about-us');
 }
 
+// 保存事件处理
+function handleSave() {
+  if (!props.content) return;
+  
+  // 调用保存方法
+  emit('save', {
+    content: props.content,
+    customStyle: props.customStyle,
+    noteParams: props.noteParams 
+  });
+  
+  // 记录保存事件
+  try {
+    // 生成一个简单的noteId用于跟踪
+    const noteId = props.noteParams ? 
+      `${props.noteParams.zodiac}_${props.noteParams.mbti}_${Date.now().toString(36)}` : 
+      Date.now().toString(36);
+    
+    eventService.trackNoteSave(noteId, props.content);
+  } catch (error) {
+    console.error('记录保存事件失败:', error);
+  }
+}
+
+// 分享事件处理
+function handleShare() {
+  if (!props.content) return;
+  
+  // 调用分享方法
+  emit('share');
+  
+  // 记录分享事件
+  try {
+    // 生成一个简单的noteId用于跟踪
+    const noteId = props.noteParams ? 
+      `${props.noteParams.zodiac}_${props.noteParams.mbti}_${Date.now().toString(36)}` : 
+      Date.now().toString(36);
+    
+    eventService.trackNoteShare(noteId, 'clipboard');
+  } catch (error) {
+    console.error('记录分享事件失败:', error);
+  }
+}
+
+// 导出图片事件处理
+function handleExport() {
+  if (!props.content) return;
+  
+  // 调用导出方法
+  emit('export');
+  
+  // 记录导出事件
+  try {
+    // 生成一个简单的noteId用于跟踪
+    const noteId = props.noteParams ? 
+      `${props.noteParams.zodiac}_${props.noteParams.mbti}_${Date.now().toString(36)}` : 
+      Date.now().toString(36);
+    
+    eventService.trackNoteExport(noteId, 'png');
+  } catch (error) {
+    console.error('记录导出事件失败:', error);
+  }
+}
+
 // 修改onMounted方法，增加对小屏幕默认字体大小的初始化
 onMounted(async () => {
   noteRef.value = noteCardRef.value;
@@ -599,6 +673,15 @@ onMounted(async () => {
       });
     }
   });
+  
+  // 如果有内容并且不是来自保存的笔记，则记录纸条生成事件
+  if (props.content && !props.fromSaved) {
+    try {
+      eventService.trackNoteGenerate(props.noteParams || {});
+    } catch (error) {
+      console.error('记录纸条生成事件失败:', error);
+    }
+  }
 });
 
 // 监听内容变化，触发动画

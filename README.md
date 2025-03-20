@@ -42,6 +42,12 @@
 - 可限制单个邀请码的使用次数
 - 自定义邀请码前缀功能
 
+### 5. 数据埋点系统
+- 无感知用户行为跟踪
+- 记录页面访问、功能使用和参数选择
+- 通过MongoDB数据库安全存储
+- 通过管理员工具访问分析数据
+
 ## 技术栈
 
 ### 前端
@@ -55,6 +61,7 @@
 - **状态管理**: Vue Reactivity + LocalStorage
 - **路由管理**: Vue Router
 - **用户识别**: FingerprintJS（浏览器指纹识别）
+- **数据埋点**: 自定义埋点服务
 
 ### 后端
 - **运行环境**: Node.js
@@ -63,13 +70,15 @@
 - **身份验证**: JWT
 - **API文档**: Swagger
 - **日志管理**: Winston
+- **管理工具**: 命令行管理控制台
 
 ## 项目结构
 
 ```
 /SoulNote
 ├── public/                 # 静态资源
-│   └── favicon.ico         # 网站图标
+│   ├── favicon.ico         # 网站图标
+│   └── admin.html          # 管理员页面
 ├── src/                    # 源代码
 │   ├── assets/             # 资源文件
 │   │   ├── onboarding-welcome.svg
@@ -88,18 +97,23 @@
 │   ├── router/             # 路由配置
 │   │   └── index.js
 │   ├── services/           # 服务
-│   │   ├── aiService.js    # AI生成服务
-│   │   └── storageService.js # 存储服务
+│   │   ├── aiService.js     # AI生成服务
+│   │   ├── storageService.js # 存储服务
+│   │   └── eventService.js  # 埋点服务
 │   ├── styles/             # 样式
 │   │   └── main.css        # 主样式文件
+│   ├── utils/              # 工具函数
+│   │   └── fingerprint.js  # 浏览器指纹工具
 │   ├── App.vue             # 应用根组件
 │   └── main.js             # 应用入口
 server/
   ├── controllers/          # API 控制器
-  │   └── noteController.js # 处理笔记生成请求
+  │   ├── noteController.js   # 处理笔记生成请求
+  │   └── eventController.js  # 埋点数据处理
   ├── services/             # 业务逻辑服务
   │   ├── aiService.js      # AI API 调用服务
   │   ├── promptService.js  # 提示词构建服务
+  │   ├── eventService.js   # 埋点数据服务
   │   └── modules/          # 提示词模块
   │       ├── constants.js     # 常量定义
   │       ├── apiService.js    # API服务函数
@@ -113,15 +127,21 @@ server/
   │   ├── constants.js      # 全局常量定义
   │   └── logger.js         # 日志工具
   ├── routes/               # 路由定义
-  │   └── noteRoutes.js     # 笔记生成相关路由
-  ├── data/                 # 数据文件夹 (已有)
+  │   ├── noteRoutes.js       # 笔记生成相关路由
+  │   ├── eventRoutes.js      # 埋点数据路由
+  │   └── adminRoutes.js      # 管理员API路由
+  ├── models/               # 数据模型
+  │   ├── InviteCode.js       # 邀请码模型
+  │   └── EventModel.js       # 埋点数据模型
   ├── middleware/           # 中间件
   │   ├── auth.js           # 认证中间件
   │   └── rateLimiter.js    # 请求限制中间件
   ├── config/               # 配置
   │   └── config.js         # 环境配置
-  ├── index.js              # 入口文件 (已有)
-  └── package.json          # 项目配置 (已有)
+  ├── tools/                # 管理工具
+  │   └── adminConsole.js   # 管理员命令行工具
+  ├── index.js              # 入口文件
+  └── package.json          # 项目配置
 ├── .env.example            # 环境变量示例
 ├── index.html              # HTML入口
 ├── package.json            # 依赖配置
@@ -178,6 +198,58 @@ server/
 - 敏感操作建议使用服务端代理
 - 可选择Netlify/Vercel等平台的Serverless Functions
 
+### 宝塔面板部署指南
+
+1. **登录宝塔面板**
+   - 访问您的宝塔面板地址 (通常是 http://服务器IP:8888)
+
+2. **准备环境**
+   - 在宝塔软件商店安装 Node.js (v14+)
+   - 安装 MongoDB 数据库
+   - 安装 PM2 进程管理器
+
+3. **部署项目**
+   - 在左侧菜单选择"网站"，点击"添加站点"
+   - 填写您的域名，选择纯静态或 Node.js 项目
+   - 在站点根目录上传项目代码（通过宝塔面板的文件管理器上传或使用Git拉取）
+
+4. **配置环境变量**
+   - 在项目根目录创建 `.env` 文件，配置必要参数：
+     ```
+     PORT=3000
+     MONGODB_URI=mongodb://localhost:27017/soulnote
+     ADMIN_KEY=您的管理员密钥
+     ```
+
+5. **安装依赖并构建前端**
+   - 通过宝塔终端执行：
+     ```
+     cd /www/wwwroot/您的站点目录
+     npm install
+     npm run build
+     ```
+
+6. **配置PM2启动**
+   - 通过宝塔的PM2管理器添加项目
+   - 启动文件选择 `server/index.js`
+   - 项目名称设为 `soulnote`
+   - 点击"启动"运行项目
+
+7. **配置反向代理**
+   - 在站点设置中找到"反向代理"
+   - 添加代理配置，将所有请求转发到您的Node.js应用（通常是 `http://127.0.0.1:3000`）
+
+8. **配置MongoDB自启动**
+   - 在宝塔面板中设置MongoDB在服务器重启后自动启动
+
+9. **设置SSL证书**（如需HTTPS）
+   - 在站点管理中申请并安装SSL证书
+
+10. **常见问题排查**
+    - 如果网站访问出现502错误，检查Node.js应用是否正常运行
+    - 如果数据库连接失败，检查MongoDB服务状态和连接字符串
+    - 访问日志通常位于 `/www/wwwroot/您的站点目录/logs` 目录
+
 ## 开发指南
 
 ### 前端部分
@@ -214,36 +286,89 @@ npm run dev
 npm start
 ```
 
-### 配置邀请码系统
+## 数据埋点系统使用指南
 
-1. 在 `server/.env` 文件中设置管理员密钥
-```
-ADMIN_KEY=your_admin_key
-```
+### 埋点数据结构
 
-2. 使用API生成新的邀请码
-```
-POST http://localhost:4000/api/generate-invite-code
-Content-Type: application/json
+埋点系统会自动收集以下类型的数据：
+- **页面访问**: 用户访问的页面和停留时间
+- **功能使用**: 用户使用的功能（如生成笔记、保存、导出等）
+- **参数选择**: 用户选择的生成参数（星座、MBTI、毒舌模式等）
+- **用户标识**: 通过浏览器指纹技术生成的匿名用户ID
 
-{
-  "adminKey": "your_admin_key",
-  "maxUses": 100,
-  "prefix": "SOUL"
-}
-```
+### 埋点数据的使用
 
-3. 查看统计数据
-```
-GET http://localhost:4000/api/stats?key=your_admin_key
-```
+埋点数据存储在MongoDB数据库中，可通过以下方式访问：
 
-### 访问管理面板
+1. **使用管理员控制台工具**
+   ```bash
+   node server/tools/adminConsole.js
+   ```
+   
+   在控制台中执行以下命令：
+   - `stats` - 查看系统基本统计数据
+   - `event-stats` - 获取详细事件统计信息
 
-1. 启动后端服务后，访问以下URL进入管理面板
-```
-http://localhost:4000/admin
-```
+2. **通过REST API获取数据**
+   - `/api/admin/dashboard` - 获取仪表盘数据
+   - `/api/admin/event-analytics` - 获取事件分析数据
+   
+   注意：访问这些API时需要提供管理员密钥(ADMIN_KEY)进行身份验证。
+
+3. **埋点数据分析示例**
+   
+   埋点数据可以帮助您了解：
+   - 用户活跃度（各页面访问量和生成笔记数量）
+   - 用户偏好（参数选择分布）
+   - 功能使用频率（哪些功能最受欢迎）
+   - 邀请码效果（按邀请码分组的用户活动）
+
+### 安全注意事项
+
+1. **管理员密钥保护**
+   - 确保您的管理员密钥妥善保管，不要在前端代码中暴露
+   - 定期更换管理员密钥以提高安全性
+
+2. **数据访问控制**
+   - 所有埋点数据API都需要管理员密钥验证
+   - 管理员功能已从前端界面移除，仅通过后端管理工具访问
+
+3. **用户隐私保护**
+   - 埋点系统不收集用户个人身份信息
+   - 使用匿名指纹ID代替用户名或邮箱等标识
+
+## 管理员工具使用指南
+
+系统提供了命令行管理工具，可用于管理邀请码和查看统计数据：
+
+1. **启动管理员控制台**
+   ```bash
+   node server/tools/adminConsole.js
+   ```
+
+2. **可用命令**
+   - `stats` - 查看系统统计数据（用户数、生成笔记数等）
+   - `list-codes` - 列出所有邀请码及其使用情况
+   - `generate-code [prefix] [maxUses]` - 生成新邀请码
+   - `delete-code [code]` - 删除指定邀请码
+   - `event-stats` - 查看详细事件统计信息
+
+3. **示例用法**
+   ```
+   > node server/tools/adminConsole.js
+   欢迎使用星语心笺管理控制台
+   请输入命令 (输入 help 获取帮助):
+   
+   > generate-code SOUL 100
+   已生成邀请码: SOUL-1234-5678，最大使用次数: 100
+   
+   > stats
+   系统统计:
+   - 总用户数: 256
+   - 今日活跃用户: 45
+   - 生成笔记总数: 1289
+   - 今日生成笔记: 128
+   ```
 
 ## 开发团队
 
@@ -320,38 +445,46 @@ http://localhost:4000/admin
    - 增强暗黑模式和毒舌模式的视觉效果
    - 提升整体应用性能和加载速度
 
+5. **数据埋点系统**
+   - 实现用户行为跟踪和统计分析
+   - 数据安全存储，通过管理员工具访问
+   - 优化后端管理体系，增强安全性
+   - 提供详细的使用统计和趋势分析
+
 #### 最新版本更新
 
 {
-  number: '1.6.0',
-  date: '2024-03-17',
+  number: '1.7.0',
+  date: '2024-05-10',
   updates: [
     {
       type: 'feature',
       items: [
-        '实现基于概率和权重的智能搜索系统，大幅提升表情查找体验',
-        '新增自定义样式定制器，支持多种布局和详细样式调整',
-        '升级图片导出系统，支持多种格式、尺寸和质量选项',
-        '添加社群二维码展示功能，促进用户交流'
+        '新增数据埋点系统，支持用户行为追踪与统计分析',
+        '开发管理员控制台工具，提供命令行方式管理邀请码和查看统计',
+        '增加宝塔面板部署支持，简化服务器部署流程',
+        '优化后端API安全性，增加管理员密钥验证'
       ]
     },
     {
       type: 'improvement',
       items: [
-        '优化移动端适配和响应式设计，提升跨设备使用体验',
-        '改进UI/UX设计，增强视觉效果和交互流畅度',
-        '提升应用性能和加载速度，优化资源使用效率',
-        '增强毒舌模式的样式和交互体验'
+        '重构管理功能，从前端界面迁移至后端控制台',
+        '优化MongoDB连接和数据存储逻辑，提高性能',
+        '增强事件跟踪系统，提供更详细的用户行为数据',
+        '改进项目文档，增加部署和使用指南'
       ]
     },
     {
       type: 'fix',
       items: [
-        '修复在特定设备上的布局异常问题',
-        '解决夜间模式下某些元素对比度不足的问题',
-        '修复图片导出过程中可能出现的内存泄漏',
-        '解决搜索结果有时不准确的问题'
+        '修复服务器启动时可能出现的MongoDB连接问题',
+        '解决某些环境下邀请码验证失败的问题',
+        '修复事件统计数据不准确的问题',
+        '解决在Docker环境中部署的兼容性问题'
       ]
     }
   ]
 }
+```
+
