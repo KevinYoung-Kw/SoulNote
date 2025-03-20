@@ -346,9 +346,25 @@ async function generateNoteContent() {
     }
   } catch (error) {
     logger.error('REQUEST', '生成请求失败', error);
-    errorMessage.value = error.message || '生成失败，请稍后重试';
+    
+    // 处理特定错误消息，提供更友好的提示
+    if (error.message.includes('内容不完整') || error.message.includes('格式不正确') || error.message.includes('服务过载')) {
+      errorMessage.value = '生成纸条内容不完整，可能是因为服务器访问高峰期。请稍后重试。';
+    } else if (error.message.includes('API密钥未设置')) {
+      errorMessage.value = 'API密钥未正确配置，请前往设置页面检查API配置。';
+    } else {
+      errorMessage.value = error.message || '生成失败，请稍后重试';
+    }
+    
     // 在出错时显示错误消息
-    loadingMessage.value = '生成失败，请稍后重试...';
+    loadingMessage.value = errorMessage.value;
+    
+    // 显示错误弹窗，通过Toast或其他方式提醒用户
+    if (typeof window.showToast === 'function') {
+      window.showToast(errorMessage.value, 'error');
+    } else {
+      alert(errorMessage.value);
+    }
   } finally {
     // 清除消息轮换计时器
     if (loadingInterval) {

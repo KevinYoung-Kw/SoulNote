@@ -203,11 +203,33 @@ async function callAiApi(prompt, savageMode = false, apiConfig = {}) {
         });
         return finalContent;
       } else {
-        // 如果没找到<content>标签，返回完整内容，但过滤掉<think>标签部分
-        const filteredContent = fullContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        logger.warn('MODEL_PARSING', '未找到<content>标签，使用过滤内容', {
-          filtered_content: filteredContent,
+        // 如果没找到<content>标签，检查内容状态
+        logger.warn('MODEL_PARSING', '未找到<content>标签，内容可能不完整', {
+          original_content_length: fullContent.length,
           original_had_think_tag: fullContent.includes('<think>'),
+          has_content_open_tag: fullContent.includes('<content>'),
+          has_content_close_tag: fullContent.includes('</content>'),
+          model: API_MODEL
+        });
+        
+        // 尝试过滤掉<think>标签部分并返回
+        const filteredContent = fullContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        
+        // 如果内容长度过短或明显不完整，抛出错误
+        if (filteredContent.length < 20 || 
+            (fullContent.includes('<content>') && !fullContent.includes('</content>'))) {
+          logger.error('MODEL_INCOMPLETE', '内容生成不完整', {
+            filtered_content: filteredContent,
+            model: API_MODEL,
+            error: '内容标签不完整或内容过短'
+          });
+          throw new Error('生成内容不完整，请稍后重试');
+        }
+        
+        // 记录警告并返回过滤的内容
+        logger.warn('MODEL_PARSING', '使用过滤后的内容', {
+          filtered_content: filteredContent,
+          length: filteredContent.length,
           model: API_MODEL
         });
         return filteredContent;

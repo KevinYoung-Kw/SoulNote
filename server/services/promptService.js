@@ -199,6 +199,29 @@ class PromptService {
           content_length: content.length,
           model: apiConfig.model
         });
+        
+        // 验证内容是否包含有效的<content>标签
+        const contentMatch = content.match(/<content>([\s\S]*?)<\/content>/i);
+        if (!contentMatch || !contentMatch[1] || contentMatch[1].trim().length === 0) {
+          logger.warn('CONTENT_VALIDATION', '生成内容缺少有效的<content>标签', {
+            content_length: content.length,
+            has_open_tag: content.includes('<content>'),
+            has_close_tag: content.includes('</content>'),
+            model: apiConfig.model
+          });
+          
+          // 如果内容中没有<content>标签但内容看起来有效，尝试添加<content>标签
+          if (content.trim().length > 30 && !content.includes('<think>')) {
+            content = `<content>${content}</content>`;
+            logger.info('CONTENT_RECOVERY', '为内容添加<content>标签', {
+              new_content_length: content.length,
+              model: apiConfig.model
+            });
+          } else {
+            // 内容无效，抛出异常
+            throw new Error('生成内容格式不正确，可能服务过载');
+          }
+        }
       } catch (apiError) {
         logger.warn('API_ERROR', `API调用失败，使用备选方案: ${apiError.message}`, {
           error_code: apiError.code,
@@ -208,6 +231,14 @@ class PromptService {
         });
         
         content = await mockCallAiApi(prompt, data.savageMode);
+        
+        // 确保本地生成的内容也有<content>标签
+        if (!content.includes('<content>')) {
+          content = `<content>${content}</content>`;
+          logger.debug('LOCAL_CONTENT', '为本地生成内容添加<content>标签', {
+            content_length: content.length
+          });
+        }
       }
       
       // 记录生成完成
@@ -243,8 +274,13 @@ class PromptService {
       // 尝试使用本地备用方案
       const backupContent = generateLocalContent(data);
       
+      // 确保备用内容也有<content>标签
+      const formattedBackupContent = backupContent.includes('<content>') 
+        ? backupContent 
+        : `<content>${backupContent}</content>`;
+      
       return {
-        content: backupContent,
+        content: formattedBackupContent,
         timestamp: new Date().toISOString(),
         metadata: {
           model: 'local-fallback',

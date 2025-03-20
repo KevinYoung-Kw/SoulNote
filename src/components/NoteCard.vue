@@ -203,15 +203,44 @@ const moodContainerStyle = computed(() => {
 const sanitizedContent = computed(() => {
   let content = props.content;
   
-  // 如果以 <content> 开头，但没有结束标签，添加结束标签
-  if (content.includes('<content>') && !content.includes('</content>')) {
-    content = content.replace('<content>', '').trim();
+  // 检查内容是否有效
+  if (!content) return '内容加载中...';
+  
+  try {
+    // 尝试从<content>标签中提取内容
+    const contentMatch = content.match(/<content>([\s\S]*?)<\/content>/i);
+    
+    if (contentMatch && contentMatch[1]) {
+      // 已找到完整的<content>标签，提取内容
+      return contentMatch[1].trim();
+    }
+    
+    // 如果以 <content> 开头，但没有结束标签，截取内容并移除标签
+    if (content.includes('<content>') && !content.includes('</content>')) {
+      content = content.replace('<content>', '').trim();
+    }
+    
+    // 如果以 </content> 结束，但没有开始标签，截取内容并移除标签
+    if (content.includes('</content>') && !content.includes('<content>')) {
+      content = content.replace('</content>', '').trim();
+    }
+    
+    // 移除所有剩余的content标签，只显示实际内容
+    content = content.replace(/<\/?content>/g, '').trim();
+    
+    // 移除可能存在的<think>标签及其内容
+    content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    
+    // 如果内容长度为0，返回错误提示
+    if (content.length === 0) {
+      return '无法显示内容，请尝试重新生成';
+    }
+    
+    return content;
+  } catch (err) {
+    console.error('处理内容时出错:', err);
+    return '内容解析错误，请尝试重新生成';
   }
-  
-  // 移除所有content标签，只显示实际内容
-  content = content.replace(/<\/?content>/g, '').trim();
-  
-  return content;
 });
 
 const noteCardRef = ref(null);

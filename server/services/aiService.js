@@ -102,6 +102,21 @@ class AiService {
   }
 
   /**
+   * 验证内容是否有效 - 检查是否包含<content>标签
+   * @param {string} content 生成的内容
+   * @returns {boolean} 内容是否有效
+   */
+  validateContent(content) {
+    if (!content) return false;
+    
+    // 检查是否包含<content>标签
+    const contentMatch = content.match(/<content>([\s\S]*?)<\/content>/i);
+    
+    // 有效内容需要存在<content>标签和内部有实际内容
+    return contentMatch && contentMatch[1] && contentMatch[1].trim().length > 0;
+  }
+
+  /**
    * 生成笔记内容
    * @param {Object} data 生成参数
    * @param {Object} headers 请求头
@@ -135,6 +150,19 @@ class AiService {
       
       // 使用promptService处理请求
       const result = await promptService.generateNote(data, apiConfig);
+      
+      // 验证内容是否有效（包含<content>标签）
+      if (!this.validateContent(result.content)) {
+        logger.warn('AI_SERVICE', '生成内容无效 - 缺少<content>标签', {
+          model: result.metadata.model,
+          contentLength: result.content.length,
+          hasThinkTag: result.content.includes('<think>'),
+          rawContent: result.content.substring(0, 100) + '...' // 记录部分原始内容用于调试
+        });
+        
+        // 抛出格式化错误，指示用户重试
+        throw new Error('生成纸条内容不完整，可能是因为服务器访问高峰期。请稍后重试。');
+      }
       
       logger.info('AI_SERVICE', '笔记内容生成完成', {
         model: result.metadata.model,
