@@ -1386,6 +1386,7 @@ function clearContent() {
 
 .section-header h3::before {
   font-family: 'Font Awesome 5 Free';
+  color: #333333;
   font-weight: 900;
   font-size: 14px;
   color: var(--primary-color);
@@ -1465,13 +1466,12 @@ function clearContent() {
 
 .emoji-tab.active {
   background-color: var(--primary-color);
-  color: white;
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
 .emoji-tab.active i {
-  color: white;
+  color: var(--text-color);
 }
 
 .savage-panel .emoji-tab.active {
@@ -1513,7 +1513,6 @@ function clearContent() {
 
 .emoji-item.active {
   background-color: var(--primary-color);
-  color: white;
   border-color: var(--primary-color);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
@@ -1642,13 +1641,12 @@ function clearContent() {
 
 .theme-option.active {
   background-color: var(--primary-color);
-  color: white;
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
 .theme-option.active i {
-  color: white;
+  color: var(--text-color);
 }
 
 /* 情感风格选择器样式 */
@@ -1688,17 +1686,18 @@ function clearContent() {
 
 .style-option.active {
   background-color: var(--primary-color);
-  color: white;
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
 .style-option:last-child.active {
   background-color: var(--savage-primary-color, #ff5252);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .style-option.active i {
-  color: white;
+  color: var(--text-color);
 }
 
 /* 运势选项样式 */
@@ -1763,13 +1762,12 @@ function clearContent() {
 
 .fortune-option.active {
   background-color: var(--primary-color);
-  color: white;
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
 .fortune-option.active i {
-  color: white;
+  color: var(--text-color);
 }
 
 /* 随机按钮样式 */
@@ -2302,7 +2300,7 @@ function clearContent() {
 }
 
 .animate-text {
-  animation: fadeText 0.4s ease forwards;
+  animation: fadeText 0.3s ease forwards;
 }
 
 @keyframes popIcon {

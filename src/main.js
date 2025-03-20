@@ -12,7 +12,7 @@ import { checkStorageHealth, initStorage, getUserPreferences } from './services/
 const app = createApp(App);
 
 // 从环境变量中读取调试模式设置
-const isEnvDebug = import.meta.env.VITE_DEBUG_MODE === 'true';
+const isEnvDebug = import.meta.env.VITE_DEBUG_MODE == 'true';
 
 // 设置日志记录器的调试模式
 logger.setDebugMode(isEnvDebug);
@@ -81,12 +81,12 @@ async function initStyles() {
     const savedPrefs = await getUserPreferences();
     
     // 检查并应用暗黑模式
-    if (savedPrefs && savedPrefs.theme === 'dark') {
+    if (savedPrefs && savedPrefs.theme == 'dark') {
       document.body.classList.add('dark-mode');
     }
     
     // 检查并应用毒舌模式
-    if (savedPrefs && savedPrefs.savageMode === true) {
+    if (savedPrefs && savedPrefs.savageMode == true) {
       // 将毒舌模式状态保存在localStorage中，用于快速恢复
       localStorage.setItem('soulnote_savage_mode', 'true');
       document.body.classList.add('savage-mode');
@@ -99,7 +99,7 @@ async function initStyles() {
 // 添加路由后置拦截器，确保在路由变化时快速应用毒舌模式样式
 router.afterEach(() => {
   // 在每次路由变化后检查是否需要应用毒舌模式样式
-  const isSavageMode = localStorage.getItem('soulnote_savage_mode') === 'true';
+  const isSavageMode = localStorage.getItem('soulnote_savage_mode') == 'true';
   if (isSavageMode) {
     // 确保立即应用样式，防止闪烁
     document.body.classList.add('savage-mode');
@@ -131,7 +131,7 @@ app.config.globalProperties.$logger = logger;
 
 // 添加一个全局函数，用于更改调试模式（开发者可以在控制台使用）
 window.toggleDebug = (enabled) => {
-    logger.setDebugMode(typeof enabled === 'boolean' ? enabled : !logger.isDebugMode());
+    logger.setDebugMode(typeof enabled == 'boolean' ? enabled : !logger.isDebugMode());
     console.log(`调试模式已${logger.isDebugMode() ? '启用' : '禁用'}`);
     return logger.isDebugMode();
 };

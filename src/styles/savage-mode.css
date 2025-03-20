@@ -5,6 +5,7 @@ body.savage-mode:not(.dark-mode) {
   /* 保持原有的页面背景色 */
   --bg-color: #F9F3E5;
   --card-bg: #FFFFFF;
+
   
   --primary-color: #ff5252;
   --accent-color: #ff8a80;
@@ -76,8 +77,9 @@ body.savage-mode a:not(.btn):hover {
   text-decoration: underline;
 }
 
+
 /* 毒舌模式其他元素 */
-body.savage-mode .active-item,
+body.savage-mode .active-item:not(.style-option):not(.theme-option):not(.fortune-option),
 body.savage-mode .active-tab,
 body.savage-mode .active-icon {
   background-color: var(--primary-color) !important;
@@ -111,6 +113,25 @@ body.savage-mode .toggle-switch:checked + .toggle-label .toggle-inner {
 body.savage-mode .loading-spinner {
   border-color: rgba(255, 82, 82, 0.2);
   border-top-color: var(--primary-color);
+}
+
+/* 毒舌模式参数面板中的激活元素 */
+body.savage-mode .style-option.active,
+body.savage-mode .theme-option.active,
+body.savage-mode .fortune-option.active {
+  color: white !important;
+}
+
+body.savage-mode .style-option.active span,
+body.savage-mode .theme-option.active span,
+body.savage-mode .fortune-option.active span {
+  color: white !important;
+}
+
+body.savage-mode .style-option.active i,
+body.savage-mode .theme-option.active i,
+body.savage-mode .fortune-option.active i {
+  color: white !important;
 }
 
 /* 毒舌模式样式切换时禁用过渡，防止页面切换时闪烁 */

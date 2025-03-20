@@ -1,5 +1,5 @@
 <template>
-  <div class="loading-container">
+  <div class="loading-container loading-animation-exempt">
     <div class="loading-progress" :style="{ width: `${progress}%` }"></div>
     <div class="loading-content">
       <span class="loading-text">{{ message }}</span>
@@ -28,8 +28,9 @@ const props = defineProps({
 const progress = ref(0);
 let interval = null;
 let startTime = null;
+let requestId = null;
 
-// 模拟进度，使其在预计时间内逐渐接近100%，但留有余地
+// 使用requestAnimationFrame代替setInterval来模拟进度，提高性能
 function simulateProgress() {
   if (!startTime) startTime = Date.now();
   
@@ -40,12 +41,23 @@ function simulateProgress() {
   // 使用缓动函数让进度变化更自然
   // 开始快，接近满时变慢
   progress.value = Math.floor(100 * (1 - Math.pow(1 - ratio, 2)));
+  
+  // 如果仍在加载，继续请求下一帧
+  if (props.isLoading) {
+    requestId = requestAnimationFrame(simulateProgress);
+  }
 }
 
 // 重置进度
 function resetProgress() {
-  clearInterval(interval);
-  interval = null;
+  if (interval) {
+    clearInterval(interval);
+    interval = null;
+  }
+  if (requestId) {
+    cancelAnimationFrame(requestId);
+    requestId = null;
+  }
   progress.value = 0;
   startTime = null;
 }
@@ -55,9 +67,14 @@ watch(() => props.isLoading, (isLoading) => {
   if (isLoading) {
     resetProgress();
     startTime = Date.now();
-    interval = setInterval(simulateProgress, 100);
+    // 使用requestAnimationFrame代替setInterval提高动画流畅度
+    requestId = requestAnimationFrame(simulateProgress);
   } else {
     // 加载完成，显示100%然后淡出
+    if (requestId) {
+      cancelAnimationFrame(requestId);
+      requestId = null;
+    }
     progress.value = 100;
     setTimeout(() => {
       resetProgress();
@@ -74,16 +91,22 @@ watch(() => props.adaptiveTime, () => {
 
 onMounted(() => {
   if (props.isLoading) {
-    interval = setInterval(simulateProgress, 100);
+    requestId = requestAnimationFrame(simulateProgress);
   }
 });
 
 onBeforeUnmount(() => {
-  clearInterval(interval);
+  resetProgress();
 });
 </script>
 
 <style scoped>
+/* Add a shared CSS class to override savage-mode's transition restrictions */
+:deep(.loading-animation-exempt),
+:deep(.loading-animation-exempt *) {
+  transition: all 0.3s ease !important;
+}
+
 .loading-container {
   width: 100%;
   position: relative;
@@ -99,8 +122,25 @@ onBeforeUnmount(() => {
   top: 0;
   left: 0;
   height: 2px; /* 减小高度 */
-  background: linear-gradient(to right, var(--primary-color), var(--accent-color));
-  transition: width 0.3s ease;
+  background: linear-gradient(to right, var(--primary-color), var(--accent-color), var(--primary-color));
+  background-size: 200% 100%;
+  transition: width 0.3s ease !important; /* 添加!important确保过渡效果不被覆盖 */
+  animation: progress-animation 1.5s infinite linear !important; /* 添加动画确保在savage模式下也流畅 */
+  will-change: width, background-position; /* 提示浏览器这些属性会变化，优化性能 */
+  transform: translateZ(0); /* 启用硬件加速 */
+}
+
+/* 添加动画定义 */
+@keyframes progress-animation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .loading-content {

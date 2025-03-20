@@ -81,7 +81,8 @@ const emit = defineEmits([
   'save', 
   'customize', 
   'openAISettings',
-  'toggle-favorite'
+  'toggle-favorite',
+  'check-favorite-status'
 ]);
 
 // Methods
