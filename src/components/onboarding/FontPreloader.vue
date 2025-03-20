@@ -7,32 +7,48 @@ import { ref, onMounted } from 'vue';
 
 const fontPreloaded = ref(false);
 
-onMounted(() => {
-  // 尝试预加载字体
-  if ('fonts' in document) {
-    // 只预加载明确的字体名称，不使用CSS变量
-    Promise.all([
-      document.fonts.load('1em KaitiLocal'),
-      document.fonts.load('1em Kaiti'),
-      document.fonts.load('1em 楷体'),
-      document.fonts.load('1em STKaiti'),
-      document.fonts.load('1em 华文楷体')
-    ]).then(() => {
+// 预加载字体的函数
+async function preloadFonts() {
+  if (fontPreloaded.value) {
+    console.log('字体已预加载，无需重复加载');
+    return true;
+  }
+  
+  try {
+    if ('fonts' in document) {
+      // 只预加载明确的字体名称，不使用CSS变量
+      await Promise.all([
+        document.fonts.load('1em KaitiLocal'),
+        document.fonts.load('1em Kaiti'),
+        document.fonts.load('1em 楷体'),
+        document.fonts.load('1em STKaiti'),
+        document.fonts.load('1em 华文楷体')
+      ]);
+      
       console.log('字体已预加载');
       fontPreloaded.value = true;
-    }).catch(err => {
-      console.warn('字体预加载失败', err);
-      // 即使有错误也继续，标记为已加载
+      return true;
+    } else {
+      console.warn('浏览器不支持字体API，跳过字体预加载');
       fontPreloaded.value = true;
-    });
-  } else {
-    console.warn('浏览器不支持字体API，跳过字体预加载');
+      return false;
+    }
+  } catch (err) {
+    console.warn('字体预加载失败', err);
+    // 即使有错误也继续，标记为已加载
     fontPreloaded.value = true;
+    return false;
   }
+}
+
+onMounted(() => {
+  // 组件挂载后自动尝试预加载字体
+  preloadFonts();
 });
 
 defineExpose({
-  fontPreloaded
+  fontPreloaded,
+  preloadFonts  // 暴露预加载字体的方法
 });
 </script>
 

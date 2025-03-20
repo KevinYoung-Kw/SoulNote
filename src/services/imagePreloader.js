@@ -12,6 +12,14 @@ const PRELOAD_IMAGES = [
   './src/assets/onboarding-welcome.svg',
   './src/assets/onboarding-complete.svg',
   
+  // 用户引导 SVG 图片
+  '/guide/welcome.svg',
+  '/guide/params.svg',
+  '/guide/generate.svg',
+  '/guide/save.svg',
+  '/guide/customize.svg',
+  '/guide/settings.svg',
+  
   // 其他关键图片
   // 可以根据需要添加更多图片
 ];
@@ -23,10 +31,22 @@ const PRELOAD_IMAGES = [
  */
 function preloadImage(src) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(src);
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
+    // 检查文件类型
+    if (src.endsWith('.svg')) {
+      // 对于SVG文件，使用fetch加载
+      fetch(src)
+        .then(response => {
+          if (!response.ok) throw new Error(`Failed to load SVG: ${src}`);
+          return resolve(src);
+        })
+        .catch(error => reject(error));
+    } else {
+      // 对于其他图片类型，使用Image对象加载
+      const img = new Image();
+      img.onload = () => resolve(src);
+      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      img.src = src;
+    }
   });
 }
 
@@ -36,6 +56,7 @@ function preloadImage(src) {
  * @returns {Promise} 所有图片加载的Promise
  */
 export function preloadImages(images = PRELOAD_IMAGES) {
+  console.log('预加载图片:', images);
   const promises = images.map(src => preloadImage(src));
   return Promise.allSettled(promises);
 }
@@ -55,6 +76,14 @@ export function preloadImageGroup(group) {
     'qrcode': [
       './src/assets/donate-qr.png',
       './public/assets/community-qr.png'
+    ],
+    'guide': [
+      '/guide/welcome.svg',
+      '/guide/params.svg',
+      '/guide/generate.svg',
+      '/guide/save.svg',
+      '/guide/customize.svg',
+      '/guide/settings.svg'
     ]
   };
   
@@ -66,17 +95,25 @@ export function preloadImageGroup(group) {
  * 可以在应用启动时调用
  */
 export function preloadCriticalImages() {
-  // 只预加载logo和引导页图片等关键资源
+  // 预加载logo、引导页图片和用户引导SVG等关键资源
   const criticalImages = [
     './src/assets/welcome-logo.svg',
-    './src/assets/onboarding-welcome.svg'
+    './src/assets/onboarding-welcome.svg',
+    '/guide/welcome.svg',
+    '/guide/params.svg'
   ];
   
   return preloadImages(criticalImages);
 }
 
+// 预加载用户引导图片
+export function preloadGuideImages() {
+  return preloadImageGroup('guide');
+}
+
 export default {
   preloadImages,
   preloadImageGroup,
-  preloadCriticalImages
+  preloadCriticalImages,
+  preloadGuideImages
 }; 

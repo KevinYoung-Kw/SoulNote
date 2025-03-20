@@ -329,8 +329,13 @@ onMounted(async () => {
     }
     
     // 预加载字体
-    if (fontPreloader.value) {
-      await fontPreloader.value.preloadFonts();
+    if (fontPreloader.value && fontPreloader.value.preloadFonts) {
+      try {
+        await fontPreloader.value.preloadFonts();
+        console.log('字体预加载成功完成');
+      } catch (error) {
+        console.warn('字体预加载过程中出现错误，但不影响后续流程', error);
+      }
     }
     
     nextTick(() => {

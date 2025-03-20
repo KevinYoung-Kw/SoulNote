@@ -5,7 +5,7 @@ import './styles/main.css';
 import './styles/dark-mode.css'; // 添加暗黑模式专用样式
 import './styles/savage-mode.css'; // 添加毒舌模式专用样式
 import logger from './utils/logger';
-import { preloadCriticalImages } from './services/imagePreloader'; // 导入图片预加载服务
+import { preloadCriticalImages, preloadGuideImages } from './services/imagePreloader'; // 导入图片预加载服务
 import { checkStorageHealth, initStorage } from './services/storageService'; // 导入存储健康检查
 
 // 初始化应用
@@ -21,7 +21,14 @@ logger.setDebugMode(isEnvDebug);
 preloadCriticalImages()
   .then((results) => {
     const loadedCount = results.filter(r => r.status === 'fulfilled').length;
-    logger.info('IMAGES', `预加载完成: ${loadedCount}/${results.length} 张图片已加载`);
+    logger.info('IMAGES', `预加载关键图片完成: ${loadedCount}/${results.length} 张图片已加载`);
+    
+    // 预加载成功后，再预加载用户引导SVG
+    return preloadGuideImages();
+  })
+  .then((results) => {
+    const loadedCount = results.filter(r => r.status === 'fulfilled').length;
+    logger.info('IMAGES', `预加载引导SVG完成: ${loadedCount}/${results.length} 张SVG已加载`);
   })
   .catch((error) => {
     logger.warn('IMAGES', `图片预加载出错: ${error.message}`);
