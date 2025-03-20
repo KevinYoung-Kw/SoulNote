@@ -11,12 +11,15 @@
       <div class="guide-content" ref="contentRef">
         <div class="guide-image-container" ref="imageContainerRef">
           <div class="guide-image" v-if="currentStep.image">
-            <div v-if="svgContent[currentStepIndex]" v-html="svgContent[currentStepIndex]"></div>
-            <div v-else-if="svgLoading" class="svg-loading">
+            <div v-show="svgContent[currentStepIndex]" v-html="svgContent[currentStepIndex]" class="fade-in"></div>
+            <div v-show="loadingImages[currentStepIndex]" class="svg-loading">
               <div class="loading-spinner"></div>
               <div class="loading-text">加载中...</div>
             </div>
-            <img v-else :src="currentStep.image" :alt="currentStep.title">
+            <img v-show="!svgContent[currentStepIndex] && !loadingImages[currentStepIndex]" 
+                 :src="currentStep.image" 
+                 :alt="currentStep.title"
+                 class="fade-in">
           </div>
           
           <!-- 图片滚动提示 (居中显示) -->
@@ -81,10 +84,11 @@ const emit = defineEmits(['close', 'finished']);
 
 const currentStepIndex = ref(props.initialStep);
 const svgContent = ref([]);
-const svgLoading = ref(false);
+const loadingImages = ref([]); // 跟踪每个图片是否正在加载
 const contentRef = ref(null);
 const imageContainerRef = ref(null);
 const showImageScrollHint = ref(false);
+const loadingPriority = ref(new Set()); // 优先加载跟踪
 
 // 引导步骤定义
 const steps = [
@@ -100,7 +104,7 @@ const steps = [
   },
   {
     title: '设置个人参数',
-    description: '点击参数卡片可以设置您的星座、MBTI、心情等个人特性，这些将帮助生成更符合您个性的心语内容。',
+    description: '点击参数卡片可以设置您的目前的心情、喜欢的主题、想要的情感风格等，这些将帮助生成更符合您个性的心语内容。',
     image: '/guide/params.svg'
   },
   {
@@ -150,8 +154,22 @@ const steps = [
   }
 ];
 
+// 初始化loadingImages数组
+loadingImages.value = Array(steps.length).fill(false);
+
 // 计算当前步骤
 const currentStep = computed(() => steps[currentStepIndex.value]);
+
+// 计算唯一的图片URLs
+const uniqueImageUrls = computed(() => {
+  const urls = new Set();
+  steps.forEach(step => {
+    if (step.image) {
+      urls.add(step.image);
+    }
+  });
+  return Array.from(urls);
+});
 
 // 检查图片是否需要滚动
 function checkImageScrollable() {
@@ -164,32 +182,101 @@ function checkImageScrollable() {
   });
 }
 
-// 预加载所有SVG图片
-async function preloadAllSvgs() {
-  if (svgLoading.value) return; // 避免重复加载
+// 加载单个SVG
+async function loadSingleSvg(url, index) {
+  if (svgContent.value[index] || !url) return;
   
-  svgLoading.value = true;
+  // 标记为加载中
+  loadingImages.value[index] = true;
   
   try {
-    const svgUrls = steps.map(step => step.image);
-    
-    // 使用Promise.all并行加载所有SVG
-    const loadPromises = svgUrls.map(url => loadSvg(url));
-    const results = await Promise.all(loadPromises);
-    
-    // 更新SVG内容
-    svgContent.value = results.map(content => {
-      if (content) {
-        return content;
-      }
-      return null;
-    });
-    
-    console.log('所有SVG预加载完成');
+    const content = await loadSvg(url);
+    if (content) {
+      // Vue的响应式数组需要这样更新
+      const newContent = [...svgContent.value];
+      newContent[index] = content;
+      svgContent.value = newContent;
+    }
   } catch (error) {
-    console.error('SVG预加载失败:', error);
+    console.error(`加载SVG失败 (${url}):`, error);
   } finally {
-    svgLoading.value = false;
+    // 标记加载完成
+    loadingImages.value[index] = false;
+    
+    // 从优先队列中移除
+    loadingPriority.value.delete(index);
+    
+    // 如果有其他需要优先加载的，继续加载
+    checkPriorityQueue();
+  }
+}
+
+// 检查并处理优先加载队列
+function checkPriorityQueue() {
+  if (loadingPriority.value.size === 0) return;
+  
+  // 获取下一个优先加载的索引
+  const nextIndex = Array.from(loadingPriority.value)[0];
+  if (typeof nextIndex === 'number' && steps[nextIndex]) {
+    loadSingleSvg(steps[nextIndex].image, nextIndex);
+  }
+}
+
+// 智能预加载策略
+function smartPreload() {
+  // 首先加载当前步骤和下一步骤
+  const current = currentStepIndex.value;
+  const totalSteps = steps.length;
+  
+  // 当前步骤最优先
+  if (!svgContent.value[current] && steps[current]?.image) {
+    loadingPriority.value.add(current);
+    loadSingleSvg(steps[current].image, current);
+  }
+  
+  // 然后是下一步
+  const next = current + 1 < totalSteps ? current + 1 : null;
+  if (next !== null && !svgContent.value[next] && steps[next]?.image) {
+    loadingPriority.value.add(next);
+  }
+  
+  // 上一步
+  const prev = current - 1 >= 0 ? current - 1 : null;
+  if (prev !== null && !svgContent.value[prev] && steps[prev]?.image) {
+    loadingPriority.value.add(prev);
+  }
+  
+  // 开始检查优先队列
+  checkPriorityQueue();
+  
+  // 后台加载其他图片
+  setTimeout(() => {
+    backgroundLoad();
+  }, 1000);
+}
+
+// 在后台加载其他图片
+function backgroundLoad() {
+  // 收集未加载的图片URL和索引
+  const unloadedIndices = [];
+  steps.forEach((step, index) => {
+    if (!svgContent.value[index] && !loadingImages.value[index] && !loadingPriority.value.has(index)) {
+      unloadedIndices.push(index);
+    }
+  });
+  
+  // 如果有未加载的图片，每200ms加载一个
+  if (unloadedIndices.length > 0) {
+    let i = 0;
+    const loadNext = () => {
+      if (i < unloadedIndices.length) {
+        const index = unloadedIndices[i];
+        loadSingleSvg(steps[index].image, index);
+        i++;
+        setTimeout(loadNext, 200);
+      }
+    };
+    loadNext();
   }
 }
 
@@ -207,6 +294,9 @@ function nextStep() {
         imageContainerRef.value.scrollTop = 0;
       }
       checkImageScrollable();
+      
+      // 智能预加载
+      smartPreload();
     });
   } else {
     finishGuide();
@@ -227,6 +317,9 @@ function prevStep() {
         imageContainerRef.value.scrollTop = 0;
       }
       checkImageScrollable();
+      
+      // 智能预加载
+      smartPreload();
     });
   }
 }
@@ -245,6 +338,9 @@ function goToStep(index) {
         imageContainerRef.value.scrollTop = 0;
       }
       checkImageScrollable();
+      
+      // 智能预加载
+      smartPreload();
     });
   }
 }
@@ -284,9 +380,24 @@ watch(currentStepIndex, () => {
   checkImageScrollable();
 });
 
-// 在组件挂载前预加载SVG
+// 在组件挂载前开始智能加载
 onBeforeMount(() => {
-  preloadAllSvgs();
+  // 初始化加载状态
+  loadingImages.value = Array(steps.length).fill(false);
+  svgContent.value = Array(steps.length).fill(null);
+  
+  // 当组件可见时才开始加载
+  if (props.visible) {
+    smartPreload();
+  }
+});
+
+// 监听可见性变化
+watch(() => props.visible, (newValue) => {
+  if (newValue) {
+    // 组件显示时启动智能加载
+    smartPreload();
+  }
 });
 
 // 添加键盘导航支持并检查内容是否可滚动
@@ -420,6 +531,9 @@ onMounted(() => {
   border-radius: var(--radius-md, 8px);
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  min-height: 150px; /* 保持最小高度 */
+  background-color: var(--bg-color, #f8f8f8);
 }
 
 .guide-image img, 
@@ -427,6 +541,10 @@ onMounted(() => {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
 }
 
 /* 字幕式固定文字说明 */
@@ -592,19 +710,19 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  height: 150px;
   background-color: var(--bg-color, #f5f5f5);
   border-radius: var(--radius-md, 8px);
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
   border-radius: 50%;
   border-top-color: var(--primary-color, #7b9e89);
   animation: spin 1s linear infinite;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .loading-text {

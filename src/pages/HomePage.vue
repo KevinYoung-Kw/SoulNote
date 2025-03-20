@@ -253,6 +253,10 @@ async function generateNoteContent() {
   isGenerating.value = true;
   errorMessage.value = '';
   
+  // 重置当前笔记ID和收藏状态，防止旧笔记参数混入新生成内容
+  currentNoteId.value = '';
+  isCurrentNoteFavorited.value = false;
+  
   // 添加消息轮换功能
   let messageIndex = 0;
   loadingMessage.value = loadingMessagesArray.value[messageIndex];
@@ -559,32 +563,37 @@ function clearGeneratedContent() {
   // 重置收藏状态和ID
   currentNoteId.value = '';
   isCurrentNoteFavorited.value = false;
-  // 清除LocalStorage中保存的笔记ID
-  localStorage.removeItem('soulnote_current_note_id');
-  
-  // 记录清除操作
-  logger.info('CLEAR', '已清除内容');
 }
 
-// 添加一个只清除缓存内容的函数，保留其他设置
 async function clearCachedContentOnly() {
   try {
+    // 获取当前偏好设置
     const currentPrefs = await getUserPreferences();
     
-    // 只删除缓存的内容和笔记ID，保留其他所有设置
+    // 确保清除缓存内容和缓存纸条ID
     if (currentPrefs.cachedContent) {
       delete currentPrefs.cachedContent;
     }
+    
     if (currentPrefs.cachedNoteId) {
       delete currentPrefs.cachedNoteId;
     }
+    
     if (currentPrefs.lastGeneratedNoteId) {
       delete currentPrefs.lastGeneratedNoteId;
     }
     
-    // 保存更新的设置
+    // 清除本地存储中的临时笔记ID
+    localStorage.removeItem('soulnote_current_note_id');
+    
+    // 保存更新的偏好设置
     await saveUserPreferences(currentPrefs);
-    logger.info('CACHE', '已清除缓存内容，保留其他设置');
+    
+    // 确保重置当前状态变量
+    currentNoteId.value = '';
+    isCurrentNoteFavorited.value = false;
+    
+    logger.info('CACHE', '已清除缓存内容和临时笔记ID');
   } catch (error) {
     logger.error('CACHE', '清除缓存内容失败:', error);
   }
@@ -599,19 +608,19 @@ async function restoreFromCache() {
     if (preferences && preferences.cachedContent && preferences.cachedContent !== null) {
       const { content, moods, background, fontSize: cachedFontSize, theme, savageMode, enableFortune, fortuneAspect, timestamp } = preferences.cachedContent;
       
-      // 检查缓存时间戳，如果超过24小时则不恢复
-      const cacheTime = timestamp ? new Date(timestamp) : null;
-      const now = new Date();
-      const cacheAgeHours = cacheTime ? (now - cacheTime) / (1000 * 60 * 60) : 0;
-      
-      // 如果缓存超过24小时，则不恢复
-      if (cacheTime && cacheAgeHours > 24) {
-        logger.info('CACHE', '缓存内容已过期，不恢复');
-        await clearContentCache(); // 清除过期缓存
-        // 确保清除毒舌模式状态
-        params.savageMode = false;
-        document.body.classList.remove('savage-mode');
-        return;
+      // 添加时间戳检查，如果超过24小时则不恢复
+      if (timestamp) {
+        const cacheTime = new Date(timestamp);
+        const now = new Date();
+        const cacheAgeHours = (now - cacheTime) / (1000 * 60 * 60);
+        
+        if (cacheAgeHours > 24) {
+          logger.info('CACHE', '缓存内容已过期，不恢复');
+          await clearCachedContentOnly();
+          params.savageMode = false;
+          document.body.classList.remove('savage-mode');
+          return;
+        }
       }
       
       // 检查内容是否有效
@@ -666,6 +675,32 @@ async function restoreFromCache() {
       
       if (fortuneAspect) {
         params.fortuneAspect = fortuneAspect;
+      }
+      
+      // 恢复收藏的笔记ID，但仅当ID有效且不为空时
+      if (preferences.cachedNoteId && typeof preferences.cachedNoteId === 'string' && preferences.cachedNoteId.trim() !== '') {
+        // 先验证此笔记ID是否存在于已保存的笔记中
+        const isValid = await isNoteFavorited(preferences.cachedNoteId);
+        if (isValid) {
+          currentNoteId.value = preferences.cachedNoteId;
+          isCurrentNoteFavorited.value = true;
+          // 更新localStorage中的笔记ID
+          localStorage.setItem('soulnote_current_note_id', preferences.cachedNoteId);
+          logger.info('CACHE', '恢复有效的笔记ID:', preferences.cachedNoteId);
+        } else {
+          // 如果ID无效，清除它
+          currentNoteId.value = '';
+          isCurrentNoteFavorited.value = false;
+          localStorage.removeItem('soulnote_current_note_id');
+          logger.info('CACHE', '缓存的笔记ID无效，已清除:', preferences.cachedNoteId);
+          
+          // 从用户偏好中也删除无效的ID
+          const updatedPrefs = await getUserPreferences();
+          if (updatedPrefs.cachedNoteId) {
+            delete updatedPrefs.cachedNoteId;
+            await saveUserPreferences(updatedPrefs);
+          }
+        }
       }
       
       logger.info('CACHE', '从缓存恢复内容成功');
@@ -1012,6 +1047,10 @@ onMounted(async () => {
             checkFavoriteStatus(currentNoteId.value);
           }
         });
+      } else if (from.name === 'home' || from.name === 'Home') {
+        // 当离开首页时，清除localStorage中的笔记ID，避免返回时加载
+        logger.info('ROUTE', '离开首页，清除临时笔记ID');
+        localStorage.removeItem('soulnote_current_note_id');
       }
     });
     
@@ -1046,8 +1085,12 @@ onBeforeUnmount(() => {
   // 移除事件监听器
   window.removeEventListener('resize', handleResize);
   
-  // 确保离开页面时移除毒舌模式
-  document.body.classList.remove('savage-mode');
+  // 不再移除毒舌模式，而是依赖localStorage中的状态来控制
+  // document.body.classList.remove('savage-mode');
+  
+  // 清除localStorage中的临时笔记ID，防止在页面间切换时产生不必要的状态保留
+  localStorage.removeItem('soulnote_current_note_id');
+  logger.info('UNMOUNT', '组件卸载，已清除临时笔记ID');
 });
 
 // 监听暗黑模式变化
@@ -1058,6 +1101,12 @@ watch(darkMode, (isDark) => {
 // 监听毒舌模式变化
 watch(() => params.savageMode, (isSavage) => {
   document.body.classList.toggle('savage-mode', isSavage);
+  // 更新localStorage中的毒舌模式状态，确保所有页面都能立即识别
+  if (isSavage) {
+    localStorage.setItem('soulnote_savage_mode', 'true');
+  } else {
+    localStorage.removeItem('soulnote_savage_mode');
+  }
 }, { immediate: true });
 
 // 监听内容、表情、背景和字体大小的变化，更新缓存
@@ -1078,54 +1127,94 @@ async function loadContentFromCache() {
     if (preferences.cachedContent) {
       const { content, background, fontSize: cachedFontSize, moods, theme, savageMode, enableFortune, fortuneAspect, timestamp } = preferences.cachedContent;
       
+      // 添加时间戳检查，如果超过24小时则不恢复
+      if (timestamp) {
+        const cacheTime = new Date(timestamp);
+        const now = new Date();
+        const cacheAgeHours = (now - cacheTime) / (1000 * 60 * 60);
+        
+        if (cacheAgeHours > 24) {
+          logger.info('CACHE', '缓存内容已过期，不恢复');
+          await clearCachedContentOnly();
+          params.savageMode = false;
+          document.body.classList.remove('savage-mode');
+          return;
+        }
+      }
+      
       // 确保缓存内容有效
-      if (content && content.trim() !== '') {
-        // 更新UI
-        noteContent.value = content;
-        currentBackground.value = background || 'paper-1';
-        if (cachedFontSize) {
-          fontSize.value = cachedFontSize;
-        }
-        
-        // 更新参数
-        if (moods && Array.isArray(moods)) {
-          params.moods = moods;
-        }
-        
-        if (theme) {
-          params.theme = theme;
-        }
-        
-        // 恢复毒舌模式 - 只在当前页面应用
-        if (savageMode !== undefined) {
-          params.savageMode = savageMode === true;
-          // 确保应用毒舌模式class
-          document.body.classList.toggle('savage-mode', params.savageMode);
-          logger.info('CACHE', '恢复毒舌模式状态:', params.savageMode);
-        }
-        
-        // 恢复运势参数
-        if (enableFortune !== undefined) {
-          params.enableFortune = enableFortune === true;
-        }
-        
-        if (fortuneAspect) {
-          params.fortuneAspect = fortuneAspect;
-        }
-        
-        logger.info('CACHE', '从缓存恢复内容成功');
+      const defaultMessage = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+      if (!content || content === defaultMessage || content.trim() === '') {
+        logger.info('CACHE', '缓存内容无效，不恢复');
+        await clearCachedContentOnly();
+        params.savageMode = false;
+        document.body.classList.remove('savage-mode');
+        return;
+      }
+      
+      // 更新UI
+      noteContent.value = content;
+      currentBackground.value = background || 'paper-1';
+      if (cachedFontSize) {
+        fontSize.value = cachedFontSize;
+      }
+      
+      // 更新参数
+      if (moods && Array.isArray(moods)) {
+        params.moods = moods;
+      }
+      
+      if (theme) {
+        params.theme = theme;
+      }
+      
+      // 恢复毒舌模式 - 只在当前页面应用
+      if (savageMode !== undefined) {
+        params.savageMode = savageMode === true;
+        // 确保应用毒舌模式class
+        document.body.classList.toggle('savage-mode', params.savageMode);
+        logger.info('CACHE', '恢复毒舌模式状态:', params.savageMode);
+      }
+      
+      // 恢复运势参数
+      if (enableFortune !== undefined) {
+        params.enableFortune = enableFortune === true;
+      }
+      
+      if (fortuneAspect) {
+        params.fortuneAspect = fortuneAspect;
+      }
+      
+      logger.info('CACHE', '从缓存恢复内容成功');
 
-        // 恢复生成状态
-        hasGeneratedContent.value = true;
-        
-        // 检查缓存内容的收藏状态
-        if (preferences.cachedNoteId) {
+      // 恢复生成状态
+      hasGeneratedContent.value = true;
+      
+      // 检查缓存内容的收藏状态
+      if (preferences.cachedNoteId && typeof preferences.cachedNoteId === 'string' && preferences.cachedNoteId.trim() !== '') {
+        // 验证ID有效性
+        const isValid = await isNoteFavorited(preferences.cachedNoteId);
+        if (isValid) {
           currentNoteId.value = preferences.cachedNoteId;
-          checkFavoriteStatus(preferences.cachedNoteId);
+          isCurrentNoteFavorited.value = true;
+          // 更新localStorage
+          localStorage.setItem('soulnote_current_note_id', preferences.cachedNoteId);
+          logger.info('CACHE', '恢复有效的笔记ID:', preferences.cachedNoteId);
+        } else {
+          // 无效ID，清除它
+          currentNoteId.value = '';
+          isCurrentNoteFavorited.value = false;
+          localStorage.removeItem('soulnote_current_note_id');
+          // 从用户偏好中移除
+          const updatedPrefs = await getUserPreferences();
+          if (updatedPrefs.cachedNoteId) {
+            delete updatedPrefs.cachedNoteId;
+            await saveUserPreferences(updatedPrefs);
+          }
+          logger.info('CACHE', '缓存的笔记ID无效，已清除');
         }
       }
     } else {
-      logger.info('CACHE', '没有找到有效的缓存内容');
       // 确保没有缓存内容时，毒舌模式被关闭
       params.savageMode = false;
       document.body.classList.remove('savage-mode');
@@ -1173,6 +1262,43 @@ function checkCommunityPrompt() {
 function handleGuideFinished() {
   showUserGuide.value = false;
   // 可以在这里添加引导完成后的特殊处理逻辑
+}
+
+// 添加一个清除所有内容缓存的函数
+async function clearContentCache() {
+  try {
+    // 获取当前偏好
+    const currentPrefs = await getUserPreferences();
+    
+    // 删除缓存相关的所有字段
+    if (currentPrefs.cachedContent) {
+      delete currentPrefs.cachedContent;
+    }
+    
+    if (currentPrefs.cachedNoteId) {
+      delete currentPrefs.cachedNoteId;
+    }
+    
+    if (currentPrefs.lastGeneratedNoteId) {
+      delete currentPrefs.lastGeneratedNoteId;
+    }
+    
+    // 清除本地临时ID
+    localStorage.removeItem('soulnote_current_note_id');
+    
+    // 保存更新后的偏好设置
+    await saveUserPreferences(currentPrefs);
+    
+    // 重置本地状态
+    currentNoteId.value = '';
+    isCurrentNoteFavorited.value = false;
+    hasGeneratedContent.value = false;
+    noteContent.value = '点击下方"生成心语"按钮，开始您的心灵之旅...';
+    
+    logger.info('CACHE', '已完全清除所有内容缓存');
+  } catch (error) {
+    logger.error('CACHE', '清除内容缓存失败:', error);
+  }
 }
 </script>
 

@@ -29,7 +29,7 @@
           <div class="qr-container">
             <div class="qr-item">
               <LazyImage 
-                src="../assets/donate-qr.png" 
+                src="/src/assets/donate-qr.png" 
                 alt="请作者喝杯咖啡" 
                 class="qr-code"
                 width="120px"
@@ -40,7 +40,7 @@
             </div>
             <div class="qr-item">
               <LazyImage 
-                src="../../public/assets/community-qr.png" 
+                src="/public/assets/community-qr.png" 
                 alt="加入体验群" 
                 class="qr-code"
                 width="120px"

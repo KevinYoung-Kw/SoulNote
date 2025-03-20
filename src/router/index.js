@@ -70,6 +70,12 @@ const router = createRouter({
 // 路由守卫，检查是否完成引导流程
 router.beforeEach(async (to, from, next) => {
   try {
+    // 在路由切换前，检查并应用毒舌模式样式，防止在页面加载期间闪烁
+    const isSavageMode = localStorage.getItem('soulnote_savage_mode') === 'true';
+    if (isSavageMode) {
+      document.body.classList.add('savage-mode');
+    }
+    
     // 异步获取引导完成状态
     const hasCompletedOnboarding = await getOnboardingCompleted();
     

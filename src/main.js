@@ -5,8 +5,8 @@ import './styles/main.css';
 import './styles/dark-mode.css'; // 添加暗黑模式专用样式
 import './styles/savage-mode.css'; // 添加毒舌模式专用样式
 import logger from './utils/logger';
-import { preloadCriticalImages, preloadGuideImages } from './services/imagePreloader'; // 导入图片预加载服务
-import { checkStorageHealth, initStorage } from './services/storageService'; // 导入存储健康检查
+import { preloadAllImagesProgressively, getPreloadStatus } from './services/imagePreloader'; // 导入优化的图片预加载服务
+import { checkStorageHealth, initStorage, getUserPreferences } from './services/storageService'; // 导入存储健康检查
 
 // 初始化应用
 const app = createApp(App);
@@ -17,20 +17,16 @@ const isEnvDebug = import.meta.env.VITE_DEBUG_MODE === 'true';
 // 设置日志记录器的调试模式
 logger.setDebugMode(isEnvDebug);
 
-// 预加载关键图片
-preloadCriticalImages()
+// 使用新的渐进式预加载方法
+preloadAllImagesProgressively()
   .then((results) => {
-    const loadedCount = results.filter(r => r.status === 'fulfilled').length;
-    logger.info('IMAGES', `预加载关键图片完成: ${loadedCount}/${results.length} 张图片已加载`);
-    
-    // 预加载成功后，再预加载用户引导SVG
-    return preloadGuideImages();
-  })
-  .then((results) => {
-    const loadedCount = results.filter(r => r.status === 'fulfilled').length;
-    logger.info('IMAGES', `预加载引导SVG完成: ${loadedCount}/${results.length} 张SVG已加载`);
+    // 预加载完成，不需要单独加载引导SVG，因为已经包含在渐进式加载中
+    const loadedCount = results.length;
+    const status = getPreloadStatus();
+    logger.info('IMAGES', `图片预加载完成: ${loadedCount} 张图片已加载`, status);
   })
   .catch((error) => {
+    // 即使预加载失败，也不应阻止应用启动
     logger.warn('IMAGES', `图片预加载出错: ${error.message}`);
   });
 
@@ -68,8 +64,8 @@ if (isEnvDebug) {
 
 // 添加全局错误处理
 app.config.errorHandler = (err, vm, info) => {
-    logger.error('VUE', `Error: ${err.toString()}\nInfo: ${info}`);
-    console.error('Vue Error:', err);
+    logger.error('APP', '全局错误', { error: err.message, info, stack: err.stack });
+    console.error('应用错误:', err);
 };
 
 // 添加未捕获的 Promise 错误处理
@@ -78,9 +74,57 @@ window.addEventListener('unhandledrejection', event => {
     console.error('Unhandled Promise Rejection:', event.reason);
 });
 
+// 在挂载之前检查并应用保存的样式模式
+async function initStyles() {
+  try {
+    // 检查是否已经有保存的偏好设置
+    const savedPrefs = await getUserPreferences();
+    
+    // 检查并应用暗黑模式
+    if (savedPrefs && savedPrefs.theme === 'dark') {
+      document.body.classList.add('dark-mode');
+    }
+    
+    // 检查并应用毒舌模式
+    if (savedPrefs && savedPrefs.savageMode === true) {
+      // 将毒舌模式状态保存在localStorage中，用于快速恢复
+      localStorage.setItem('soulnote_savage_mode', 'true');
+      document.body.classList.add('savage-mode');
+    }
+  } catch (error) {
+    logger.error('STYLES', '初始化样式失败', error);
+  }
+}
 
-app.use(router);
-app.mount('#app');
+// 添加路由后置拦截器，确保在路由变化时快速应用毒舌模式样式
+router.afterEach(() => {
+  // 在每次路由变化后检查是否需要应用毒舌模式样式
+  const isSavageMode = localStorage.getItem('soulnote_savage_mode') === 'true';
+  if (isSavageMode) {
+    // 确保立即应用样式，防止闪烁
+    document.body.classList.add('savage-mode');
+  } else {
+    document.body.classList.remove('savage-mode');
+  }
+});
+
+// 初始化样式然后挂载应用
+initStyles().then(() => {
+  app.use(router);
+  app.mount('#app');
+});
+
+// 添加全局事件监听器，用于同步更新毒舌模式状态
+document.addEventListener('preferences-updated', (event) => {
+  if (event.detail && typeof event.detail.savageMode !== 'undefined') {
+    // 更新localStorage中的毒舌模式状态
+    if (event.detail.savageMode) {
+      localStorage.setItem('soulnote_savage_mode', 'true');
+    } else {
+      localStorage.removeItem('soulnote_savage_mode');
+    }
+  }
+});
 
 // 为Vue应用提供全局日志访问
 app.config.globalProperties.$logger = logger;

@@ -83,8 +83,13 @@ onMounted(async () => {
       logger.info('THEME', 'Dark mode activated on app load');
     }
     
-    // 应用毒舌模式
-    if (preferences && preferences.savageMode) {
+    // 应用毒舌模式 - 优先使用localStorage中的状态
+    const isSavageMode = localStorage.getItem('soulnote_savage_mode') === 'true';
+    if (isSavageMode || (preferences && preferences.savageMode)) {
+      // 确保状态一致
+      if (!isSavageMode && preferences && preferences.savageMode) {
+        localStorage.setItem('soulnote_savage_mode', 'true');
+      }
       document.body.classList.add('savage-mode');
       logger.info('THEME', 'Savage mode activated on app load');
     }
@@ -122,14 +127,13 @@ onMounted(async () => {
       }
     });
     
+    // 添加键盘快捷键监听
+    window.addEventListener('keydown', handleKeyDown, { passive: true });
   } catch (error) {
-    logger.error('APP', '初始化应用失败', error);
+    logger.error('APP', '初始化应用失败:', error);
   } finally {
     appReady.value = true;
   }
-
-  // 注册快捷键监听
-  window.addEventListener('keydown', handleKeyDown, { passive: true });
 });
 
 onUnmounted(() => {

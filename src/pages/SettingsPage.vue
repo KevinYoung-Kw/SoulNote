@@ -637,6 +637,14 @@ function toggleDarkMode() {
 function toggleSavageMode() {
   preferences.savageMode = isSavageMode.value;
   document.body.classList.toggle('savage-mode', isSavageMode.value);
+  
+  // 同步更新localStorage中的毒舌模式状态，确保所有页面立即应用样式
+  if (isSavageMode.value) {
+    localStorage.setItem('soulnote_savage_mode', 'true');
+  } else {
+    localStorage.removeItem('soulnote_savage_mode');
+  }
+  
   logger.info('SETTINGS', '毒舌模式已切换为:', preferences.savageMode);
   savePreferences();
 }

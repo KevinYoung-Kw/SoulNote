@@ -111,4 +111,12 @@ body.savage-mode .toggle-switch:checked + .toggle-label .toggle-inner {
 body.savage-mode .loading-spinner {
   border-color: rgba(255, 82, 82, 0.2);
   border-top-color: var(--primary-color);
+}
+
+/* 毒舌模式样式切换时禁用过渡，防止页面切换时闪烁 */
+body.savage-mode,
+body.savage-mode * {
+  /* 只允许动画和变换的过渡，禁用颜色相关过渡 */
+  transition-property: transform, opacity, visibility !important;
+  transition-duration: 0.3s !important;
 } 

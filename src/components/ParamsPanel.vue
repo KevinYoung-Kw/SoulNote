@@ -1068,6 +1068,13 @@ function saveAndClosePanel() {
 function setSavageMode(mode) {
   params.savageMode = mode;
   document.body.classList.toggle('savage-mode', mode);
+  
+  // 同步更新localStorage中的毒舌模式状态
+  if (mode) {
+    localStorage.setItem('soulnote_savage_mode', 'true');
+  } else {
+    localStorage.removeItem('soulnote_savage_mode');
+  }
 }
 
 // 检查当前模型是否支持诗歌和俳句
@@ -1293,8 +1300,13 @@ function clearContent() {
 }
 
 .clear-content-btn:hover {
-  color: var(--danger-color, #f44336);
+  color: var(--primary-color);
   transform: scale(1.1);
+}
+
+/* 毒舌模式下使用对应的主题色 */
+:global(.savage-mode) .clear-content-btn:hover {
+  color: var(--savage-primary-color, #ff5252);
 }
 
 .clear-content-btn .tooltip {
@@ -1302,7 +1314,7 @@ function clearContent() {
   bottom: -30px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: rgba(244, 67, 54, 0.9);
+  background-color: var(--primary-color);
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
