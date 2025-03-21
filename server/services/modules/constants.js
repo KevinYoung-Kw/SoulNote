@@ -39,18 +39,18 @@ const themeConfigs = {
   },
   [THEMES.POETRY]: {
     title: '诗歌',
-    description: '优美的诗歌形式',
+    description: '贴近生活的诗歌形式',
     wordLimitZh: '30-60字',
     wordLimitEn: '40-80 words',
-    style: '意象丰富，有韵律感',
+    style: '意象丰富，贴近生活，有韵律感',
     keywords: ['诗歌', '诗句', '意境'],
   },
   [THEMES.HAIKU]: {
     title: '俳句',
     description: '简短的日式诗歌',
-    wordLimitZh: '17字左右',
+    wordLimitZh: '17音节左右',
     wordLimitEn: '17 syllables',
-    style: '简短精炼，意境深远',
+    style: '简短精炼，贴近生活，意境深远',
     keywords: ['俳句', '短诗', '禅意'],
   }
 };
