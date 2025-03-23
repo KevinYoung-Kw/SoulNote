@@ -263,56 +263,50 @@ const displayImageUrl = computed(() => {
 
 // 图片层样式
 const imageLayerStyle = computed(() => {
-  // 如果布局是paper，不显示图片层
-  if (props.customStyle?.layout === 'paper') return {};
-  
-  // 如果没有图片URL或默认背景路径，返回空样式
-  if (!displayImageUrl.value) return {};
+  if (!hasCustomImage.value) return {};
   
   const style = {
     backgroundImage: `url(${displayImageUrl.value})`,
-    opacity: props.customStyle?.imageOpacity || 1,
+    opacity: props.customStyle.imageOpacity || 1,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    filter: props.customStyle?.imageFilter?.style || ''
+    filter: props.customStyle.imageFilter?.style || '',
+    overflow: 'hidden',
+    margin: 0,
+    padding: 0
   };
   
   // 根据布局调整图片位置
-  if (props.customStyle?.layout === 'image-top') {
+  if (props.customStyle.layout === 'image-top') {
     style.height = '50%';
     style.top = '0';
     style.backgroundSize = 'cover';
-  } else if (props.customStyle?.layout === 'image-bottom') {
-    style.height = '50%';
-    style.top = '50%';
-    style.backgroundSize = 'cover';
-  } else if (props.customStyle?.layout === 'split') {
-    // 分屏布局
-    const direction = props.customStyle.splitDirection || 'horizontal';
-    const imageRatio = props.customStyle.imageRatio || 0.5;
-    
-    if (direction === 'horizontal') {
-      style.width = `${imageRatio * 100}%`;
-      style.height = '100%';
-      style.top = '0';
-      style.left = '0';
-    } else {
-      style.width = '100%';
-      style.height = `${imageRatio * 100}%`;
-      style.top = '0';
-      style.left = '0';
-    }
-  } else if (props.customStyle?.layout === 'image-bg') {
     style.width = '100%';
-    style.height = '100%';
+  } else if (props.customStyle.layout === 'image-bottom') {
+    style.height = '50%';
+    style.bottom = '0';
+    style.backgroundSize = 'cover';
+    style.width = '100%';
+  } else if (props.customStyle.layout === 'image-bg') {
+    style.height = '101%'; // 略微扩大尺寸以避免白边
+    style.width = '101%';
     style.position = 'absolute';
-    style.top = '0';
-    style.left = '0';
-    style.zIndex = '1'; // 确保图片层在纸条背景之上，但在内容之下
+    style.top = '-0.5%';
+    style.left = '-0.5%';
+    style.zIndex = '1';
+    style.borderRadius = 'inherit'; // 继承父元素的圆角
+  } else if (props.customStyle.layout === 'split') {
+    // 对于分屏布局特殊处理
+    style.width = '101%';
+    style.height = '101%';
+    style.top = '-0.5%';
+    style.left = '-0.5%';
+    style.position = 'absolute';
+    style.borderRadius = '0'; // 移除可能的圆角
   }
   
   // 应用缩放
-  if (props.customStyle?.imageScale) {
+  if (props.customStyle.imageScale) {
     style.transform = `scale(${props.customStyle.imageScale})`;
     style.transformOrigin = 'center';
   }

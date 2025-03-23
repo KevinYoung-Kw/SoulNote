@@ -3,7 +3,7 @@
   <div v-if="!isPreview" class="image-bg-template">
     <!-- 图片背景层 -->
     <div 
-      v-if="hasImageResource"
+      v-if="hasCustomImage" 
       class="note-image-layer"
       :style="imageLayerStyle"
     ></div>
@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { computed, defineProps } from 'vue';
+import { defineProps } from 'vue';
 import BaseTemplate from './BaseTemplate.vue';
 
 const props = defineProps({
@@ -94,16 +94,6 @@ const props = defineProps({
   }
 });
 
-// 检查是否有图片资源
-const hasImageResource = computed(() => {
-  if (props.isPreview) return true; // 预览模式下始终显示背景
-  
-  // 检查自定义样式中是否有图片URL或默认背景路径
-  return (props.customStyle?.imageUrl && props.customStyle.imageUrl !== '') || 
-         (props.customStyle?.defaultBgPath && props.customStyle.defaultBgPath !== '') ||
-         props.hasCustomImage;
-});
-
 // 预览模式的背景
 const background = 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), linear-gradient(45deg, #4A6FB5, #7B9E89)';
 </script>
@@ -114,19 +104,27 @@ const background = 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), linear-gr
   position: relative;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: inherit; /* 继承父元素的圆角 */
 }
 
 /* 图片层样式 */
 .note-image-layer {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
+  width: 101%;
+  height: 101%;
+  top: -0.5%;
+  left: -0.5%;
   z-index: 1;
   transition: all 0.3s ease;
   background-size: cover;
   background-position: center;
+  margin: 0;
+  padding: 0;
+  border-radius: inherit; /* 继承父元素的圆角 */
 }
 
 /* 内容样式 */
@@ -138,6 +136,9 @@ const background = 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), linear-gr
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  box-sizing: border-box;
+  padding: 20px; /* 统一内容区域的内边距 */
+  margin: 0;
 }
 
 .note-content-centered {

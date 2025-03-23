@@ -147,6 +147,11 @@ const moodPositionClass = computed(() => {
   position: relative;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: inherit; /* 继承父元素的圆角 */
 }
 
 .split-layout {
@@ -154,6 +159,10 @@ const moodPositionClass = computed(() => {
   height: 100%;
   width: 100%;
   flex-direction: v-bind("layoutDirection === 'horizontal' ? 'row' : 'column'");
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: inherit; /* 继承父元素的圆角 */
 }
 
 .split-section {
@@ -162,18 +171,23 @@ const moodPositionClass = computed(() => {
   justify-content: center;
   position: relative;
   overflow: hidden;
+  margin: 0;
 }
 
 .left {
   flex: v-bind('textRatio');
   background-color: #F9F3E5;
   padding: 10px;
+  box-sizing: border-box;
 }
 
 .right {
   flex: v-bind('imageRatio');
   background-color: transparent;
   position: relative;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
 }
 
 /* 内容样式 */
@@ -188,6 +202,8 @@ const moodPositionClass = computed(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .note-content::-webkit-scrollbar {
@@ -197,13 +213,16 @@ const moodPositionClass = computed(() => {
 /* 图片层样式 */
 .note-image-layer {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
+  width: 101%; /* 略微放大以防止边缘出现白边 */
+  height: 101%; /* 略微放大以防止边缘出现白边 */
+  top: -0.5%; /* 调整位置以保持居中 */
+  left: -0.5%; /* 调整位置以保持居中 */
   z-index: 1;
   background-size: cover;
   background-position: center;
+  margin: 0;
+  padding: 0;
+  border-radius: inherit; /* 对齐容器圆角 */
 }
 
 /* 表情容器样式 */

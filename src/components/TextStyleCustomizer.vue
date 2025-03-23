@@ -75,6 +75,58 @@
             :style="{ color: isLightColor(color.value) ? '#000' : '#fff' }"
           ></i>
         </div>
+        <!-- 自定义颜色选择器按钮 -->
+        <div 
+          class="color-option custom-color-btn"
+          :class="{ active: isCustomColorActive }"
+          @click="toggleColorPicker"
+        >
+          <div class="color-picker-icon">
+            <i class="fas fa-plus"></i>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 自定义颜色选择器面板 -->
+      <div v-if="showColorPicker" class="custom-color-panel">
+        <div class="color-picker-header">
+          <span>自定义颜色</span>
+          <button class="close-picker-btn" @click="showColorPicker = false">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="color-input-group">
+          <input 
+            type="color" 
+            v-model="customColor" 
+            @input="handleCustomColorChange"
+            class="color-picker-input"
+          />
+          <input 
+            type="text" 
+            v-model="customColor" 
+            @input="handleCustomColorChange"
+            class="color-hex-input"
+            placeholder="#RRGGBB"
+          />
+        </div>
+        <div class="preset-colors-grid">
+          <div 
+            v-for="color in extendedColors" 
+            :key="color"
+            class="preset-color-option"
+            :style="{ backgroundColor: color }"
+            @click="customColor = color; handleCustomColorChange()"
+          ></div>
+        </div>
+        <div class="color-preview">
+          <div class="preview-box">
+            <span :style="{ color: customColor }">文字预览</span>
+          </div>
+          <button class="apply-color-btn" @click="applyCustomColor">
+            应用颜色
+          </button>
+        </div>
       </div>
     </div>
     
@@ -120,7 +172,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, ref, reactive } from 'vue';
+import { defineProps, defineEmits, ref, reactive, computed } from 'vue';
 
 // Props
 const props = defineProps({
@@ -154,7 +206,20 @@ const textColors = [
   { value: '#333333', label: '深灰' },
   { value: '#7B9E89', label: '主题绿' },
   { value: '#4A6FB5', label: '蓝色' },
-  { value: '#B54A4A', label: '红色' }
+  { value: '#B54A4A', label: '红色' },
+  { value: '#8A2BE2', label: '紫色' },
+  { value: '#FF6B00', label: '橙色' },
+  { value: '#FFD700', label: '金色' },
+  { value: '#20B2AA', label: '青色' },
+  { value: '#FF1493', label: '粉色' }
+];
+
+// 扩展颜色选项，用于自定义颜色面板
+const extendedColors = [
+  '#DA3E52', '#E94F37', '#F28123', '#F8B944', '#F9ED69', 
+  '#9FD356', '#5CAD68', '#3CA59D', '#419FD9', '#4756CA',
+  '#8053CA', '#AA46BB', '#D16BA5', '#FF9A8B', '#5E548E',
+  '#1E1E24', '#555555', '#9B9B9B', '#E0E0E0', '#F8F8F8'
 ];
 
 // 字体选项
@@ -170,6 +235,13 @@ const fontFamilies = [
 
 // 当前样式（响应式引用）
 const currentStyle = reactive({ ...props.modelValue });
+
+// 自定义颜色相关
+const showColorPicker = ref(false);
+const customColor = ref('#7B9E89');
+const isCustomColorActive = computed(() => {
+  return currentStyle.textColor && !textColors.some(c => c.value === currentStyle.textColor);
+});
 
 // 方法
 function updateStyle(updates) {
@@ -218,6 +290,37 @@ function handleColorClick(color) {
   // 确保颜色值有效
   if (color && color.trim() !== '') {
     updateStyle({ textColor: color });
+  }
+}
+
+// 方法：切换颜色选择器显示状态
+function toggleColorPicker() {
+  showColorPicker.value = !showColorPicker.value;
+  if (showColorPicker.value && isCustomColorActive.value) {
+    customColor.value = currentStyle.textColor;
+  }
+}
+
+// 方法：处理自定义颜色变化
+function handleCustomColorChange() {
+  // 可以在这里添加颜色验证逻辑
+  if (!/^#[0-9A-F]{6}$/i.test(customColor.value)) {
+    // 如果输入的不是有效的十六进制颜色，尝试自动修复
+    customColor.value = customColor.value.replace(/[^0-9A-F]/ig, '');
+    if (customColor.value.length > 6) {
+      customColor.value = customColor.value.substring(0, 6);
+    }
+    if (customColor.value.length > 0 && !customColor.value.startsWith('#')) {
+      customColor.value = '#' + customColor.value;
+    }
+  }
+}
+
+// 方法：应用自定义颜色
+function applyCustomColor() {
+  if (/^#[0-9A-F]{6}$/i.test(customColor.value)) {
+    updateStyle({ textColor: customColor.value });
+    showColorPicker.value = false;
   }
 }
 </script>
@@ -410,6 +513,145 @@ function handleColorClick(color) {
   opacity: 0.9;
 }
 
+/* 自定义颜色按钮 */
+.custom-color-btn {
+  background-color: var(--card-bg);
+  border: 2px dashed var(--border-color);
+}
+
+.custom-color-btn:hover {
+  border-color: var(--primary-color);
+}
+
+.custom-color-btn.active {
+  border-style: solid;
+  border-color: var(--primary-color);
+}
+
+.color-picker-icon {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* 自定义颜色面板 */
+.custom-color-panel {
+  margin-top: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  background-color: var(--card-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.color-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.color-picker-header span {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.close-picker-btn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.close-picker-btn:hover {
+  color: var(--text-primary);
+}
+
+.color-input-group {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.color-picker-input {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.color-hex-input {
+  flex: 1;
+  height: 30px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--spacing-sm);
+  font-size: 14px;
+  color: var(--text-primary);
+  background-color: var(--bg-color);
+}
+
+.preset-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.preset-color-option {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.preset-color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+}
+
+.color-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-box {
+  flex: 1;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-sm);
+}
+
+.preview-box span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.apply-color-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.apply-color-btn:hover {
+  background-color: var(--primary-dark);
+}
+
 /* 位置控制样式 */
 .position-controls {
   display: flex;
@@ -504,12 +746,16 @@ function handleColorClick(color) {
   }
   
   .color-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
   
   .color-option {
     width: 28px;
     height: 28px;
+  }
+  
+  .preset-colors-grid {
+    grid-template-columns: repeat(5, 1fr);
   }
   
   .setting-header {

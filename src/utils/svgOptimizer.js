@@ -259,11 +259,83 @@ export async function preloadSvgs(urls, options = {}) {
   return optimizedMap;
 }
 
+/**
+ * 将SVG转换为PNG图像数据URL
+ * 
+ * @param {string} svgContent SVG内容或路径
+ * @param {object} options 转换选项
+ * @returns {Promise<string>} 返回PNG格式的dataURL
+ */
+export async function convertSvgToImageUrl(svgContent, options = {}) {
+  try {
+    const opts = {
+      width: 800,  // 默认宽度
+      height: 800, // 默认高度
+      scale: 2,    // 默认缩放比例，提高清晰度
+      quality: 1,  // 默认最高质量
+      background: null, // 背景色，null为透明
+      ...options
+    };
+    
+    // 判断输入是SVG内容还是URL
+    let svg = svgContent;
+    if (typeof svgContent === 'string' && (svgContent.includes('http://') || svgContent.includes('https://') || svgContent.startsWith('/'))) {
+      svg = await loadSvg(svgContent);
+      if (!svg) {
+        throw new Error('无法加载SVG');
+      }
+    }
+    
+    // 创建SVG BLOB
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const URL = window.URL || window.webkitURL || window;
+    const svgUrl = URL.createObjectURL(svgBlob);
+    
+    // 创建Image对象
+    const img = new Image();
+    img.width = opts.width;
+    img.height = opts.height;
+    
+    // 等待图像加载
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('SVG转换为图像失败'));
+      img.src = svgUrl;
+    });
+    
+    // 创建Canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = opts.width * opts.scale;
+    canvas.height = opts.height * opts.scale;
+    const ctx = canvas.getContext('2d');
+    
+    // 设置背景色（如果有）
+    if (opts.background) {
+      ctx.fillStyle = opts.background;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // 绘制SVG
+    ctx.scale(opts.scale, opts.scale);
+    ctx.drawImage(img, 0, 0, opts.width, opts.height);
+    
+    // 释放对象URL
+    URL.revokeObjectURL(svgUrl);
+    
+    // 转换为dataURL
+    return canvas.toDataURL('image/png', opts.quality);
+  } catch (error) {
+    console.error('SVG转换为图像失败:', error);
+    return null;
+  }
+}
+
 // 初始化时从localStorage加载缓存
 loadCacheFromStorage();
 
 export default {
   loadSvg,
   createInlineSvg,
-  preloadSvgs
+  preloadSvgs,
+  convertSvgToImageUrl
 }; 

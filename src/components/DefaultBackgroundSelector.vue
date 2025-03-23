@@ -1,6 +1,9 @@
 <template>
   <div class="default-bg-selector">
-    <h4 class="selector-title">默认背景图片</h4>
+    <div class="selector-header">
+      <h4 class="selector-title">选择一个背景图片</h4>
+      <p class="selector-description">点击下方图片选择您喜欢的默认背景</p>
+    </div>
     <div class="background-grid">
       <div 
         v-for="(bg, index) in backgrounds" 
@@ -102,9 +105,15 @@ async function loadBackgroundSvgs() {
 onMounted(() => {
   loadBackgroundSvgs();
   
-  // 如果没有选中的背景，默认选择第一个
-  if (!selectedBg.value && backgrounds.value.length > 0) {
-    selectBackground(backgrounds.value[0].id);
+  // 移除自动选择第一个背景的逻辑
+  // 仅在有明确指定modelValue时才选择背景
+  if (selectedBg.value && backgrounds.value.length > 0) {
+    // 仅同步选中状态，不触发选择事件
+    const validBg = backgrounds.value.find(bg => bg.id === selectedBg.value);
+    if (validBg) {
+      // 只是确保选中状态显示正确，不自动选择
+      selectedBg.value = validBg.id;
+    }
   }
 });
 </script>
@@ -114,11 +123,21 @@ onMounted(() => {
   margin-bottom: var(--spacing-md);
 }
 
+.selector-header {
+  margin-bottom: var(--spacing-sm);
+}
+
 .selector-title {
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
   color: var(--text-primary);
+}
+
+.selector-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-sm) 0;
 }
 
 .background-grid {

@@ -25,8 +25,7 @@
         <div v-if="activeTab === 'layout'" class="layout-tab">
           <TemplateSelector 
             :model-value="currentStyle.layout"
-            :image-url="currentStyle.imageUrl"
-            :custom-style="currentStyle"
+            :image-url="currentStyle.imageUrl || currentStyle.defaultBgPath"
             @update:model-value="updateTemplateHandler"
             @need-resource="handleResourceNeeded"
             @template-action="handleTemplateAction"
@@ -47,6 +46,12 @@
             @update:mood-position="val => updateStyle({ moodPosition: val })"
             @update:show-emoji="val => updateStyle({ showEmojiBubble: val })"
           />
+          
+          <!-- 添加默认背景提示，当用户选择了默认背景但使用不兼容的模板时显示 -->
+          <div class="template-info" v-if="currentStyle.defaultBgPath && !isTemplateCompatibleWithImage">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>当前模板不会显示背景图片。请选择"图片背景"、"上图下文"、"下图上文"或"分屏布局"模板以显示背景图片。</span>
+          </div>
         </div>
         
         <!-- 图片设置标签页 -->
@@ -171,6 +176,7 @@ import TextStyleCustomizer from './TextStyleCustomizer.vue';
 import ImageSettingsControl from './ImageSettingsControl.vue';
 import RatioAndMoodControls from './RatioAndMoodControls.vue';
 import DefaultBackgroundSelector from './DefaultBackgroundSelector.vue';
+import { convertSvgToImageUrl } from '../utils/svgOptimizer';
 // 导入模板组件
 import { templateList } from './templates';
 
@@ -204,6 +210,9 @@ const tabs = [
   { id: 'image', label: '图片', icon: 'fas fa-image' },
   { id: 'text', label: '文字', icon: 'fas fa-font' }
 ];
+
+// 添加防止循环更新的标志
+const isExporting = ref(false);
 
 // 默认样式
 const defaultStyle = {
@@ -289,36 +298,67 @@ const isWechat = computed(() => {
   return ua.indexOf('micromessenger') !== -1;
 });
 
-// 默认背景相关
-const selectedDefaultBg = ref('');
-
 // 图片选项标签页控制
-const showDefaultBgs = ref(true); // 默认显示默认背景
+const showDefaultBgs = ref(true); // 默认显示默认背景标签页，但不自动选择背景
 const showImageOptions = ref(false);
+
+// 默认背景相关
+const selectedDefaultBg = ref(''); // 初始不选择任何默认背景
+
+// 计算是否模板兼容图片
+const isTemplateCompatibleWithImage = computed(() => {
+  const layout = currentStyle.value.layout;
+  // 这些模板可以显示图片
+  return ['image-bg', 'image-top', 'image-bottom', 'split'].includes(layout);
+});
+
+// 监听模板变化，处理默认背景兼容性
+watch(() => currentStyle.value.layout, (newLayout) => {
+  // 如果有默认背景但当前模板不支持图片，提醒用户
+  if (currentStyle.value.defaultBgPath && !['image-bg', 'image-top', 'image-bottom', 'split'].includes(newLayout)) {
+    // 如果切换到纸条或卡片模板，需要提醒用户
+    if (newLayout === 'paper' || newLayout === 'card') {
+      nextTick(() => {
+        if (confirm('当前模板不会显示背景图片，是否换用"图片背景"模板?')) {
+          updateStyle({ layout: 'image-bg' });
+        }
+      });
+    }
+  }
+}, { immediate: false });
 
 // 方法
 function updateStyle(updates) {
+  // 如果正在导出，不执行样式更新
+  if (isExporting.value) return;
+  
   // 如果选择了纸条布局，清除图片URL和默认背景
   if (updates.layout === 'paper') {
     updates.imageUrl = '';
     updates.defaultBgId = '';
     updates.defaultBgPath = '';
-    updates.preservePaperBg = false; // 纸条布局不需要保留纸条背景
   }
   
-  // 如果切换到图片背景布局，自动设置半透明并保留纸条背景
-  if (updates.layout === 'image-bg' && !updates.hasOwnProperty('preservePaperBg')) {
-    updates.preservePaperBg = true; // 图片背景布局默认保留纸条背景
-    
-    // 如果没有明确设置透明度，则设置默认半透明
-    if (!updates.hasOwnProperty('imageOpacity') && currentStyle.value.imageOpacity === 1) {
-      updates.imageOpacity = 0.7;
-    }
+  // 如果切换到分屏布局，设置默认分屏方向
+  if (updates.layout === 'split' && !updates.splitDirection) {
+    updates.splitDirection = 'horizontal';
   }
   
-  // 如果切换到其他图片布局，默认不保留纸条背景
-  if ((updates.layout === 'image-top' || updates.layout === 'image-bottom') && 
-      !updates.hasOwnProperty('preservePaperBg')) {
+  // 处理图片透明度，确保在有效范围内
+  if (updates.hasOwnProperty('imageOpacity')) {
+    if (updates.imageOpacity < 0) updates.imageOpacity = 0;
+    if (updates.imageOpacity > 1) updates.imageOpacity = 1;
+  }
+  
+  // 处理图片缩放，确保在有效范围内
+  if (updates.hasOwnProperty('imageScale')) {
+    if (updates.imageScale < 0.5) updates.imageScale = 0.5;
+    if (updates.imageScale > 2) updates.imageScale = 2;
+  }
+  
+  // 特殊处理：如果设置了图片URL，并且当前是纸条布局，自动切换到图片背景布局
+  if (updates.hasOwnProperty('imageUrl') && updates.imageUrl && currentStyle.value.layout === 'paper') {
+    updates.layout = 'image-top'; // 默认使用上图下文布局
     updates.preservePaperBg = false;
   }
   
@@ -376,6 +416,13 @@ function loadUserPreference() {
         ...savedStyle
       };
       
+      // 如果有保存的默认背景ID，同步到选择状态
+      if (currentStyle.value.defaultBgId) {
+        selectedDefaultBg.value = currentStyle.value.defaultBgId;
+      } else {
+        selectedDefaultBg.value = ''; // 确保没有自动选择默认背景
+      }
+      
       // 发送完整的自定义样式更新
       emit('update:customStyle', currentStyle.value);
     }
@@ -384,47 +431,39 @@ function loadUserPreference() {
   }
 }
 
-// 初始化时加载用户偏好
+// 初始化时加载用户偏好，但不自动选择默认背景
 onMounted(() => {
   loadUserPreference();
+  // 确保在初始化时不自动选择默认背景
+  if (!currentStyle.value.defaultBgId) {
+    selectedDefaultBg.value = '';
+  }
 });
 
 // 模板选择器事件处理
 function updateTemplateHandler(templateId) {
   const template = templateList.find(t => t.id === templateId);
   
-  // 如果选择纸条模板，清除图片URL和默认背景
-  if (templateId === 'paper') {
-    updateStyle({ 
-      layout: templateId,
-      imageUrl: '',
-      defaultBgId: '',
-      defaultBgPath: '',
-      // 如果有额外属性也可以添加
-      ...(template?.extraProps || {})
-    });
-  } else {
-    // 更新到当前样式
-    updateStyle({ 
-      layout: templateId,
-      // 如果有额外属性也可以添加
-      ...(template?.extraProps || {})
-    });
-  }
-  
-  // 立即发送更新事件确保保存生效
-  emit('update:style', currentStyle.value);
-  emit('update:customStyle', currentStyle.value);
+  // 更新到当前样式
+  updateStyle({ 
+    layout: templateId,
+    // 如果有额外属性也可以添加
+    ...(template?.extraProps || {})
+  });
 }
 
 // 处理模板需要资源的情况
 function handleResourceNeeded(event) {
   if (event.type === 'image') {
-    // 切换到图片标签页
-    activeTab.value = 'image';
+    // 如果已有默认背景，直接应用模板
+    if (currentStyle.value.defaultBgPath) {
+      updateTemplateHandler(event.templateId);
+      return;
+    }
     
-    // 显示提示信息
-    alert('请先上传图片以使用此模板');
+    // 否则切换到图片标签页
+    activeTab.value = 'image';
+    alert('请先选择或上传图片以使用此模板');
   }
 }
 
@@ -588,6 +627,9 @@ watch(() => props.externalFontSize, (newSize) => {
 
 // 监听初始样式变化
 watch(() => props.initialStyle, (newStyle) => {
+  // 如果正在导出过程中，不执行更新
+  if (isExporting.value) return;
+  
   if (newStyle && Object.keys(newStyle).length > 0) {
     // 合并默认样式和初始样式，但保留当前的字体大小
     const currentFontSize = currentStyle.value.fontSize;
@@ -636,8 +678,8 @@ onMounted(() => {
     setBackgroundByMood(props.noteMood);
   }
   
-  // 如果有图片URL或默认背景路径但布局是纸条，自动切换到图片背景布局
-  if ((currentStyle.value.imageUrl || currentStyle.value.defaultBgPath) && currentStyle.value.layout === 'paper') {
+  // 如果有图片URL但布局是纸条，自动切换到图片背景布局
+  if (currentStyle.value.imageUrl && currentStyle.value.layout === 'paper') {
     currentStyle.value.layout = 'image-bg';
     currentStyle.value.preservePaperBg = true; // 确保保留纸条背景
     
@@ -645,10 +687,6 @@ onMounted(() => {
     if (currentStyle.value.imageOpacity === 1) {
       currentStyle.value.imageOpacity = 0.7;
     }
-    
-    // 立即发送完整的自定义样式更新
-    emit('update:style', currentStyle.value);
-    emit('update:customStyle', currentStyle.value);
   }
   
   // 如果是图片背景布局但没有设置preservePaperBg，默认设置为true
@@ -664,6 +702,9 @@ async function saveImage() {
     return;
   }
 
+  // 设置导出标志，防止循环更新
+  isExporting.value = true;
+
   try {
     showToast('正在生成图片...');
     await nextTick();
@@ -672,6 +713,45 @@ async function saveImage() {
     const noteCard = noteCardRef.value.$el;
     if (!noteCard) {
       throw new Error('找不到笔记卡片元素');
+    }
+
+    // 如果使用了SVG默认背景，需要先转换为PNG
+    let tempImageUrl = null;
+    let originalStyle = null;
+    
+    if (currentStyle.value.defaultBgPath && currentStyle.value.defaultBgPath.includes('.svg')) {
+      try {
+        showToast('正在处理SVG背景...');
+        // 保存原始样式以便稍后恢复
+        originalStyle = JSON.parse(JSON.stringify(currentStyle.value));
+        
+        // 转换SVG为PNG
+        tempImageUrl = await convertSvgToImageUrl(currentStyle.value.defaultBgPath, {
+          width: 1000,
+          height: 1000,
+          scale: 2,
+          quality: 1
+        });
+        
+        if (tempImageUrl) {
+          // 直接修改当前样式，避免触发updateStyle内的监听器
+          currentStyle.value = {
+            ...currentStyle.value,
+            imageUrl: tempImageUrl,
+            defaultBgPath: '', // 清空原始SVG路径
+            defaultBgId: ''    // 清空原始SVG ID
+          };
+          
+          // 等待样式更新应用到DOM
+          await nextTick();
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+          showToast('SVG处理失败，尝试直接导出');
+        }
+      } catch (error) {
+        console.error('SVG背景处理错误:', error);
+        showToast('SVG处理失败，尝试直接导出');
+      }
     }
 
     // 创建临时容器
@@ -743,6 +823,12 @@ async function saveImage() {
 
     // 等待样式和资源加载
     await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 如果使用了SVG背景转换，显示提示信息
+    if (tempImageUrl) {
+      showToast('默认背景已转换为PNG格式，正在导出...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
     // 使用html2canvas生成高清图片
     const canvas = await html2canvas(clonedCard, {
@@ -759,6 +845,18 @@ async function saveImage() {
 
     // 移除临时容器
     document.body.removeChild(tempContainer);
+    
+    // 如果使用了临时样式，恢复原始样式
+    if (originalStyle) {
+      // 直接设置，避免触发updateStyle内部的监听器
+      currentStyle.value = originalStyle;
+      // 使用setTimeout延迟发出事件，避免循环更新
+      setTimeout(() => {
+        // 发送完整的自定义样式更新（可选，如果需要的话）
+        emit('update:customStyle', currentStyle.value);
+      }, 0);
+      await nextTick();
+    }
 
     // 获取图片URL
     const imageUrl = canvas.toDataURL('image/png', 1.0);
@@ -831,96 +929,113 @@ async function saveImage() {
   } catch (error) {
     console.error('保存图片失败:', error);
     showToast('保存失败，请重试');
+  } finally {
+    // 重置导出标志
+    isExporting.value = false;
   }
 }
 
 // html2canvas的自定义处理逻辑函数
 function customOncloneHandler(clonedDoc) {
   const element = clonedDoc.body.querySelector('.note-card');
-  if (element) {
-    element.style.transform = 'none';
-    element.style.margin = '0';
-    element.style.width = document.querySelector('.note-card').offsetWidth + 'px';
-    element.style.height = 'auto';
-    element.style.position = 'relative';
-    element.style.visibility = 'visible';
-    element.style.opacity = '1';
-    element.style.transition = 'none';
-    element.style.transformOrigin = 'top left';
-    element.style.padding = '0';
-    element.style.border = 'none';
-    element.style.borderRadius = '0';
-    element.style.boxShadow = 'none';
+  if (!element) return;
+  
+  // 基本样式设置
+  element.style.transform = 'none';
+  element.style.margin = '0';
+  element.style.width = document.querySelector('.note-card').offsetWidth + 'px';
+  element.style.height = 'auto';
+  element.style.position = 'relative';
+  element.style.visibility = 'visible';
+  element.style.opacity = '1';
+  element.style.transition = 'none';
+  element.style.transformOrigin = 'top left';
+  element.style.padding = '0';
+  element.style.border = 'none';
+  element.style.borderRadius = '0';
+  element.style.boxShadow = 'none';
 
-    // 确保图片背景布局下的背景层正确显示
-    if (currentStyle.value.layout === 'image-bg') {
-      // 查找图片层元素
-      const imageLayer = element.querySelector('.note-image-layer');
-      if (imageLayer) {
-        // 确保图片层样式正确
-        imageLayer.style.position = 'absolute';
+  // 处理包含图片的布局
+  const hasImageLayout = ['image-bg', 'split', 'image-top', 'image-bottom'].includes(currentStyle.value.layout);
+  if (hasImageLayout) {
+    // 查找所有图片层元素
+    const imageLayers = element.querySelectorAll('.note-image-layer');
+    imageLayers.forEach(imageLayer => {
+      // 基本样式设置
+      imageLayer.style.position = 'absolute';
+      imageLayer.style.zIndex = '1';
+      imageLayer.style.backgroundRepeat = 'no-repeat';
+      imageLayer.style.backgroundSize = 'cover';
+      
+      // 根据布局类型设置不同的样式
+      if (currentStyle.value.layout === 'image-bg') {
         imageLayer.style.top = '0';
         imageLayer.style.left = '0';
         imageLayer.style.width = '100%';
         imageLayer.style.height = '100%';
-        imageLayer.style.zIndex = '1';
-        
-        // 如果需要保留纸条背景，确保背景色正确
-        if (currentStyle.value.preservePaperBg) {
-          // 确保卡片背景色正确
-          element.style.backgroundColor = getComputedStyle(document.querySelector('.note-card')).backgroundColor;
-        }
+      } else if (currentStyle.value.layout === 'split') {
+        // 分屏布局可能需要特殊处理
+        imageLayer.style.width = '101%';
+        imageLayer.style.height = '101%';
+        imageLayer.style.top = '-0.5%';
+        imageLayer.style.left = '-0.5%';
       }
       
-      // 确保内容层在图片层之上
-      const contentLayer = element.querySelector('.note-content');
-      if (contentLayer) {
-        contentLayer.style.position = 'relative';
-        contentLayer.style.zIndex = '2';
+      // 确保图片已加载
+      const bgImageUrl = getComputedStyle(imageLayer).backgroundImage;
+      if (bgImageUrl && bgImageUrl !== 'none') {
+        const urlMatch = bgImageUrl.match(/url\(['"]?(.*?)['"]?\)/);
+        if (urlMatch && urlMatch[1]) {
+          // 预加载图片
+          const img = new Image();
+          img.src = urlMatch[1];
+        }
       }
+    });
+    
+    // 如果需要保留纸条背景，确保背景色正确
+    if (currentStyle.value.preservePaperBg && currentStyle.value.layout === 'image-bg') {
+      element.style.backgroundColor = getComputedStyle(document.querySelector('.note-card')).backgroundColor;
     }
+    
+    // 确保内容层在图片层之上
+    const contentLayers = element.querySelectorAll('.note-content');
+    contentLayers.forEach(contentLayer => {
+      contentLayer.style.position = 'relative';
+      contentLayer.style.zIndex = '2';
+    });
+  }
 
-    // 移除二维码相关代码
-    const qrCode = element.querySelector('img[src*="community-qr.png"]');
-    if (qrCode && qrCode.parentNode) {
+  // 移除二维码相关元素
+  const qrCodes = element.querySelectorAll('img[src*="community-qr.png"]');
+  qrCodes.forEach(qrCode => {
+    if (qrCode.parentNode) {
       qrCode.parentNode.removeChild(qrCode);
     }
-  }
-}
-
-// 切换显示图片选项
-function toggleImageOptions() {
-  showImageOptions.value = true;
-  showDefaultBgs.value = true; // 默认先显示默认背景选项
+  });
 }
 
 // 处理默认背景图片选择
 function handleDefaultBackgroundSelected(background) {
   if (background) {
-    // 无论当前布局如何，都更新背景图片信息
+    // 更新背景图片信息
     updateStyle({ 
       defaultBgId: background.id, 
       defaultBgPath: background.path,
     });
     
-    // 如果当前是纸条布局，自动切换到图片背景布局
+    // 如果当前是纸条布局，仅提示用户选择模板，但不自动切换布局
     if (currentStyle.value.layout === 'paper') {
-      updateStyle({ 
-        layout: 'image-bg', // 默认使用图片背景布局
-        imageOpacity: 0.7, // 默认半透明
-        preservePaperBg: true // 默认保留纸条背景
+      // 提示用户选择模板
+      nextTick(() => {
+        alert('已选择默认背景，请在"模板"选项卡中选择合适的布局来显示背景图片');
+        // 切换到布局标签页让用户选择模板
+        activeTab.value = 'layout';
       });
-      
-      // 切换到布局标签页让用户看到效果
-      activeTab.value = 'layout';
     }
     
     // 清除自定义上传的图片URL
     updateStyle({ imageUrl: '' });
-    
-    // 立即发送更新事件确保保存生效
-    emit('update:style', currentStyle.value);
-    emit('update:customStyle', currentStyle.value);
   }
 }
 
@@ -932,20 +1047,42 @@ function switchToUploader() {
   showDefaultBgs.value = false;
 }
 
-// 监听默认背景变化
+// 监听默认背景变化，只在用户手动选择时才更新
 watch(() => currentStyle.value.defaultBgId, (newBgId) => {
+  // 如果正在导出过程中，不执行更新
+  if (isExporting.value) return;
+  
   if (newBgId) {
     selectedDefaultBg.value = newBgId;
   } else {
     selectedDefaultBg.value = '';
   }
-}, { immediate: true });
+}, { immediate: false }); // 设置为false防止初始化时自动触发
+
+// 切换显示图片选项
+function toggleImageOptions() {
+  showImageOptions.value = true;
+  showDefaultBgs.value = true; // 默认先显示默认背景选项
+}
 
 // 重置图片选项显示状态
 function resetImageOptions() {
   showImageOptions.value = false;
   showDefaultBgs.value = false;
 }
+
+// 监听默认背景路径变化
+watch(() => [currentStyle.value.defaultBgPath, currentStyle.value.defaultBgId], () => {
+  // 如果正在导出过程中，不执行额外的更新
+  if (isExporting.value) return;
+  
+  // 同步到选择状态
+  if (currentStyle.value.defaultBgId) {
+    selectedDefaultBg.value = currentStyle.value.defaultBgId;
+  } else {
+    selectedDefaultBg.value = '';
+  }
+}, { deep: true });
 </script>
 
 <style scoped>
@@ -1333,5 +1470,47 @@ function resetImageOptions() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+}
+
+/* 模板信息提示样式 */
+.template-info {
+  background-color: #FFF8E1;
+  border-left: 3px solid #FFB300;
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-top: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 13px;
+  color: #7A5C00;
+}
+
+.template-info i {
+  color: #FFB300;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* 深色模式下的样式调整 */
+:global(.dark-mode) .template-info {
+  background-color: rgba(255, 179, 0, 0.15);
+  border-left-color: #FFB300;
+  color: #FFD180;
+}
+
+:global(.dark-mode) .template-info i {
+  color: #FFD180;
+}
+
+@media (max-width: 480px) {
+  .template-info {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 12px;
+  }
+  
+  .template-info i {
+    font-size: 14px;
+  }
 }
 </style> 

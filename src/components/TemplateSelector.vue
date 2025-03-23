@@ -87,16 +87,11 @@ const props = defineProps({
   customInfoMessage: {
     type: String,
     default: ''
-  },
-  // 自定义样式
-  customStyle: {
-    type: Object,
-    default: () => {}
   }
 });
 
 // 解构props以便在计算属性中使用
-const { imageUrl, templates, useDefaultTemplates, customInfoMessage, customStyle } = toRefs(props);
+const { imageUrl, templates, useDefaultTemplates, customInfoMessage } = toRefs(props);
 
 // Emits
 const emit = defineEmits([
@@ -113,17 +108,14 @@ const availableTemplates = computed(() => {
   
   // 处理模板可用性和附加信息
   return templateListToUse.map(template => {
-    // 检查是否有图片 - 支持自定义上传图片或默认背景图片
-    const hasImage = imageUrl.value || customStyle.value?.defaultBgPath;
-    
     // 检查是否需要图片但图片不可用
-    const disabled = template.requiresImage && !hasImage;
+    const disabled = template.requiresImage && !imageUrl.value;
     
     // 根据模板状态添加提示信息
     let note = template.note;
-    if (template.id === 'paper' && hasImage) {
+    if (template.id === 'paper' && imageUrl.value) {
       note = '将移除图片';
-    } else if (template.requiresImage && !hasImage) {
+    } else if (template.requiresImage && !imageUrl.value) {
       note = '需要上传图片';
     }
     
@@ -141,12 +133,9 @@ const infoMessage = computed(() => {
     return customInfoMessage.value;
   }
   
-  // 检查是否有图片 - 支持自定义上传图片或默认背景图片
-  const hasImage = imageUrl.value || customStyle.value?.defaultBgPath;
-  
   // 默认信息
-  if (hasImage) {
-    return '选择"纸条"模板将移除已上传的图片或默认背景';
+  if (imageUrl.value) {
+    return '选择"纸条"模板将移除已上传的图片';
   }
   
   return '';

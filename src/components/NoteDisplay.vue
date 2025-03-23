@@ -36,14 +36,6 @@
       </button>
     </div>
     
-    <!-- 添加自定义样式按钮，仅当内容不是默认内容时显示 -->
-    <div class="customize-button" v-if="content !== defaultContent">
-      <button class="btn btn-outline" @click="openStyleCustomizer">
-        <i class="fas fa-palette"></i>
-        <span>自定义样式</span>
-      </button>
-    </div>
-    
     <!-- 样式定制器弹窗 -->
     <div class="style-customizer-modal" v-if="showStyleCustomizer">
       <div class="modal-overlay" @click="showStyleCustomizer = false"></div>
