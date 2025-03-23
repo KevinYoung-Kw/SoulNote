@@ -172,6 +172,40 @@ const selectedVersion = ref('all');
 // 版本历史数据（如果未提供则使用默认数据）
 const versions = ref(props.updateLogs.length > 0 ? props.updateLogs : [
   {
+    number: '1.8.0',
+    date: new Date().toISOString(), // 使用当前日期作为最新版本日期
+    updates: [
+      {
+        type: 'feature',
+        items: [
+          '在DefaultBackgroundSelector中增强用户指导，优化选择体验',
+          '在NoteCard中优化图片层样式，确保背景显示一致性',
+          '添加新的自定义颜色选择器，增强样式定制能力',
+          '新增SVG转PNG功能，提升背景处理能力',
+          '调整多个模板组件样式，确保视觉效果一致性'
+        ]
+      },
+      {
+        type: 'improvement',
+        items: [
+          '简化NoteDisplay界面，移除冗余的自定义样式按钮',
+          '在NoteStyleCustomizer中添加默认背景提示，提升用户友好性',
+          '在TemplateSelector中移除不必要的自定义样式属性，简化逻辑',
+          '优化背景选择器的用户引导文案，提高操作直观性',
+          '改进图片层渲染方式，解决边缘显示问题'
+        ]
+      },
+      {
+        type: 'fix',
+        items: [
+          '修复背景图片边缘显示白边问题',
+          '修复背景图片自动选择逻辑，避免意外选择',
+          '解决图片缩放和定位不准确问题'
+        ]
+      }
+    ]
+  },
+  {
     number: '1.7.0',
     date: new Date().toISOString(), // 使用当前日期作为最新版本日期
     updates: [
