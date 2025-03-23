@@ -1,10 +1,11 @@
 <template>
   <div 
     class="image-uploader"
-    @dragover.prevent="isDragging = true"
-    @dragleave.prevent="isDragging = false"
+    @dragover.prevent="handleDragOver"
+    @dragleave.prevent="handleDragLeave"
     @drop.prevent="handleDrop"
     :class="{ 'dragging': isDragging }"
+    @click.stop="handleContainerClick"
   >
     <input 
       type="file" 
@@ -14,10 +15,10 @@
       class="file-input"
     />
     
-    <div class="upload-content">
+    <div class="upload-content" @click.stop>
       <i class="fas fa-cloud-upload-alt"></i>
       <p>点击或拖拽图片到此处上传</p>
-      <button class="upload-btn" @click="triggerFileInput">
+      <button class="upload-btn" @click.stop="triggerFileInput">
         选择图片
       </button>
     </div>
@@ -35,6 +36,20 @@ const isDragging = ref(false);
 const emit = defineEmits(['image-selected']);
 
 // Methods
+function handleContainerClick() {
+  triggerFileInput();
+}
+
+function handleDragOver(event) {
+  event.preventDefault();
+  isDragging.value = true;
+}
+
+function handleDragLeave(event) {
+  event.preventDefault();
+  isDragging.value = false;
+}
+
 function triggerFileInput() {
   fileInput.value.click();
 }
@@ -169,10 +184,22 @@ function compressImage(img, mimeType) {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .upload-btn:hover {
   background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.upload-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 @media (max-width: 480px) {

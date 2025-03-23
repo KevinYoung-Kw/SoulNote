@@ -268,12 +268,12 @@ watch(() => props.initialIntensity, (newIntensity) => {
 
 .filter-header h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .filter-header i {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -338,8 +338,8 @@ watch(() => props.initialIntensity, (newIntensity) => {
 }
 
 .control-group label {
-  width: 60px;
-  font-size: 14px;
+  width: 50px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -351,7 +351,7 @@ watch(() => props.initialIntensity, (newIntensity) => {
 }
 
 .slider-min, .slider-max {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -374,8 +374,8 @@ watch(() => props.initialIntensity, (newIntensity) => {
 }
 
 .intensity-value {
-  width: 50px;
-  font-size: 14px;
+  width: 40px;
+  font-size: 12px;
   text-align: right;
   color: var(--text-secondary);
   font-weight: 500;
@@ -391,8 +391,8 @@ watch(() => props.initialIntensity, (newIntensity) => {
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: 3px 6px;
+  font-size: 10px;
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
@@ -416,22 +416,22 @@ watch(() => props.initialIntensity, (newIntensity) => {
   }
   
   .filter-preview {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
   }
   
   .slider-min, .slider-max {
-    font-size: 10px;
+    font-size: 9px;
   }
   
   .control-group label {
-    width: 40px;
-    font-size: 12px;
+    width: 35px;
+    font-size: 11px;
   }
   
   .intensity-value {
-    width: 40px;
-    font-size: 12px;
+    width: 35px;
+    font-size: 11px;
   }
 }
 </style> 

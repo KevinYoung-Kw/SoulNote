@@ -1,4 +1,3 @@
-// ... existing code ...
 <template>
   <div 
     class="note-card" 
@@ -7,69 +6,19 @@
     :style="cardStyle"
     data-v-notecard
   >
-    <!-- 图片背景层 - 仅用于图片背景布局 -->
-    <div 
-      v-if="hasCustomImage && props.customStyle?.layout === 'image-bg'" 
-      class="note-image-layer"
-      :style="imageLayerStyle"
-    ></div>
-    
-    <!-- 上图下文布局 -->
-    <template v-if="props.customStyle?.layout === 'image-top'">
-      <!-- 上半部分图片 -->
-      <div 
-        v-if="hasCustomImage" 
-        class="note-image-layer"
-        :style="imageLayerStyle"
-      ></div>
-      
-      <!-- 下半部分文本 -->
-      <div class="note-content" :style="contentStyle">{{ sanitizedContent }}</div>
-    </template>
-    
-    <!-- 下图上文布局 -->
-    <template v-else-if="props.customStyle?.layout === 'image-bottom'">
-      <!-- 上半部分文本 -->
-      <div class="note-content" :style="contentStyle">{{ sanitizedContent }}</div>
-      
-      <!-- 下半部分图片 -->
-      <div 
-        v-if="hasCustomImage" 
-        class="note-image-layer"
-        :style="imageLayerStyle"
-      ></div>
-    </template>
-    
-    <!-- 纸条布局或图片背景布局 -->
-    <template v-else>
-      <div class="note-content note-content-centered" :style="contentStyle">{{ sanitizedContent }}</div>
-    </template>
-    
-    <!-- 修改mood展示区域，创建水平排列的表情容器 -->
-    <div 
-      class="note-mood-container" 
-      v-if="moodsArray.length > 0 && props.customStyle?.showEmojiBubble !== false" 
-      :style="moodContainerStyle"
-    >
-      <div 
-        v-for="(emoji, index) in moodsArray" 
-        :key="`mood-${index}`" 
-        class="note-mood-item" 
-        :style="moodStyle"
-      >
-        {{ emoji }}
-      </div>
-    </div>
-    
-    <!-- 社群二维码 -->
-    <div 
-      v-if="showQrcode" 
-      class="note-qrcode"
-      :style="qrcodeStyle"
-    >
-      <img :src="qrcodeUrl" alt="社群二维码" />
-      <span v-if="customStyle?.slogan">{{ customStyle.slogan }}</span>
-    </div>
+    <!-- 使用动态导入的模板组件 -->
+    <component 
+      :is="currentTemplateComponent" 
+      v-if="currentTemplateComponent"
+      :custom-style="props.customStyle"
+      :content="sanitizedContent"
+      :moods="moodsArray"
+      :has-custom-image="hasCustomImage"
+      :mood-style="moodStyle"
+      :mood-container-style="moodContainerStyle"
+      :content-style="contentStyle"
+      :image-layer-style="imageLayerStyle"
+    />
     
     <div class="note-glow"></div>
     <div class="note-watermark">
@@ -79,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue';
 import { useNoteAnimation } from '../composables/useNoteAnimation';
 import { useRouter } from 'vue-router';
 
@@ -140,7 +89,8 @@ const moodContainerStyle = computed(() => {
     gap: isVerySmallScreen ? '1px' : isSmallScreen ? '2px' : '4px', // 根据屏幕大小调整表情之间的间距
     maxWidth: isVerySmallScreen ? '90%' : isSmallScreen ? '85%' : '70%', // 根据屏幕大小调整容器宽度
     zIndex: 10, // 确保在内容上方
-    justifyContent: 'center' // 居中显示表情
+    justifyContent: 'center', // 居中显示表情
+    position: 'absolute' // 确保使用绝对定位
   };
   
   // 检查是否应该显示emoji气泡
@@ -149,51 +99,91 @@ const moodContainerStyle = computed(() => {
     return style;
   }
   
-  // 根据布局调整位置
-  if (props.customStyle?.layout === 'image-top') {
-    // 上图下文布局 - emoji气泡放在下半部分的顶部，使用固定像素值
-    style.top = '50%'; // 放在分界线位置
-    style.marginTop = isVerySmallScreen ? '3px' : '5px'; // 根据屏幕大小调整边距
-    style.bottom = 'auto';
-    style.left = '50%';
-    style.transform = 'translateX(-50%)';
-    style.justifyContent = 'center';
-    style.position = 'absolute';
-    style.width = 'auto';
-    style.maxWidth = isVerySmallScreen ? '90%' : isSmallScreen ? '85%' : '70%'; // 根据屏幕大小调整最大宽度
-    style.borderRadius = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '16px'; // 根据屏幕大小调整圆角
-    style.padding = isVerySmallScreen ? '2px 4px' : isSmallScreen ? '3px 6px' : '6px 12px'; // 根据屏幕大小调整内边距
-    style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-    style.zIndex = '20';
-  } else if (props.customStyle?.layout === 'image-bottom') {
-    // 下图上文布局 - emoji气泡放在上半部分的底部，使用固定像素值
-    style.top = 'auto';
-    style.bottom = '1'; // 放在分界线位置
-    style.marginBottom = isVerySmallScreen ? '3px' : '5px'; // 根据屏幕大小调整边距
-    style.left = '50%';
-    style.transform = 'translateX(-50%)';
-    style.justifyContent = 'center';
-    style.position = 'absolute';
-    style.width = 'auto';
-    style.maxWidth = isVerySmallScreen ? '90%' : isSmallScreen ? '85%' : '70%'; // 根据屏幕大小调整最大宽度
-    style.borderRadius = isVerySmallScreen ? '10px' : isSmallScreen ? '12px' : '16px'; // 根据屏幕大小调整圆角
-    style.padding = isVerySmallScreen ? '2px 4px' : isSmallScreen ? '3px 6px' : '6px 12px'; // 根据屏幕大小调整内边距
-    style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-    style.zIndex = '20';
-  } else {
-    // 纸条布局或图片背景布局
-    style.position = 'absolute';
-    if (moodsArray.value.length === 1) {
-      // 单个表情使用原来的位置
-      style.top = isVerySmallScreen ? '10px' : '15px'; // 根据屏幕大小调整顶部距离
-      style.left = isVerySmallScreen ? '10px' : '15px'; // 根据屏幕大小调整左侧距离
-    } else {
-      // 多表情时，位置调整为顶部居中
-      style.top = isVerySmallScreen ? '10px' : '15px'; // 根据屏幕大小调整顶部距离
+  // 获取用户设置的表情位置
+  const moodPosition = props.customStyle?.moodPosition || 'default';
+  
+  // 如果位置是'default'，根据不同的布局设置不同的默认位置
+  if (moodPosition === 'default') {
+    if (props.customStyle?.layout === 'image-top') {
+      // 上图下文布局 - emoji气泡放在下半部分的顶部，使用固定像素值
+      style.top = '50%'; // 放在分界线位置
+      style.marginTop = isVerySmallScreen ? '3px' : '5px'; // 根据屏幕大小调整边距
       style.left = '50%';
       style.transform = 'translateX(-50%)';
-      style.justifyContent = 'center';
+    } else if (props.customStyle?.layout === 'image-bottom') {
+      // 下图上文布局 - emoji气泡放在上半部分的底部，使用固定像素值
+      style.bottom = '50%'; // 放在分界线位置
+      style.marginBottom = isVerySmallScreen ? '3px' : '5px'; // 根据屏幕大小调整边距
+      style.left = '50%';
+      style.transform = 'translateX(-50%)';
+    } else {
+      // 纸条布局或图片背景布局
+      style.top = isVerySmallScreen ? '10px' : '15px';
+      style.left = '50%';
+      style.transform = 'translateX(-50%)';
     }
+  } else {
+    // 使用用户设置的位置 - 清除可能冲突的样式
+    style.top = null;
+    style.bottom = null;
+    style.left = null;
+    style.right = null;
+    style.transform = null;
+    style.marginTop = null;
+    style.marginBottom = null;
+    
+    // 根据九宫格位置应用相应的样式
+    switch (moodPosition) {
+      case 'top-left':
+        style.top = '10px';
+        style.left = '10px';
+        break;
+      case 'top':
+        style.top = '10px';
+        style.left = '50%';
+        style.transform = 'translateX(-50%)';
+        break;
+      case 'top-right':
+        style.top = '10px';
+        style.right = '10px';
+        break;
+      case 'left':
+        style.left = '10px';
+        style.top = '50%';
+        style.transform = 'translateY(-50%)';
+        break;
+      case 'center':
+        style.top = '50%';
+        style.left = '50%';
+        style.transform = 'translate(-50%, -50%)';
+        break;
+      case 'right':
+        style.right = '10px';
+        style.top = '50%';
+        style.transform = 'translateY(-50%)';
+        break;
+      case 'bottom-left':
+        style.bottom = '10px';
+        style.left = '10px';
+        break;
+      case 'bottom':
+        style.bottom = '10px';
+        style.left = '50%';
+        style.transform = 'translateX(-50%)';
+        break;
+      case 'bottom-right':
+        style.bottom = '10px';
+        style.right = '10px';
+        break;
+    }
+  }
+  
+  // 添加边框和背景，使表情气泡更明显
+  if (moodsArray.value.length > 0) {
+    style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    style.borderRadius = '20px';
+    style.padding = '3px 8px';
+    style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
   }
   
   return style;
@@ -260,36 +250,61 @@ const getBackgroundVariable = computed(() => {
 
 // 检查是否有自定义图片
 const hasCustomImage = computed(() => {
-  // 只有当有图片URL且布局不是纸条时才显示图片
-  return props.customStyle?.imageUrl && 
-         props.customStyle.imageUrl !== '' && 
-         props.customStyle.layout !== 'paper';
+  // 只要有图片URL或默认背景路径即可，无需考虑layout
+  return (props.customStyle?.imageUrl && props.customStyle.imageUrl !== '') ||
+         (props.customStyle?.defaultBgPath && props.customStyle.defaultBgPath !== '');
+});
+
+// 获取显示的图片URL
+const displayImageUrl = computed(() => {
+  // 优先使用自定义上传的图片，其次使用默认背景图片
+  return props.customStyle?.imageUrl || props.customStyle?.defaultBgPath || '';
 });
 
 // 图片层样式
 const imageLayerStyle = computed(() => {
-  if (!hasCustomImage.value) return {};
+  // 如果布局是paper，不显示图片层
+  if (props.customStyle?.layout === 'paper') return {};
+  
+  // 如果没有图片URL或默认背景路径，返回空样式
+  if (!displayImageUrl.value) return {};
   
   const style = {
-    backgroundImage: `url(${props.customStyle.imageUrl})`,
-    opacity: props.customStyle.imageOpacity || 1,
+    backgroundImage: `url(${displayImageUrl.value})`,
+    opacity: props.customStyle?.imageOpacity || 1,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    filter: props.customStyle.imageFilter?.style || ''
+    filter: props.customStyle?.imageFilter?.style || ''
   };
   
   // 根据布局调整图片位置
-  if (props.customStyle.layout === 'image-top') {
+  if (props.customStyle?.layout === 'image-top') {
     style.height = '50%';
     style.top = '0';
     style.backgroundSize = 'cover';
-  } else if (props.customStyle.layout === 'image-bottom') {
+  } else if (props.customStyle?.layout === 'image-bottom') {
     style.height = '50%';
-    style.bottom = '0';
+    style.top = '50%';
     style.backgroundSize = 'cover';
-  } else if (props.customStyle.layout === 'image-bg') {
-    style.height = '100%';
+  } else if (props.customStyle?.layout === 'split') {
+    // 分屏布局
+    const direction = props.customStyle.splitDirection || 'horizontal';
+    const imageRatio = props.customStyle.imageRatio || 0.5;
+    
+    if (direction === 'horizontal') {
+      style.width = `${imageRatio * 100}%`;
+      style.height = '100%';
+      style.top = '0';
+      style.left = '0';
+    } else {
+      style.width = '100%';
+      style.height = `${imageRatio * 100}%`;
+      style.top = '0';
+      style.left = '0';
+    }
+  } else if (props.customStyle?.layout === 'image-bg') {
     style.width = '100%';
+    style.height = '100%';
     style.position = 'absolute';
     style.top = '0';
     style.left = '0';
@@ -297,7 +312,7 @@ const imageLayerStyle = computed(() => {
   }
   
   // 应用缩放
-  if (props.customStyle.imageScale) {
+  if (props.customStyle?.imageScale) {
     style.transform = `scale(${props.customStyle.imageScale})`;
     style.transformOrigin = 'center';
   }
@@ -540,57 +555,6 @@ const moodStyle = computed(() => {
   return style;
 });
 
-// 二维码相关
-const showQrcode = computed(() => {
-  return props.customStyle?.showQrcode === true;
-});
-
-const qrcodeUrl = computed(() => {
-  return '/assets/community-qr.png';
-});
-
-const qrcodeStyle = computed(() => {
-  const size = props.customStyle?.qrcodeSize || 60;
-  const style = {
-    width: `${size}px`,
-    height: `${size}px`,
-    position: 'absolute',
-    zIndex: '3' // 确保二维码在所有内容之上
-  };
-  
-  // 根据布局调整位置
-  const position = props.customStyle?.qrcodePosition || 'bottom-left';
-  
-  // 特殊处理上图下文布局 - 将二维码放在上图的左下角
-  if (props.customStyle?.layout === 'image-top') {
-    style.top = 'calc(50% - ' + size + 'px - 10px)'; // 放在上半部分的底部，减去二维码尺寸和边距
-    style.left = 'var(--spacing-md)';
-    style.bottom = 'auto';
-    style.right = 'auto';
-    style.zIndex = '15'; // 确保在图片上方
-    style.backgroundColor = 'white'; // 确保背景是白色
-    style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'; // 增强阴影效果
-    return style;
-  }
-  
-  // 其他布局使用常规位置
-  if (position === 'bottom-left') {
-    style.bottom = 'var(--spacing-md)';
-    style.left = 'var(--spacing-md)';
-  } else if (position === 'bottom-right') {
-    style.bottom = 'var(--spacing-md)';
-    style.right = 'var(--spacing-md)';
-  } else if (position === 'top-left') {
-    style.top = 'var(--spacing-md)';
-    style.left = 'var(--spacing-md)';
-  } else if (position === 'top-right') {
-    style.top = 'var(--spacing-md)';
-    style.right = 'var(--spacing-md)';
-  }
-  
-  return style;
-});
-
 // 新增：跳转到关于页面
 function navigateToAbout() {
   router.push('/about-us');
@@ -662,6 +626,27 @@ watch(() => props.customStyle, (newStyle) => {
     console.log('表情气泡显示状态:', newStyle.showEmojiBubble ? '显示' : '隐藏');
   }
 }, { deep: true });
+
+// 动态导入当前模板组件
+const currentTemplateComponent = computed(() => {
+  const layout = props.customStyle?.layout || 'paper';
+  
+  // 根据布局直接加载对应模板组件
+  if (layout === 'image-top') {
+    return defineAsyncComponent(() => import('./templates/ImageTopTemplate.vue'));
+  } else if (layout === 'image-bottom') {
+    return defineAsyncComponent(() => import('./templates/ImageBottomTemplate.vue'));
+  } else if (layout === 'image-bg') {
+    return defineAsyncComponent(() => import('./templates/ImageBgTemplate.vue'));
+  } else if (layout === 'split') {
+    return defineAsyncComponent(() => import('./templates/SplitTemplate.vue'));
+  } else if (layout === 'card') {
+    return defineAsyncComponent(() => import('./templates/CardTemplate.vue'));
+  } else {
+    // 默认使用纸条模板
+    return defineAsyncComponent(() => import('./templates/PaperTemplate.vue'));
+  }
+});
 </script>
 
 <style scoped>
@@ -723,37 +708,6 @@ watch(() => props.customStyle, (newStyle) => {
 /* 隐藏Webkit浏览器的滚动条 */
 .note-content::-webkit-scrollbar {
   display: none;
-}
-
-/* 二维码样式 */
-.note-qrcode {
-  position: absolute;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: all 0.3s ease;
-  background-color: white;
-  border-radius: var(--radius-sm);
-  padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.note-qrcode img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: -webkit-optimize-contrast; /* 提高图片清晰度 */
-  image-rendering: crisp-edges; /* 提高图片清晰度 */
-  border-radius: var(--radius-xs);
-}
-
-.note-qrcode span {
-  margin-top: 4px;
-  font-size: 10px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  text-align: center;
 }
 
 .note-glow {
@@ -822,19 +776,6 @@ watch(() => props.customStyle, (newStyle) => {
     line-height: 1;
     margin: 0;
   }
-  
-  .note-qrcode {
-    transform: scale(0.9);
-    padding: 3px;
-  }
-  
-  .note-qrcode img {
-    image-rendering: -webkit-optimize-contrast;
-  }
-  
-  .note-qrcode span {
-    font-size: 8px;
-  }
 }
 
 /* 特别针对iPhone SE及小型设备的优化 */
@@ -871,15 +812,6 @@ watch(() => props.customStyle, (newStyle) => {
     bottom: 8px;
     right: 8px;
     font-size: 10px; /* 缩小水印字体 */
-  }
-  
-  .note-qrcode {
-    transform: scale(1);
-    padding: 2px;
-  }
-  
-  .note-qrcode img {
-    image-rendering: -webkit-optimize-contrast;
   }
 }
 

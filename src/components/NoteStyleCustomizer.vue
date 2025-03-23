@@ -21,229 +21,103 @@
       </div>
       
       <div class="tab-content">
-        <!-- 布局选择标签页 -->
+        <!-- 模板选择标签页 -->
         <div v-if="activeTab === 'layout'" class="layout-tab">
-
-          <div class="layout-options">
-            <div 
-              v-for="layout in layouts" 
-              :key="layout.id"
-              :class="[
-                'layout-option', 
-                { 
-                  active: currentStyle.layout === layout.id,
-                  disabled: layout.requiresImage && !currentStyle.imageUrl
-                }
-              ]"
-              @click="layout.requiresImage && !currentStyle.imageUrl ? promptImageUpload(layout.id) : updateStyle({ layout: layout.id })"
-            >
-              <div class="layout-preview" :style="getLayoutPreviewStyle(layout)">
-                <div class="layout-preview-inner">
-                  <div v-if="layout.id === 'image-top'" class="layout-preview-image"></div>
-                  <div v-if="layout.id === 'image-top' || layout.id === 'paper' || layout.id === 'image-bg'" class="layout-preview-text"></div>
-                  <div v-if="layout.id === 'image-bottom'" class="layout-preview-text layout-preview-text-top"></div>
-                  <div v-if="layout.id === 'image-bottom'" class="layout-preview-image"></div>
-                </div>
-              </div>
-              <span>{{ layout.label }}</span>
-              <small v-if="layout.id === 'paper' && currentStyle.imageUrl" class="layout-note">
-                (将移除图片)
-              </small>
-              <small v-if="layout.requiresImage && !currentStyle.imageUrl" class="layout-note">
-                (需要上传图片)
-              </small>
-            </div>
-          </div>
+          <TemplateSelector 
+            :model-value="currentStyle.layout"
+            :image-url="currentStyle.imageUrl"
+            :custom-style="currentStyle"
+            @update:model-value="updateTemplateHandler"
+            @need-resource="handleResourceNeeded"
+            @template-action="handleTemplateAction"
+          />
           
-          <div class="layout-info" v-if="currentStyle.imageUrl">
-            <i class="fas fa-info-circle"></i>
-            <span>选择"纸条"布局将移除已上传的图片</span>
-          </div>
+          <!-- 使用解耦后的布局控制容器组件 -->
+          <RatioAndMoodControls
+            :layout="currentStyle.layout"
+            :image-ratio="imageRatio"
+            :text-ratio="textRatio"
+            :split-direction="splitDirection"
+            :mood-position="moodPosition"
+            :show-emoji="showEmojiBubble"
+            :show-mood-control="showMoodControl"
+            @update:image-ratio="val => updateStyle({ imageRatio: val })"
+            @update:text-ratio="val => updateStyle({ textRatio: val })"
+            @update:split-direction="val => updateStyle({ splitDirection: val })"
+            @update:mood-position="val => updateStyle({ moodPosition: val })"
+            @update:show-emoji="val => updateStyle({ showEmojiBubble: val })"
+          />
         </div>
         
         <!-- 图片设置标签页 -->
         <div v-if="activeTab === 'image'" class="image-tab">
-          <div v-if="!currentStyle.imageUrl" class="image-upload-area">
-            <ImageUploader @image-selected="handleImageSelected" />
-          </div>
-          
-          <div v-else class="image-settings">
-            <!-- 图片基础控制 -->
-            <div class="image-controls">
-              <div class="control-group">
-                <label>透明度</label>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="1" 
-                  step="0.05" 
-                  v-model.number="currentStyle.imageOpacity" 
-                  @input="updateStyle({ imageOpacity: currentStyle.imageOpacity })"
-                />
-                <span>{{ Math.round(currentStyle.imageOpacity * 100) }}%</span>
-              </div>
-              
-              <div class="control-group">
-                <label>缩放</label>
-                <input 
-                  type="range" 
-                  min="0.5" 
-                  max="2" 
-                  step="0.1" 
-                  v-model.number="currentStyle.imageScale" 
-                  @input="updateStyle({ imageScale: currentStyle.imageScale })"
-                />
-                <span>{{ Math.round(currentStyle.imageScale * 100) }}%</span>
-              </div>
-            </div>
-
-            <!-- 图片滤镜设置 -->
-            <ImageFilterSelector
-              :image-url="currentStyle.imageUrl"
-              :initial-filter="currentStyle.imageFilter?.id || 'none'"
-              :initial-intensity="currentStyle.imageFilter?.intensity || 0.5"
-              @update:filter="handleFilterUpdate"
-            />
-
-            <div class="image-preview">
-              <img 
-                :src="currentStyle.imageUrl" 
-                alt="已上传图片" 
-                :style="{
-                  opacity: currentStyle.imageOpacity,
-                  filter: currentStyle.imageFilter?.style || '',
-                  transform: `scale(${currentStyle.imageScale})`
-                }"
-              />
-              <button class="remove-image-btn" @click="removeImage">
-                <i class="fas fa-trash"></i>
+          <!-- 修改初始界面为选择新的背景图片 -->
+          <div class="image-section">
+            <h4>选择背景图片</h4>
+            
+            <div class="image-option-tabs">
+              <button 
+                class="image-option-tab" 
+                @click="switchToDefaultBgs"
+                :class="{ active: showDefaultBgs }"
+              >
+                <i class="fas fa-images"></i>
+                <span>默认背景</span>
               </button>
+              <button 
+                class="image-option-tab" 
+                @click="switchToUploader"
+                :class="{ active: !showDefaultBgs }"
+              >
+                <i class="fas fa-upload"></i>
+                <span>上传图片</span>
+              </button>
+            </div>
+            
+            <div v-if="showDefaultBgs" class="image-option-section">
+              <DefaultBackgroundSelector
+                v-model="selectedDefaultBg"
+                @background-selected="handleDefaultBackgroundSelected"
+              />
+            </div>
+            <div v-else class="image-option-section">
+              <ImageUploader @image-selected="handleImageSelected" />
+            </div>
+            
+            <!-- 已有图片时的设置界面 -->
+            <div v-if="currentStyle.imageUrl || currentStyle.defaultBgPath" class="image-settings-section">
+              <h4>当前背景设置</h4>
+              <ImageSettingsControl
+                :image-url="currentStyle.imageUrl"
+                :default-bg-id="currentStyle.defaultBgId"
+                :default-bg-path="currentStyle.defaultBgPath"
+                :image-opacity="currentStyle.imageOpacity"
+                :image-scale="currentStyle.imageScale"
+                :image-filter="currentStyle.imageFilter"
+                @update:settings="updateImageSettings"
+                @remove-image="removeImage"
+                @show-image-options="toggleImageOptions"
+              >
+                <template #filter-selector>
+                  <ImageFilterSelector
+                    :image-url="currentStyle.imageUrl || currentStyle.defaultBgPath"
+                    :initial-filter="currentStyle.imageFilter?.id || 'none'"
+                    :initial-intensity="currentStyle.imageFilter?.intensity || 0.5"
+                    @update:filter="handleFilterUpdate"
+                  />
+                </template>
+              </ImageSettingsControl>
             </div>
           </div>
         </div>
         
         <!-- 文字设置标签页 -->
         <div v-if="activeTab === 'text'" class="text-tab">
-        
-          
-          <div class="text-settings-panel">
-            <!-- 字体选择 -->
-            <div class="setting-group">
-              <div class="setting-header">
-                <i class="fas fa-font"></i>
-                <span>字体选择</span>
-              </div>
-              <div class="font-selection">
-                <div 
-                  v-for="font in fontFamilies" 
-                  :key="font.value"
-                  :class="['font-option', { active: currentStyle.fontFamily === font.value }]"
-                  @click="updateStyle({ fontFamily: font.value })"
-                  :style="{ fontFamily: font.value }"
-                >
-                  <span>{{ font.label }}</span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 字体大小控制 -->
-            <div class="setting-group">
-              <div class="setting-header">
-                <i class="fas fa-text-height"></i>
-                <span>字体大小</span>
-              </div>
-              <div class="slider-with-value">
-                <button 
-                  class="size-preset-btn" 
-                  @click="updateStyle({ fontSize: Math.max(FONT_SIZE_CONFIG.MIN, currentStyle.fontSize - 2) })"
-                >
-                  <i class="fas fa-minus"></i>
-                </button>
-                <div class="slider-container">
-                  <input 
-                    type="range" 
-                    :min="FONT_SIZE_CONFIG.MIN" 
-                    :max="FONT_SIZE_CONFIG.MAX" 
-                    step="1" 
-                    v-model.number="currentStyle.fontSize" 
-                    @input="updateStyle({ fontSize: currentStyle.fontSize })"
-                  />
-                  <div class="slider-track">
-                    <div class="slider-fill" :style="{ width: `${(currentStyle.fontSize - FONT_SIZE_CONFIG.MIN) / (FONT_SIZE_CONFIG.MAX - FONT_SIZE_CONFIG.MIN) * 100}%` }"></div>
-                  </div>
-                </div>
-                <button 
-                  class="size-preset-btn" 
-                  @click="updateStyle({ fontSize: Math.min(FONT_SIZE_CONFIG.MAX, currentStyle.fontSize + 2) })"
-                >
-                  <i class="fas fa-plus"></i>
-                </button>
-                <div class="size-value">{{ currentStyle.fontSize }}px</div>
-              </div>
-            </div>
-            
-            <!-- 文字颜色选择 -->
-            <div class="setting-group">
-              <div class="setting-header">
-                <i class="fas fa-palette"></i>
-                <span>文字颜色</span>
-              </div>
-              <div class="color-grid">
-                <div 
-                  v-for="color in textColors" 
-                  :key="color.value"
-                  :class="['color-option', { active: currentStyle.textColor === color.value }]"
-                  :style="{ backgroundColor: color.value }"
-                  @click="handleColorClick(color.value)"
-                >
-                  <i 
-                    v-if="currentStyle.textColor === color.value" 
-                    class="fas fa-check" 
-                    :style="{ color: isLightColor(color.value) ? '#000' : '#fff' }"
-                  ></i>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 文字位置控制 -->
-            <div class="setting-group">
-              <div class="setting-header">
-                <i class="fas fa-align-justify"></i>
-                <span>文字对齐</span>
-              </div>
-              <div class="position-controls">
-                <button 
-                  v-for="pos in textPositions" 
-                  :key="pos.id"
-                  :class="['position-btn', { active: currentStyle.textPosition === pos.id }]"
-                  @click="updateStyle({ textPosition: pos.id })"
-                  :title="getPositionLabel(pos.id)"
-                >
-                  <i :class="pos.icon"></i>
-                </button>
-              </div>
-            </div>
-            
-            <!-- 文字阴影开关 -->
-            <div class="setting-group">
-              <div class="setting-header">
-                <i class="fas fa-moon"></i>
-                <span>文字阴影</span>
-              </div>
-              <div class="switch-container">
-                <div class="switch-control">
-                  <input 
-                    type="checkbox" 
-                    id="text-shadow-toggle" 
-                    v-model="currentStyle.textShadow"
-                    @change="updateStyle({ textShadow: currentStyle.textShadow })"
-                  />
-                  <label for="text-shadow-toggle"></label>
-                </div>
-                <span class="switch-label">{{ currentStyle.textShadow ? '开启' : '关闭' }}</span>
-              </div>
-            </div>
-          </div>
+          <TextStyleCustomizer
+            :model-value="textStyleData"
+            :font-size-config="FONT_SIZE_CONFIG"
+            @update:model-value="updateTextStyle"
+          />
         </div>
       </div>
     </div>
@@ -292,6 +166,13 @@ import ImageUploader from './ImageUploader.vue';
 import html2canvas from 'html2canvas';
 import { FONT_SIZE_CONFIG } from '../config/style';
 import ImageFilterSelector from './ImageFilterSelector.vue';
+import TemplateSelector from './TemplateSelector.vue';
+import TextStyleCustomizer from './TextStyleCustomizer.vue';
+import ImageSettingsControl from './ImageSettingsControl.vue';
+import RatioAndMoodControls from './RatioAndMoodControls.vue';
+import DefaultBackgroundSelector from './DefaultBackgroundSelector.vue';
+// 导入模板组件
+import { templateList } from './templates';
 
 // Props
 const props = defineProps({
@@ -314,50 +195,14 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(['close', 'update:style', 'export']);
+const emit = defineEmits(['close', 'update:style', 'export', 'update:customStyle']);
 
 // 标签页
 const activeTab = ref('layout');
 const tabs = [
-  { id: 'layout', label: '布局', icon: 'fas fa-th-large' },
+  { id: 'layout', label: '模板', icon: 'fas fa-th-large' },
   { id: 'image', label: '图片', icon: 'fas fa-image' },
   { id: 'text', label: '文字', icon: 'fas fa-font' }
-];
-
-// 布局选项
-const layouts = [
-  { id: 'paper', label: '纸条', preview: 'paper-bg.jpg' },
-  { id: 'image-top', label: '上图下文', preview: 'image-top.jpg', requiresImage: true },
-  { id: 'image-bottom', label: '下图上文', preview: 'image-bottom.jpg', requiresImage: true },
-  { id: 'image-bg', label: '图片背景', preview: 'image-bg.jpg', requiresImage: true }
-];
-
-// 文字位置选项
-const textPositions = [
-  { id: 'left', icon: 'fas fa-align-left' },
-  { id: 'center', icon: 'fas fa-align-center' },
-  { id: 'right', icon: 'fas fa-align-right' }
-];
-
-// 文字颜色选项
-const textColors = [
-  { value: '#000000', label: '黑色' },
-  { value: '#FFFFFF', label: '白色' },
-  { value: '#333333', label: '深灰' },
-  { value: '#7B9E89', label: '主题绿' },
-  { value: '#4A6FB5', label: '蓝色' },
-  { value: '#B54A4A', label: '红色' }
-];
-
-// 字体选项
-const fontFamilies = [
-  { value: "'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体', 'Noto Sans SC', sans-serif", label: '默认楷体' },
-  { value: "'KaitiLocal', 'Kaiti', '楷体', 'STKaiti', '华文楷体'", label: '楷体' },
-  { value: "'Noto Sans SC', 'PingFang SC', '微软雅黑', sans-serif", label: '黑体' },
-  { value: "'Noto Serif SC', 'SimSun', '宋体', serif", label: '宋体' },
-  { value: "'Dancing Script', cursive", label: '英文草书' },
-  { value: "'Arial', sans-serif", label: '英文无衬线' },
-  { value: "'Times New Roman', serif", label: '英文衬线' }
 ];
 
 // 默认样式
@@ -370,21 +215,68 @@ const defaultStyle = {
   textShadow: false,
   textPosition: 'center',
   imageUrl: '',
+  defaultBgId: '',
+  defaultBgPath: '',
   imageOpacity: 1,
   imageScale: 1,
   preservePaperBg: false,
-  showQrcode: true,
-  qrcodeSize: 50,
-  qrcodePosition: 'bottom-left',
-  slogan: '',
   showEmojiBubble: true,
   exportFormat: 'png',
   transparentBg: false,
-  exportQuality: 1
+  exportQuality: 1,
+  imageRatio: 0.5,
+  textRatio: 0.5,
+  splitDirection: 'horizontal',
+  moodPosition: 'default'
 };
 
 // 当前样式
 const currentStyle = ref({ ...defaultStyle });
+
+// 提取文本样式数据用于传递给TextStyleCustomizer
+const textStyleData = computed(() => ({
+  fontFamily: currentStyle.value.fontFamily,
+  fontSize: currentStyle.value.fontSize,
+  textColor: currentStyle.value.textColor,
+  textPosition: currentStyle.value.textPosition,
+  textShadow: currentStyle.value.textShadow
+}));
+
+// 是否显示占比控制
+const showRatioControl = computed(() => {
+  const layout = currentStyle.value.layout;
+  return layout === 'image-top' || layout === 'image-bottom' || layout === 'split';
+});
+
+// 是否显示表情位置控制
+const showMoodControl = computed(() => {
+  return true; // 始终显示表情位置控制组件
+});
+
+// 图片比例
+const imageRatio = computed(() => {
+  return currentStyle.value.imageRatio || 0.5;
+});
+
+// 文本比例
+const textRatio = computed(() => {
+  return currentStyle.value.textRatio || 0.5;
+});
+
+// 分屏方向
+const splitDirection = computed(() => {
+  return currentStyle.value.splitDirection || 'horizontal';
+});
+
+// 表情位置
+const moodPosition = computed(() => {
+  return currentStyle.value.moodPosition || 'default';
+});
+
+// 表情气泡是否显示
+const showEmojiBubble = computed(() => {
+  return currentStyle.value.showEmojiBubble !== false;
+});
 
 // 预览控制
 const showPreview = ref(false);
@@ -397,21 +289,20 @@ const isWechat = computed(() => {
   return ua.indexOf('micromessenger') !== -1;
 });
 
+// 默认背景相关
+const selectedDefaultBg = ref('');
+
+// 图片选项标签页控制
+const showDefaultBgs = ref(true); // 默认显示默认背景
+const showImageOptions = ref(false);
+
 // 方法
 function updateStyle(updates) {
-  // 确保二维码始终显示
-  if (updates.hasOwnProperty('showQrcode')) {
-    updates.showQrcode = true;
-  }
-  
-  // 确保slogan固定
-  if (updates.hasOwnProperty('slogan')) {
-    updates.slogan = '';
-  }
-  
-  // 如果选择了纸条布局，清除图片URL
+  // 如果选择了纸条布局，清除图片URL和默认背景
   if (updates.layout === 'paper') {
     updates.imageUrl = '';
+    updates.defaultBgId = '';
+    updates.defaultBgPath = '';
     updates.preservePaperBg = false; // 纸条布局不需要保留纸条背景
   }
   
@@ -431,11 +322,6 @@ function updateStyle(updates) {
     updates.preservePaperBg = false;
   }
   
-  // 如果切换到上图下文布局，自动将二维码位置设为左下角
-  if (updates.layout === 'image-top') {
-    updates.qrcodePosition = 'bottom-left';
-  }
-  
   // 确保文本颜色有效
   if (updates.hasOwnProperty('textColor') && (!updates.textColor || updates.textColor.trim() === '')) {
     updates.textColor = defaultStyle.textColor;
@@ -447,6 +333,115 @@ function updateStyle(updates) {
   // 发送更新事件，但不包含字体大小
   const { fontSize, ...styleWithoutFontSize } = currentStyle.value;
   emit('update:style', styleWithoutFontSize);
+  
+  // 发送完整的自定义样式更新
+  emit('update:customStyle', currentStyle.value);
+  
+  // 在本地存储用户偏好设置
+  saveUserPreference();
+}
+
+// 将用户样式偏好保存到本地存储
+function saveUserPreference() {
+  try {
+    // 过滤掉不需要保存的临时属性
+    const styleToSave = { ...currentStyle.value };
+    delete styleToSave.exportFormat; // 不保存导出格式
+    delete styleToSave.exportQuality; // 不保存导出质量
+    
+    // 确保默认背景ID和路径被保存
+    if (styleToSave.defaultBgId && styleToSave.defaultBgPath) {
+      // 检查布局类型，确保图片布局正确选择
+      if (styleToSave.layout === 'paper') {
+        styleToSave.layout = 'image-bg';
+      }
+    }
+    
+    localStorage.setItem('note-style-preference', JSON.stringify(styleToSave));
+  } catch (e) {
+    console.error('保存样式偏好失败:', e);
+  }
+}
+
+// 从本地存储恢复用户样式偏好
+function loadUserPreference() {
+  try {
+    const saved = localStorage.getItem('note-style-preference');
+    if (saved) {
+      const savedStyle = JSON.parse(saved);
+      // 合并保存的样式，保留默认值和传入的初始样式
+      currentStyle.value = {
+        ...defaultStyle,
+        ...props.initialStyle,
+        ...savedStyle
+      };
+      
+      // 发送完整的自定义样式更新
+      emit('update:customStyle', currentStyle.value);
+    }
+  } catch (e) {
+    console.error('加载样式偏好失败:', e);
+  }
+}
+
+// 初始化时加载用户偏好
+onMounted(() => {
+  loadUserPreference();
+});
+
+// 模板选择器事件处理
+function updateTemplateHandler(templateId) {
+  const template = templateList.find(t => t.id === templateId);
+  
+  // 如果选择纸条模板，清除图片URL和默认背景
+  if (templateId === 'paper') {
+    updateStyle({ 
+      layout: templateId,
+      imageUrl: '',
+      defaultBgId: '',
+      defaultBgPath: '',
+      // 如果有额外属性也可以添加
+      ...(template?.extraProps || {})
+    });
+  } else {
+    // 更新到当前样式
+    updateStyle({ 
+      layout: templateId,
+      // 如果有额外属性也可以添加
+      ...(template?.extraProps || {})
+    });
+  }
+  
+  // 立即发送更新事件确保保存生效
+  emit('update:style', currentStyle.value);
+  emit('update:customStyle', currentStyle.value);
+}
+
+// 处理模板需要资源的情况
+function handleResourceNeeded(event) {
+  if (event.type === 'image') {
+    // 切换到图片标签页
+    activeTab.value = 'image';
+    
+    // 显示提示信息
+    alert('请先上传图片以使用此模板');
+  }
+}
+
+// 处理模板操作事件
+function handleTemplateAction(event) {
+  console.log('模板操作:', event);
+  // 这里可以处理其他特殊的模板操作事件
+}
+
+// 文本样式更新处理
+function updateTextStyle(newTextStyle) {
+  updateStyle(newTextStyle);
+}
+
+// 图片设置更新处理
+function updateImageSettings(settings) {
+  updateStyle(settings);
 }
 
 function resetStyle() {
@@ -473,7 +468,9 @@ function handleImageSelected(imageUrl) {
       imageUrl, 
       layout: 'image-top', // 默认使用上图下文布局
       imageOpacity: 1, // 默认不透明
-      preservePaperBg: false // 默认不保留纸条背景
+      preservePaperBg: false, // 默认不保留纸条背景
+      defaultBgId: '', // 清除默认背景
+      defaultBgPath: '' // 清除默认背景路径
     });
     
     // 切换到布局标签页让用户看到效果
@@ -483,63 +480,182 @@ function handleImageSelected(imageUrl) {
     updateStyle({ 
       imageUrl,
       imageOpacity: 0.7, // 默认半透明
-      preservePaperBg: true // 保留纸条背景
+      preservePaperBg: true, // 保留纸条背景
+      defaultBgId: '', // 清除默认背景
+      defaultBgPath: '' // 清除默认背景路径
     });
   } else {
     // 如果已经是其他图片布局，直接更新图片
     updateStyle({ 
       imageUrl,
       imageOpacity: 1, // 默认不透明
-      preservePaperBg: false // 默认不保留纸条背景
+      preservePaperBg: false, // 默认不保留纸条背景
+      defaultBgId: '', // 清除默认背景
+      defaultBgPath: '' // 清除默认背景路径
     });
   }
+  
+  // 重置图片选项显示
+  resetImageOptions();
 }
 
 function removeImage() {
-  // 移除图片时，自动切换到纸条布局
+  // 移除图片时，自动切换到纸条布局，并清除默认背景
   updateStyle({ 
     imageUrl: '',
+    defaultBgId: '',
+    defaultBgPath: '',
     layout: 'paper'
   });
-}
-
-function getLayoutPreviewStyle(layout) {
-  // 为布局选项提供直观的预览样式
-  const baseStyles = {
-    width: '100%',
-    height: '100%',
-    borderRadius: '8px',
-    overflow: 'hidden'
-  };
   
-  if (layout.id === 'paper') {
-    return {
-      ...baseStyles,
-      background: 'linear-gradient(to right bottom, #FFFFFF, #F9F3E5)'
-    };
-  } else if (layout.id === 'image-top') {
-    return {
-      ...baseStyles,
-      background: '#FFFFFF'
-    };
-  } else if (layout.id === 'image-bottom') {
-    return {
-      ...baseStyles,
-      background: '#FFFFFF'
-    };
-  } else if (layout.id === 'image-bg') {
-    return {
-      ...baseStyles,
-      background: 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), linear-gradient(45deg, #4A6FB5, #7B9E89)'
-    };
-  }
-  
-  return baseStyles;
+  // 重置默认背景选择
+  selectedDefaultBg.value = '';
 }
 
 function togglePreview() {
   showPreview.value = !showPreview.value;
 }
+
+// 处理滤镜更新
+function handleFilterUpdate(filterData) {
+  updateStyle({ 
+    imageFilter: {
+      ...filterData,
+      style: filterData.style || ''
+    }
+  });
+}
+
+// 显示提示消息
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast-message';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
+  }, 2000);
+}
+
+// 根据心情标签设置背景
+function setBackgroundByMood(mood) {
+  // 如果已经有自定义样式，不覆盖用户的设置
+  if (currentStyle.value.imageUrl) return;
+  
+  // 简单的心情到背景映射
+  const moodBackgrounds = {
+    '😊': 'paper-1', // 开心
+    '😄': 'paper-1',
+    '🥰': 'paper-1',
+    '😌': 'paper-2', // 放松
+    '😇': 'paper-2',
+    '🤔': 'paper-3', // 思考
+    '🧐': 'paper-3',
+    '😔': 'paper-4', // 伤感
+    '😢': 'paper-4',
+    '😭': 'paper-4',
+    '😎': 'paper-5', // 酷
+    '🤩': 'paper-5'
+  };
+  
+  // 遍历心情表情，如果找到匹配的就设置背景
+  for (const emoji of mood) {
+    if (moodBackgrounds[emoji]) {
+      currentStyle.value.background = moodBackgrounds[emoji];
+      break; // 只使用第一个匹配的表情
+    }
+  }
+}
+
+// 监听外部字体大小变化，仅在初始化时更新
+watch(() => props.externalFontSize, (newSize) => {
+  // 只在组件初始化时更新字体大小
+  if (currentStyle.value.fontSize === defaultStyle.fontSize) {
+    currentStyle.value.fontSize = newSize;
+    defaultStyle.fontSize = newSize; // 同时更新默认样式的字体大小
+  }
+}, { immediate: true });
+
+// 监听初始样式变化
+watch(() => props.initialStyle, (newStyle) => {
+  if (newStyle && Object.keys(newStyle).length > 0) {
+    // 合并默认样式和初始样式，但保留当前的字体大小
+    const currentFontSize = currentStyle.value.fontSize;
+    currentStyle.value = { 
+      ...defaultStyle, 
+      ...newStyle,
+      fontSize: currentFontSize // 保持当前字体大小不变
+    };
+    
+    // 检查是否有默认背景或自定义图片
+    if (currentStyle.value.defaultBgId || currentStyle.value.imageUrl) {
+      // 发送样式更新事件，确保保存生效
+      emit('update:style', currentStyle.value);
+      emit('update:customStyle', currentStyle.value);
+    }
+  }
+}, { deep: true, immediate: true });
+
+// 监听标签页变化
+watch(() => activeTab.value, (newTab) => {
+  // 如果切换到"布局"标签页，确保组件已渲染完毕
+  if (newTab === 'layout') {
+    nextTick(() => {
+      // 布局标签页激活时的初始化逻辑
+    });
+  }
+}, { immediate: true });
+
+// 生命周期
+onMounted(() => {
+  // 如果有初始样式，合并到当前样式
+  if (props.initialStyle) {
+    // 合并初始样式
+    currentStyle.value = {
+      ...currentStyle.value,
+      ...props.initialStyle,
+      // 确保字体大小正确
+      fontSize: props.initialStyle.fontSize || props.externalFontSize || defaultStyle.fontSize,
+      // 确保字体正确
+      fontFamily: props.initialStyle.fontFamily || defaultStyle.fontFamily
+    };
+  }
+  
+  // 如果有心情标签，设置相应的背景
+  if (props.noteMood) {
+    setBackgroundByMood(props.noteMood);
+  }
+  
+  // 如果有图片URL或默认背景路径但布局是纸条，自动切换到图片背景布局
+  if ((currentStyle.value.imageUrl || currentStyle.value.defaultBgPath) && currentStyle.value.layout === 'paper') {
+    currentStyle.value.layout = 'image-bg';
+    currentStyle.value.preservePaperBg = true; // 确保保留纸条背景
+    
+    // 如果透明度是1，设置为默认半透明
+    if (currentStyle.value.imageOpacity === 1) {
+      currentStyle.value.imageOpacity = 0.7;
+    }
+    
+    // 立即发送完整的自定义样式更新
+    emit('update:style', currentStyle.value);
+    emit('update:customStyle', currentStyle.value);
+  }
+  
+  // 如果是图片背景布局但没有设置preservePaperBg，默认设置为true
+  if (currentStyle.value.layout === 'image-bg' && currentStyle.value.preservePaperBg === undefined) {
+    currentStyle.value.preservePaperBg = true;
+  }
+});
 
 // 新的保存图片方法
 async function saveImage() {
@@ -551,25 +667,6 @@ async function saveImage() {
   try {
     showToast('正在生成图片...');
     await nextTick();
-
-    // 将二维码图片转换为 base64
-    const qrImageBase64 = await new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      };
-      img.onerror = reject;
-      img.src = '/assets/community-qr.png';
-    }).catch(err => {
-      console.error('二维码图片转换失败:', err);
-      return null;
-    });
 
     // 获取 NoteCard 元素
     const noteCard = noteCardRef.value.$el;
@@ -635,17 +732,10 @@ async function saveImage() {
       }
     }
     
-    // 处理克隆卡片中的二维码图片
-    if (qrImageBase64) {
-      const qrCodeImg = clonedCard.querySelector('img[src*="community-qr.png"]');
-      if (qrCodeImg) {
-        qrCodeImg.src = qrImageBase64;
-        qrCodeImg.style.width = '50px';
-        qrCodeImg.style.height = '50px';
-        qrCodeImg.style.objectFit = 'contain';
-        qrCodeImg.style.display = 'block';
-        qrCodeImg.style.zIndex = '3'; // 确保二维码在最上层
-      }
+    // 查找并移除二维码图片元素（如果存在）
+    const qrCodeImg = clonedCard.querySelector('img[src*="community-qr.png"]');
+    if (qrCodeImg && qrCodeImg.parentNode) {
+      qrCodeImg.parentNode.removeChild(qrCodeImg);
     }
     
     tempContainer.appendChild(clonedCard);
@@ -664,65 +754,7 @@ async function saveImage() {
       logging: false,
       width: noteCard.offsetWidth,
       height: clonedCard.offsetHeight,
-      onclone: (clonedDoc) => {
-        const element = clonedDoc.body.querySelector('.note-card');
-        if (element) {
-          element.style.transform = 'none';
-          element.style.margin = '0';
-          element.style.width = noteCard.offsetWidth + 'px';
-          element.style.height = 'auto';
-          element.style.position = 'relative';
-          element.style.visibility = 'visible';
-          element.style.opacity = '1';
-          element.style.transition = 'none';
-          element.style.transformOrigin = 'top left';
-          element.style.padding = '0';
-          element.style.border = 'none';
-          element.style.borderRadius = '0';
-          element.style.boxShadow = 'none';
-
-          // 确保图片背景布局下的背景层正确显示
-          if (currentStyle.value.layout === 'image-bg') {
-            // 查找图片层元素
-            const imageLayer = element.querySelector('.note-image-layer');
-            if (imageLayer) {
-              // 确保图片层样式正确
-              imageLayer.style.position = 'absolute';
-              imageLayer.style.top = '0';
-              imageLayer.style.left = '0';
-              imageLayer.style.width = '100%';
-              imageLayer.style.height = '100%';
-              imageLayer.style.zIndex = '1';
-              
-              // 如果需要保留纸条背景，确保背景色正确
-              if (currentStyle.value.preservePaperBg) {
-                // 确保卡片背景色正确
-                element.style.backgroundColor = getComputedStyle(noteCard).backgroundColor;
-              }
-            }
-            
-            // 确保内容层在图片层之上
-            const contentLayer = element.querySelector('.note-content');
-            if (contentLayer) {
-              contentLayer.style.position = 'relative';
-              contentLayer.style.zIndex = '2';
-            }
-          }
-
-          // 确保二维码图片正确加载
-          if (qrImageBase64) {
-            const qrCode = element.querySelector('img[src*="community-qr.png"]');
-            if (qrCode) {
-              qrCode.src = qrImageBase64;
-              qrCode.style.width = '50px';
-              qrCode.style.height = '50px';
-              qrCode.style.objectFit = 'contain';
-              qrCode.style.display = 'block';
-              qrCode.style.zIndex = '3'; // 确保二维码在最上层
-            }
-          }
-        }
-      }
+      onclone: customOncloneHandler
     });
 
     // 移除临时容器
@@ -802,183 +834,117 @@ async function saveImage() {
   }
 }
 
-// 显示提示消息
-function showToast(message) {
-  const toast = document.createElement('div');
-  toast.className = 'toast-message';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.classList.add('show');
-  }, 10);
-  
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
+// html2canvas的自定义处理逻辑函数
+function customOncloneHandler(clonedDoc) {
+  const element = clonedDoc.body.querySelector('.note-card');
+  if (element) {
+    element.style.transform = 'none';
+    element.style.margin = '0';
+    element.style.width = document.querySelector('.note-card').offsetWidth + 'px';
+    element.style.height = 'auto';
+    element.style.position = 'relative';
+    element.style.visibility = 'visible';
+    element.style.opacity = '1';
+    element.style.transition = 'none';
+    element.style.transformOrigin = 'top left';
+    element.style.padding = '0';
+    element.style.border = 'none';
+    element.style.borderRadius = '0';
+    element.style.boxShadow = 'none';
+
+    // 确保图片背景布局下的背景层正确显示
+    if (currentStyle.value.layout === 'image-bg') {
+      // 查找图片层元素
+      const imageLayer = element.querySelector('.note-image-layer');
+      if (imageLayer) {
+        // 确保图片层样式正确
+        imageLayer.style.position = 'absolute';
+        imageLayer.style.top = '0';
+        imageLayer.style.left = '0';
+        imageLayer.style.width = '100%';
+        imageLayer.style.height = '100%';
+        imageLayer.style.zIndex = '1';
+        
+        // 如果需要保留纸条背景，确保背景色正确
+        if (currentStyle.value.preservePaperBg) {
+          // 确保卡片背景色正确
+          element.style.backgroundColor = getComputedStyle(document.querySelector('.note-card')).backgroundColor;
+        }
       }
-    }, 300);
-  }, 2000);
+      
+      // 确保内容层在图片层之上
+      const contentLayer = element.querySelector('.note-content');
+      if (contentLayer) {
+        contentLayer.style.position = 'relative';
+        contentLayer.style.zIndex = '2';
+      }
+    }
+
+    // 移除二维码相关代码
+    const qrCode = element.querySelector('img[src*="community-qr.png"]');
+    if (qrCode && qrCode.parentNode) {
+      qrCode.parentNode.removeChild(qrCode);
+    }
+  }
 }
 
-function promptImageUpload(layoutId) {
-  // 切换到图片标签页
-  activeTab.value = 'image';
-  
-  // 显示提示信息
-  alert('请先上传图片以使用此布局');
+// 切换显示图片选项
+function toggleImageOptions() {
+  showImageOptions.value = true;
+  showDefaultBgs.value = true; // 默认先显示默认背景选项
 }
 
-function isLightColor(color) {
-  // 简单的颜色亮度检测
-  // 将十六进制颜色转换为RGB
-  let r, g, b;
-  
-  if (color.startsWith('#')) {
-    // 处理十六进制颜色
-    const hex = color.substring(1);
-    r = parseInt(hex.substr(0, 2), 16);
-    g = parseInt(hex.substr(2, 2), 16);
-    b = parseInt(hex.substr(4, 2), 16);
+// 处理默认背景图片选择
+function handleDefaultBackgroundSelected(background) {
+  if (background) {
+    // 无论当前布局如何，都更新背景图片信息
+    updateStyle({ 
+      defaultBgId: background.id, 
+      defaultBgPath: background.path,
+    });
+    
+    // 如果当前是纸条布局，自动切换到图片背景布局
+    if (currentStyle.value.layout === 'paper') {
+      updateStyle({ 
+        layout: 'image-bg', // 默认使用图片背景布局
+        imageOpacity: 0.7, // 默认半透明
+        preservePaperBg: true // 默认保留纸条背景
+      });
+      
+      // 切换到布局标签页让用户看到效果
+      activeTab.value = 'layout';
+    }
+    
+    // 清除自定义上传的图片URL
+    updateStyle({ imageUrl: '' });
+    
+    // 立即发送更新事件确保保存生效
+    emit('update:style', currentStyle.value);
+    emit('update:customStyle', currentStyle.value);
+  }
+}
+
+function switchToDefaultBgs() {
+  showDefaultBgs.value = true;
+}
+
+function switchToUploader() {
+  showDefaultBgs.value = false;
+}
+
+// 监听默认背景变化
+watch(() => currentStyle.value.defaultBgId, (newBgId) => {
+  if (newBgId) {
+    selectedDefaultBg.value = newBgId;
   } else {
-    // 默认为深色
-    return false;
-  }
-  
-  // 计算亮度 (基于人眼对不同颜色的感知)
-  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-  
-  // 亮度大于125被认为是浅色
-  return brightness > 125;
-}
-
-function getPositionLabel(position) {
-  switch (position) {
-    case 'left':
-      return '居左';
-    case 'center':
-      return '居中';
-    case 'right':
-      return '居右';
-    default:
-      return position;
-  }
-}
-
-// 获取位置图标
-function getPositionIcon(position) {
-  const pos = textPositions.find(p => p.id === position);
-  return pos ? pos.icon : 'fas fa-align-center';
-}
-
-// 监听外部字体大小变化，仅在初始化时更新
-watch(() => props.externalFontSize, (newSize) => {
-  // 只在组件初始化时更新字体大小
-  if (currentStyle.value.fontSize === defaultStyle.fontSize) {
-    currentStyle.value.fontSize = newSize;
-    defaultStyle.fontSize = newSize; // 同时更新默认样式的字体大小
+    selectedDefaultBg.value = '';
   }
 }, { immediate: true });
 
-// 监听初始样式变化
-watch(() => props.initialStyle, (newStyle) => {
-  if (newStyle && Object.keys(newStyle).length > 0) {
-    // 合并默认样式和初始样式，但保留当前的字体大小
-    const currentFontSize = currentStyle.value.fontSize;
-    currentStyle.value = { 
-      ...defaultStyle, 
-      ...newStyle,
-      fontSize: currentFontSize // 保持当前字体大小不变
-    };
-  }
-}, { deep: true, immediate: true });
-
-// 生命周期
-onMounted(() => {
-  // 如果有初始样式，合并到当前样式
-  if (props.initialStyle) {
-    // 合并初始样式
-    currentStyle.value = {
-      ...currentStyle.value,
-      ...props.initialStyle,
-      // 确保字体大小正确
-      fontSize: props.initialStyle.fontSize || props.externalFontSize || defaultStyle.fontSize,
-      // 确保字体正确
-      fontFamily: props.initialStyle.fontFamily || defaultStyle.fontFamily
-    };
-  }
-  
-  // 如果有心情标签，设置相应的背景
-  if (props.noteMood) {
-    setBackgroundByMood(props.noteMood);
-  }
-  
-  // 如果有图片URL但布局是纸条，自动切换到图片背景布局
-  if (currentStyle.value.imageUrl && currentStyle.value.layout === 'paper') {
-    currentStyle.value.layout = 'image-bg';
-    currentStyle.value.preservePaperBg = true; // 确保保留纸条背景
-    
-    // 如果透明度是1，设置为默认半透明
-    if (currentStyle.value.imageOpacity === 1) {
-      currentStyle.value.imageOpacity = 0.7;
-    }
-  }
-  
-  // 如果是图片背景布局但没有设置preservePaperBg，默认设置为true
-  if (currentStyle.value.layout === 'image-bg' && currentStyle.value.preservePaperBg === undefined) {
-    currentStyle.value.preservePaperBg = true;
-  }
-});
-
-// 处理颜色点击
-function handleColorClick(color) {
-  // 确保颜色值有效
-  if (color && color.trim() !== '') {
-    updateStyle({ textColor: color });
-  }
-}
-
-// 处理滤镜更新
-function handleFilterUpdate(filterData) {
-  console.log('更新滤镜:', filterData);
-  updateStyle({ 
-    imageFilter: {
-      ...filterData,
-      style: filterData.style || ''
-    }
-  });
-}
-
-// 根据心情标签设置背景
-function setBackgroundByMood(mood) {
-  // 如果已经有自定义样式，不覆盖用户的设置
-  if (currentStyle.value.imageUrl) return;
-  
-  // 简单的心情到背景映射
-  const moodBackgrounds = {
-    '😊': 'paper-1', // 开心
-    '😄': 'paper-1',
-    '🥰': 'paper-1',
-    '😌': 'paper-2', // 放松
-    '😇': 'paper-2',
-    '🤔': 'paper-3', // 思考
-    '🧐': 'paper-3',
-    '😔': 'paper-4', // 伤感
-    '😢': 'paper-4',
-    '😭': 'paper-4',
-    '😎': 'paper-5', // 酷
-    '🤩': 'paper-5'
-  };
-  
-  // 遍历心情表情，如果找到匹配的就设置背景
-  for (const emoji of mood) {
-    if (moodBackgrounds[emoji]) {
-      currentStyle.value.background = moodBackgrounds[emoji];
-      break; // 只使用第一个匹配的表情
-    }
-  }
+// 重置图片选项显示状态
+function resetImageOptions() {
+  showImageOptions.value = false;
+  showDefaultBgs.value = false;
 }
 </script>
 
@@ -1069,133 +1035,8 @@ function setBackgroundByMood(mood) {
 }
 
 /* 布局选项样式 */
-.layout-options {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-md);
-}
-
-.layout-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-}
-
-.layout-option.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.layout-option.disabled .layout-preview {
-  border-color: var(--border-color);
-  position: relative;
-}
-
-.layout-option.disabled .layout-preview::after {
-  content: "\f070";
-  font-family: "Font Awesome 5 Free";
-  font-weight: 900;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 24px;
-  color: rgba(0, 0, 0, 0.5);
-}
-
-.layout-preview {
-  width: 80px;
-  height: 100px;
-  border-radius: var(--radius-sm);
-  border: 2px solid var(--border-color);
-  margin-bottom: var(--spacing-xs);
-  overflow: hidden;
-  transition: all var(--transition-fast);
-}
-
-.layout-preview-inner {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.layout-preview-image {
-  background-color: #4A6FB5;
-  height: 50%;
-  flex-shrink: 0;
-}
-
-.layout-preview-text {
-  background-color: rgba(0, 0, 0, 0.1);
-  height: 50%;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.layout-preview-text::before {
-  content: "";
-  width: 70%;
-  height: 2px;
-  background-color: rgba(0, 0, 0, 0.2);
-  margin-bottom: 4px;
-}
-
-.layout-preview-text::after {
-  content: "";
-  width: 50%;
-  height: 2px;
-  background-color: rgba(0, 0, 0, 0.2);
-}
-
-.layout-preview-text-top {
-  border-bottom: none;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.layout-preview-text-top::before {
-  margin-bottom: 2px;
-}
-
-.layout-option.active .layout-preview {
-  border-color: var(--primary-color);
-  transform: scale(1.05);
-}
-
-.layout-option span {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.layout-option.active span {
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
-.layout-note {
-  font-size: 10px;
-  color: #B54A4A;
-  margin-top: 2px;
-}
-
-.layout-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-md);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background-color: rgba(123, 158, 137, 0.1);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.layout-info i {
-  color: var(--primary-color);
+.layout-tab {
+  margin-bottom: var(--spacing-md);
 }
 
 /* 图片上传和设置样式 */
@@ -1204,200 +1045,6 @@ function setBackgroundByMood(mood) {
   max-width: 300px;
   margin-left: auto;
   margin-right: auto;
-}
-
-.image-settings {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-}
-
-.image-preview {
-  position: relative;
-  width: 100%;
-  height: 120px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.image-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: all 0.3s ease;
-}
-
-.remove-image-btn {
-  position: absolute;
-  top: var(--spacing-xs);
-  right: var(--spacing-xs);
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.5);
-  color: white;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.image-controls {
-  background-color: var(--bg-color);
-  padding: var(--spacing-sm);
-  border-radius: var(--radius-sm);
-}
-
-/* 控制组样式 */
-.control-group {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.control-group label {
-  width: 80px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.control-group input[type="range"] {
-  flex: 1;
-  height: 6px;
-  background-color: var(--border-color);
-  border-radius: 3px;
-  -webkit-appearance: none;
-}
-
-.control-group input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background-color: var(--primary-color);
-  cursor: pointer;
-}
-
-.control-group span {
-  width: 50px;
-  font-size: 14px;
-  text-align: right;
-  color: var(--text-secondary);
-}
-
-/* 位置控制样式 */
-.position-controls {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-.position-btn {
-  flex: 1;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background-color: var(--card-bg);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.position-btn i {
-  font-size: 16px;
-}
-
-.position-btn.active {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-/* 颜色选项样式 */
-.color-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: var(--spacing-xs);
-  margin-top: 4px;
-}
-
-.color-option {
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 2px solid var(--border-color);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 30px;
-  height: 30px;
-  margin: 0 auto;
-}
-
-.color-option:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
-}
-
-.color-option.active {
-  transform: scale(1.15);
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(123, 158, 137, 0.2);
-}
-
-.color-option i {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-/* 开关控制样式 */
-.switch-control {
-  position: relative;
-  width: 40px;
-  height: 20px;
-}
-
-.switch-control input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.switch-control label {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--border-color);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.switch-control label:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 2px;
-  bottom: 2px;
-  background-color: white;
-  border-radius: 50%;
-  transition: all var(--transition-fast);
-}
-
-.switch-control input:checked + label {
-  background-color: var(--primary-color);
-}
-
-.switch-control input:checked + label:before {
-  transform: translateX(20px);
 }
 
 /* 预览区域样式 */
@@ -1549,53 +1196,6 @@ function setBackgroundByMood(mood) {
 
 /* 响应式调整 */
 @media (max-width: 480px) {
-  .layout-options {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .layout-preview {
-    width: 60px;
-    height: 75px;
-  }
-  
-  .control-group label {
-    width: 60px;
-    font-size: 12px;
-  }
-  
-  .tab-btn i {
-    font-size: 14px;
-  }
-  
-  .tab-btn span {
-    font-size: 10px;
-  }
-  
-  .color-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .color-option {
-    width: 28px;
-    height: 28px;
-  }
-  
-  .setting-header {
-    font-size: 13px;
-  }
-  
-  .setting-header i {
-    font-size: 13px;
-  }
-  
-  .position-btn {
-    height: 28px;
-  }
-  
-  .position-btn i {
-    font-size: 13px;
-  }
-  
   .action-buttons {
     flex-direction: column;
     gap: var(--spacing-sm);
@@ -1613,161 +1213,6 @@ function setBackgroundByMood(mood) {
     transform: scale(0.85);
     margin: -20px auto; /* 补偿缩放造成的空间 */
   }
-}
-
-@media (min-width: 481px) and (max-width: 768px) {
-  .preview-scale-container {
-    transform: scale(0.9);
-    margin: -15px auto;
-  }
-}
-
-/* 文字设置面板样式 - 全新设计 */
-.text-settings-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm);
-  border-radius: var(--radius-md);
-  box-shadow: 0 1px 2px rgba(173, 173, 173, 0.05);
-}
-
-.setting-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-sm);
-}
-
-.setting-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-xs);
-  font-size: 14px;
-}
-
-.setting-header i {
-  color: var(--primary-color);
-  width: 16px;
-  text-align: center;
-  font-size: 14px;
-}
-
-/* 字体大小滑块样式 */
-.slider-with-value {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
-.size-preset-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--border-color);
-  background-color: var(--card-bg);
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 12px;
-}
-
-.size-preset-btn:hover {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.slider-container {
-  flex: 1;
-  position: relative;
-  height: 24px;
-  display: flex;
-  align-items: center;
-}
-
-.slider-container input[type="range"] {
-  position: absolute;
-  width: 100%;
-  height: 4px;
-  opacity: 0;
-  z-index: 2;
-  cursor: pointer;
-}
-
-.slider-track {
-  position: absolute;
-  width: 100%;
-  height: 4px;
-  background-color: var(--border-color);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.slider-fill {
-  position: absolute;
-  height: 100%;
-  background-color: var(--primary-color);
-  border-radius: 2px;
-  transition: width 0.1s ease;
-}
-
-.size-value {
-  min-width: 40px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-  background-color: var(--card-bg);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-}
-
-/* 字体选择样式 */
-.font-selection {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-xs);
-}
-
-.font-option {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background-color: var(--card-bg);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.font-option span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 14px;
-}
-
-.font-option:hover {
-  border-color: var(--primary-color);
-  background-color: rgba(123, 158, 137, 0.05);
-}
-
-.font-option.active {
-  border-color: var(--primary-color);
-  background-color: rgba(123, 158, 137, 0.1);
-  box-shadow: 0 0 0 1px var(--primary-color);
 }
 
 /* 添加toast消息样式 */
@@ -1789,5 +1234,104 @@ function setBackgroundByMood(mood) {
 .toast-message.show {
   transform: translateX(-50%) translateY(0);
   opacity: 1;
+}
+
+/* 图片选项样式 */
+.image-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.image-section h4 {
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.image-option-section {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  background-color: var(--bg-color);
+}
+
+.image-option-section h5 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.image-option-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.image-option-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.image-option-tab i {
+  font-size: 16px;
+}
+
+.image-option-tab span {
+  font-size: 12px;
+}
+
+.image-option-tab.active {
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.default-bg-section, 
+.upload-section {
+  padding: var(--spacing-xs) 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .image-option-tabs {
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .image-option-tab i {
+    font-size: 14px;
+  }
+  
+  .image-option-tab span {
+    font-size: 10px;
+  }
+  
+  .image-option-section {
+    padding: var(--spacing-sm);
+  }
+}
+
+.option-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-md);
+}
+
+.option-actions .btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 </style> 

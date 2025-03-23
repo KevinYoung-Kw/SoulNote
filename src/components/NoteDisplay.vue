@@ -36,6 +36,14 @@
       </button>
     </div>
     
+    <!-- 添加自定义样式按钮，仅当内容不是默认内容时显示 -->
+    <div class="customize-button" v-if="content !== defaultContent">
+      <button class="btn btn-outline" @click="openStyleCustomizer">
+        <i class="fas fa-palette"></i>
+        <span>自定义样式</span>
+      </button>
+    </div>
+    
     <!-- 样式定制器弹窗 -->
     <div class="style-customizer-modal" v-if="showStyleCustomizer">
       <div class="modal-overlay" @click="showStyleCustomizer = false"></div>
@@ -113,12 +121,13 @@ const showStyleCustomizer = ref(false);
 
 // 计算属性
 const hasCustomImage = computed(() => {
-  return customStyle.value?.imageUrl && customStyle.value.imageUrl !== '';
+  return (customStyle.value?.imageUrl && customStyle.value.imageUrl !== '') ||
+         (customStyle.value?.defaultBgPath && customStyle.value.defaultBgPath !== '');
 });
 
 const hasCustomStyle = computed(() => {
   return Object.keys(customStyle.value).length > 0 && 
-         (customStyle.value.layout !== 'paper' || hasCustomImage.value);
+         ((customStyle.value.layout !== 'paper') || hasCustomImage.value);
 });
 
 // Data
@@ -181,11 +190,21 @@ function applyFontSize() {
 async function updateLocalPreferences() {
   try {
     const currentPrefs = await getUserPreferences();
+    
+    // 确保defaultBgId和defaultBgPath也被保存
+    const styleToSave = {
+      ...customStyle.value,
+      // 如果有默认背景ID但没有选择合适的布局，自动使用image-bg布局
+      layout: customStyle.value.defaultBgId && customStyle.value.layout === 'paper' 
+        ? 'image-bg' 
+        : customStyle.value.layout
+    };
+    
     await saveUserPreferences({
       ...currentPrefs,
       fontSize: fontSize.value,
       background: background.value,
-      customStyle: customStyle.value
+      customStyle: styleToSave
     });
     
     if (noteCardRef.value) {
@@ -205,6 +224,12 @@ function updateCustomStyle(newStyle) {
   // 从新样式中解构出字体大小，其他样式属性保持不变
   const { fontSize: newFontSize, ...otherStyles } = newStyle;
   customStyle.value = otherStyles;
+  
+  // 如果有默认背景ID但没有选择合适的布局，自动使用image-bg布局
+  if (customStyle.value.defaultBgId && customStyle.value.layout === 'paper') {
+    customStyle.value.layout = 'image-bg';
+  }
+  
   emit('update:customStyle', customStyle.value);
   updateLocalPreferences();
 }
