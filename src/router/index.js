@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import { getOnboardingCompleted } from '../services/storageService';
 import PrivacyPolicyPage from '../pages/PrivacyPolicyPage.vue';
 import AboutUsPage from '../pages/AboutUsPage.vue';
+import H5SettingsPage from '../components/layout/H5SettingsPage.vue';
 
 // 导入管理面板组件
 const AdminPanel = () => import('../pages/AdminPanel.vue');
@@ -58,6 +59,14 @@ const routes = [
     component: AdminPanel,
     meta: {
       title: '管理面板 - 星语心笺'
+    }
+  },
+  {
+    path: '/h5-settings',
+    name: 'H5Settings',
+    component: H5SettingsPage,
+    meta: {
+      title: 'H5模板设置'
     }
   }
 ];

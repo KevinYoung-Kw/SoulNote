@@ -27,7 +27,7 @@
       </div>
       
       <div class="header-right">
-        <button class="icon-btn" @click="goToSavedNotes">
+        <button class="icon-btn" @click="goToSavedNotes" title="收藏">
           <i class="fas fa-bookmark"></i>
         </button>
       </div>
@@ -83,6 +83,10 @@ function goToSettings() {
 
 function goToSavedNotes() {
   router.push('/saved');
+}
+
+function goToH5Templates() {
+  router.push('/h5-settings');
 }
 
 function clearContent() {

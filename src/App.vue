@@ -26,6 +26,23 @@ const router = useRouter();
 const showAdminButton = ref(false);
 const appReady = ref(false);
 
+// 全局笔记内容和表情状态
+const globalNoteContent = ref('');
+const globalNoteMood = ref('');
+
+// 提供全局状态给所有组件
+provide('noteContent', globalNoteContent);
+provide('noteMood', globalNoteMood);
+
+// 提供设置全局状态的方法
+provide('setNoteContent', (content) => {
+  globalNoteContent.value = content;
+});
+
+provide('setNoteMood', (mood) => {
+  globalNoteMood.value = mood;
+});
+
 // 提供生成分享链接的函数，可在全局使用
 const getShareLinkWithInviteCode = async (inviteCode) => {
   // 获取当前环境的基础URL

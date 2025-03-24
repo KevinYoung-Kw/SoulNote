@@ -1,4 +1,4 @@
-import { createApp } from 'vue';
+import { createApp, ref, provide } from 'vue';
 import App from './App.vue';
 import router from './router';
 import './styles/main.css';
@@ -10,6 +10,14 @@ import { checkStorageHealth, initStorage, getUserPreferences } from './services/
 
 // 初始化应用
 const app = createApp(App);
+
+// 创建全局响应式状态存储笔记内容和表情
+const globalNoteContent = ref('');
+const globalNoteMood = ref('');
+
+// 提供全局状态
+app.provide('noteContent', globalNoteContent);
+app.provide('noteMood', globalNoteMood);
 
 // 从环境变量中读取调试模式设置
 const isEnvDebug = import.meta.env.VITE_DEBUG_MODE == 'true';

@@ -118,58 +118,18 @@ export async function initStorage() {
 
 /**
  * 保存用户偏好设置
- * @param {Object} preferences 用户偏好对象
- * @returns {Promise<boolean>} 是否保存成功
+ * @param {Object} preferences 用户偏好设置对象
+ * @returns {Promise<boolean>} 保存是否成功
  */
-export async function saveUserPreferences(preferences) {
-  const userId = await userIdentifierService.getOrCreateUserId();
-  
+export const saveUserPreferences = async (preferences) => {
   try {
-    // 清理数据，确保可以被 IndexedDB 存储
-    const cleanPreferences = cleanDataForStorage(preferences);
-    
-    // 首先尝试保存到 IndexedDB
-    const db = await openDatabase();
-    await new Promise((resolve, reject) => {
-      const transaction = db.transaction(['preferences'], 'readwrite');
-      const store = transaction.objectStore('preferences');
-      
-      const request = store.put({
-        userId,
-        ...cleanPreferences,
-        updatedAt: new Date().toISOString()
-      });
-      
-      request.onsuccess = () => resolve();
-      request.onerror = (event) => {
-        console.error('IndexedDB 存储错误:', event.target.error);
-        reject(event.target.error);
-      };
-    });
-    
-    // 同时保存到 localStorage 作为备份
-    try {
-      const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.PREFERENCES);
-      localStorage.setItem(storageKey, JSON.stringify(preferences));
-    } catch (error) {
-      console.warn('保存偏好设置到 localStorage 失败 (备份):', error);
-    }
-    
+    localStorage.setItem('userPreferences', JSON.stringify(preferences));
     return true;
   } catch (error) {
-    console.error('保存偏好设置到 IndexedDB 失败:', error);
-    
-    // 降级方案：使用 localStorage
-    try {
-      const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.PREFERENCES);
-      localStorage.setItem(storageKey, JSON.stringify(preferences));
-      return true;
-    } catch (fallbackError) {
-      console.error('降级存储也失败:', fallbackError);
-      return false;
-    }
+    console.error('保存用户偏好设置失败:', error);
+    return false;
   }
-}
+};
 
 /**
  * 清理数据以确保可以被 IndexedDB 存储
@@ -214,64 +174,20 @@ function cleanDataForStorage(data) {
 
 /**
  * 获取用户偏好设置
- * @returns {Promise<Object|null>} 用户偏好对象
+ * @returns {Promise<Object>} 用户偏好设置对象
  */
-export async function getUserPreferences() {
-  const userId = await userIdentifierService.getOrCreateUserId();
-  
+export const getUserPreferences = async () => {
   try {
-    // 首先尝试从 IndexedDB 获取
-    const db = await openDatabase();
-    const result = await new Promise((resolve, reject) => {
-      const transaction = db.transaction(['preferences'], 'readonly');
-      const store = transaction.objectStore('preferences');
-      const request = store.get(userId);
-      
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (event) => reject(event.target.error);
-    });
-    
-    if (result) {
-      // 删除内部使用的字段
-      const { userId, updatedAt, ...preferences } = result;
-      return preferences;
+    const prefsString = localStorage.getItem('userPreferences');
+    if (!prefsString) {
+      return {};
     }
+    return JSON.parse(prefsString);
   } catch (error) {
-    console.warn('从 IndexedDB 获取偏好设置失败:', error);
+    console.error('获取用户偏好设置失败:', error);
+    return {};
   }
-  
-  // 如果 IndexedDB 失败或没有数据，尝试从 localStorage 获取
-  try {
-    const storageKey = await userIdentifierService.getUserStorageKey(BASE_KEYS.PREFERENCES);
-    const data = localStorage.getItem(storageKey);
-    
-    if (data) {
-      const preferences = JSON.parse(data);
-      
-      // 如果从 localStorage 获取成功，尝试同步到 IndexedDB
-      try {
-        await saveUserPreferences(preferences);
-      } catch (syncError) {
-        console.warn('同步偏好设置到 IndexedDB 失败:', syncError);
-      }
-      
-      return preferences;
-    }
-    
-    // 尝试从旧存储位置读取
-    const oldData = localStorage.getItem(BASE_KEYS.PREFERENCES);
-    if (oldData) {
-      const parsedData = JSON.parse(oldData);
-      // 如果成功从旧位置读取，则迁移到新位置
-      await saveUserPreferences(parsedData);
-      return parsedData;
-    }
-  } catch (error) {
-    console.error('从 localStorage 获取偏好设置失败:', error);
-  }
-  
-  return getDefaultPreferences();
-}
+};
 
 /**
  * 获取默认偏好设置

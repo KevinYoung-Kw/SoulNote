@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount, nextTick, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getDefaultFontSize } from '../config/style';
 
@@ -228,6 +228,10 @@ let loadingInterval = null;
 // 添加防止循环更新的标志
 const isUpdatingCustomStyle = ref(false);
 
+// 全局状态设置函数
+const setGlobalNoteContent = inject('setNoteContent');
+const setGlobalNoteMood = inject('setNoteMood');
+
 // 方法
 function handleHeaderToggle(isCollapsed) {
   headerCollapsed.value = isCollapsed;
@@ -304,6 +308,24 @@ async function generateNoteContent() {
     if (result && result.content) {
       // 更新笔记内容
       noteContent.value = result.content;
+      
+      // 更新全局状态
+      if (setGlobalNoteContent) {
+        setGlobalNoteContent(result.content);
+      }
+      
+      // 更新全局表情状态
+      if (setGlobalNoteMood && params.moods && params.moods.length > 0) {
+        setGlobalNoteMood(params.moods.join(''));
+      }
+      
+      // 同时保存到localStorage，以便在H5页面加载时恢复
+      try {
+        localStorage.setItem('soulnote_last_content', result.content);
+        localStorage.setItem('soulnote_last_mood', params.moods ? params.moods.join('') : '');
+      } catch (storageError) {
+        logger.warn('STORAGE', '保存内容到localStorage失败', storageError);
+      }
       
       // 保存到历史记录
       await cacheGeneratedContent();
@@ -864,65 +886,79 @@ async function checkFavoriteStatus(noteId) {
   }
 }
 
-// 生命周期
+// 生命周期钩子
 onMounted(async () => {
-  // 加载用户偏好设置
+  // 设置初始全局内容
+  if (setGlobalNoteContent) {
+    setGlobalNoteContent(noteContent.value);
+  }
+  
+  if (setGlobalNoteMood && params.moods && params.moods.length > 0) {
+    setGlobalNoteMood(params.moods.join(''));
+  }
+
+  // 添加屏幕大小变化监听
+  window.addEventListener('resize', handleResize);
+
   try {
-    const preferences = await getUserPreferences();
-    const isSmallScreen = window.innerWidth <= 375;
-
-    // 添加屏幕大小变化监听
-    // 将handleResize定义为组件级别的变量，而不是局部函数
-    window.addEventListener('resize', handleResize);
-
-    if (preferences) {
-      params.zodiac = preferences.zodiac;
-      params.mbti = preferences.mbti;
-      params.language = preferences.language || 'zh';
+    // 获取保存的用户偏好
+    const savedPrefs = await getUserPreferences();
+    
+    // 检查暗黑模式
+    if (savedPrefs && savedPrefs.theme == 'dark') {
+      darkMode.value = true;
+    }
+    
+    // 加载所有保存的设置
+    if (savedPrefs) {
+      params.zodiac = savedPrefs.zodiac;
+      params.mbti = savedPrefs.mbti;
+      params.language = savedPrefs.language || 'zh';
       
       // 修复：分开处理 darkMode 和 theme 参数
       // darkMode 是控制界面暗色模式的
-      darkMode.value = preferences.darkMode === true;
+      darkMode.value = savedPrefs.darkMode === true;
       
       // 加载页眉折叠状态
-      headerCollapsed.value = preferences.headerCollapsed || false;
+      headerCollapsed.value = savedPrefs.headerCollapsed || false;
       
       // 小屏幕设备(≤375px)默认使用18px字体，除非用户显式设置了不同的大小
-      if (isSmallScreen && (!preferences.fontSize || preferences.fontSize === 24)) {
+      const isSmallScreen = window.innerWidth <= 375;
+      if (isSmallScreen && (!savedPrefs.fontSize || savedPrefs.fontSize === 24)) {
         fontSize.value = 18;
       } else {
-        fontSize.value = preferences.fontSize || 24;
+        fontSize.value = savedPrefs.fontSize || 24;
       }
 
       // 而 theme 是控制内容生成主题的，默认为 'chat'
-      params.theme = preferences.theme || 'chat';
+      params.theme = savedPrefs.theme || 'chat';
       
-      currentBackground.value = preferences.background || 'paper-1';
-      params.savageMode = preferences.savageMode === true;
+      currentBackground.value = savedPrefs.background || 'paper-1';
+      params.savageMode = savedPrefs.savageMode === true;
 
       // 显示感谢文本
-      showAppreciation.value = !preferences.hideAppreciation;
+      showAppreciation.value = !savedPrefs.hideAppreciation;
       
       // 加载运势偏好
-      if (preferences.mood) {
-        params.moods = [preferences.mood];
-      } else if (preferences.moods && Array.isArray(preferences.moods)) {
-        params.moods = [...preferences.moods];
+      if (savedPrefs.mood) {
+        params.moods = [savedPrefs.mood];
+      } else if (savedPrefs.moods && Array.isArray(savedPrefs.moods)) {
+        params.moods = [...savedPrefs.moods];
       }
-      params.enableFortune = preferences.enableFortune === true;
-      params.fortuneAspect = preferences.fortuneAspect || 'overall';
+      params.enableFortune = savedPrefs.enableFortune === true;
+      params.fortuneAspect = savedPrefs.fortuneAspect || 'overall';
       
       // 加载新增的个人信息
-      params.gender = preferences.gender;
-      params.age = preferences.age;
-      params.relationship = preferences.relationship;
+      params.gender = savedPrefs.gender;
+      params.age = savedPrefs.age;
+      params.relationship = savedPrefs.relationship;
 
       // 确保毒舌模式的样式正确应用
       document.body.classList.toggle('savage-mode', params.savageMode);
 
       // 检查是否需要显示用户引导
-      const isFirstLogin = preferences.isFirstLogin === true;
-      const guideTaken = preferences.guideTaken === true;
+      const isFirstLogin = savedPrefs.isFirstLogin === true;
+      const guideTaken = savedPrefs.guideTaken === true;
       
       // 如果是首次登录或未完成引导，显示用户引导
       if (isFirstLogin || !guideTaken) {
@@ -934,7 +970,7 @@ onMounted(async () => {
         // 更新首次登录标记
         if (isFirstLogin) {
           saveUserPreferences({
-            ...preferences,
+            ...savedPrefs,
             isFirstLogin: false
           });
         }
@@ -944,7 +980,7 @@ onMounted(async () => {
       const appVersion = APP_VERSION;
       
       // 如果用户明确选择了不再提醒并且版本号匹配当前版本，则跳过所有弹窗检查
-      if (preferences.neverRemindCommunity && preferences.lastSeenVersion === appVersion) {
+      if (savedPrefs.neverRemindCommunity && savedPrefs.lastSeenVersion === appVersion) {
         logger.info('COMMUNITY', '用户设置了本版本不再提醒，跳过弹窗检查');
         // 恢复缓存内容并继续
         await restoreFromCache();
@@ -952,8 +988,8 @@ onMounted(async () => {
       }
       
       // 如果设置了下次提醒时间，检查是否已到时间
-      if (preferences.communityRemindAt) {
-        const nextRemindTime = new Date(preferences.communityRemindAt);
+      if (savedPrefs.communityRemindAt) {
+        const nextRemindTime = new Date(savedPrefs.communityRemindAt);
         if (nextRemindTime > new Date()) {
           logger.info('COMMUNITY', '未到下次提醒时间，跳过弹窗检查');
           // 恢复缓存内容并继续
@@ -963,7 +999,7 @@ onMounted(async () => {
       }
 
       // 首选检查是否需要强制显示弹窗（从未显示过）
-      const neverShownBefore = !preferences.communityShownBefore;
+      const neverShownBefore = !savedPrefs.communityShownBefore;
       
       if (neverShownBefore) {
         logger.info('COMMUNITY', '从未显示过弹窗，强制显示');
@@ -1110,10 +1146,14 @@ onMounted(async () => {
   }
 });
 
-// 定义handleResize为组件级别的变量
-const handleResize = () => {
-  fontSize.value = getDefaultFontSize();
-};
+// 屏幕尺寸变化处理函数
+function handleResize() {
+  const isSmallScreen = window.innerWidth <= 375;
+  // 根据屏幕尺寸自动调整字体大小
+  if (isSmallScreen && fontSize.value > 20) {
+    fontSize.value = 18;
+  }
+}
 
 onBeforeUnmount(() => {
   // 组件卸载前，保存用户偏好
