@@ -213,6 +213,9 @@ const tabs = [
 // 添加防止循环更新的标志
 const isExporting = ref(false);
 
+// 添加一个防循环更新的标记
+const isUpdatingStyle = ref(false);
+
 // 默认样式
 const defaultStyle = {
   layout: 'paper',
@@ -328,56 +331,81 @@ watch(() => currentStyle.value.layout, (newLayout) => {
 
 // 方法
 function updateStyle(updates) {
-  // 如果正在导出，不执行样式更新
-  if (isExporting.value) return;
+  // 如果正在导出或正在更新中，不执行样式更新
+  if (isExporting.value || isUpdatingStyle.value) return;
   
-  // 如果选择了纸条布局，清除图片URL和默认背景
-  if (updates.layout === 'paper') {
-    updates.imageUrl = '';
-    updates.defaultBgId = '';
-    updates.defaultBgPath = '';
+  // 标记正在更新中
+  isUpdatingStyle.value = true;
+  
+  try {
+    // 检查是否有实际变化，避免无意义的更新
+    let hasRealChanges = false;
+    for (const key in updates) {
+      if (JSON.stringify(updates[key]) !== JSON.stringify(currentStyle.value[key])) {
+        hasRealChanges = true;
+        break;
+      }
+    }
+    
+    if (!hasRealChanges) {
+      isUpdatingStyle.value = false;
+      return;
+    }
+    
+    // 如果选择了纸条布局，清除图片URL和默认背景
+    if (updates.layout === 'paper') {
+      updates.imageUrl = '';
+      updates.defaultBgId = '';
+      updates.defaultBgPath = '';
+    }
+    
+    // 如果切换到分屏布局，设置默认分屏方向
+    if (updates.layout === 'split' && !updates.splitDirection) {
+      updates.splitDirection = 'horizontal';
+    }
+    
+    // 处理图片透明度，确保在有效范围内
+    if (updates.hasOwnProperty('imageOpacity')) {
+      if (updates.imageOpacity < 0) updates.imageOpacity = 0;
+      if (updates.imageOpacity > 1) updates.imageOpacity = 1;
+    }
+    
+    // 处理图片缩放，确保在有效范围内
+    if (updates.hasOwnProperty('imageScale')) {
+      if (updates.imageScale < 0.5) updates.imageScale = 0.5;
+      if (updates.imageScale > 2) updates.imageScale = 2;
+    }
+    
+    // 特殊处理：如果设置了图片URL，并且当前是纸条布局，自动切换到图片背景布局
+    if (updates.hasOwnProperty('imageUrl') && updates.imageUrl && currentStyle.value.layout === 'paper') {
+      updates.layout = 'image-top'; // 默认使用上图下文布局
+      updates.preservePaperBg = false;
+    }
+    
+    // 确保文本颜色有效
+    if (updates.hasOwnProperty('textColor') && (!updates.textColor || updates.textColor.trim() === '')) {
+      updates.textColor = defaultStyle.textColor;
+    }
+    
+    // 批量更新当前样式，减少更新次数
+    currentStyle.value = { ...currentStyle.value, ...updates };
+    
+    // 延迟发送更新事件，避免在渲染周期中触发太多更新
+    setTimeout(() => {
+      // 发送更新事件，但不包含字体大小
+      const { fontSize, ...styleWithoutFontSize } = currentStyle.value;
+      emit('update:style', styleWithoutFontSize);
+      
+      // 发送完整的自定义样式更新
+      emit('update:customStyle', currentStyle.value);
+      
+      // 在本地存储用户偏好设置
+      saveUserPreference();
+    }, 0);
+  } finally {
+    // 重置更新标记
+    isUpdatingStyle.value = false;
   }
-  
-  // 如果切换到分屏布局，设置默认分屏方向
-  if (updates.layout === 'split' && !updates.splitDirection) {
-    updates.splitDirection = 'horizontal';
-  }
-  
-  // 处理图片透明度，确保在有效范围内
-  if (updates.hasOwnProperty('imageOpacity')) {
-    if (updates.imageOpacity < 0) updates.imageOpacity = 0;
-    if (updates.imageOpacity > 1) updates.imageOpacity = 1;
-  }
-  
-  // 处理图片缩放，确保在有效范围内
-  if (updates.hasOwnProperty('imageScale')) {
-    if (updates.imageScale < 0.5) updates.imageScale = 0.5;
-    if (updates.imageScale > 2) updates.imageScale = 2;
-  }
-  
-  // 特殊处理：如果设置了图片URL，并且当前是纸条布局，自动切换到图片背景布局
-  if (updates.hasOwnProperty('imageUrl') && updates.imageUrl && currentStyle.value.layout === 'paper') {
-    updates.layout = 'image-top'; // 默认使用上图下文布局
-    updates.preservePaperBg = false;
-  }
-  
-  // 确保文本颜色有效
-  if (updates.hasOwnProperty('textColor') && (!updates.textColor || updates.textColor.trim() === '')) {
-    updates.textColor = defaultStyle.textColor;
-  }
-  
-  // 更新当前样式
-  currentStyle.value = { ...currentStyle.value, ...updates };
-  
-  // 发送更新事件，但不包含字体大小
-  const { fontSize, ...styleWithoutFontSize } = currentStyle.value;
-  emit('update:style', styleWithoutFontSize);
-  
-  // 发送完整的自定义样式更新
-  emit('update:customStyle', currentStyle.value);
-  
-  // 在本地存储用户偏好设置
-  saveUserPreference();
 }
 
 // 将用户样式偏好保存到本地存储
@@ -499,42 +527,59 @@ function resetStyle() {
 }
 
 function handleImageSelected(imageUrl) {
-  // 如果当前是纸条布局，直接切换到上图下文布局
+  // 创建一个包含所有需要更新的属性的对象
+  const updates = {
+    imageUrl,
+    defaultBgId: '', // 清除默认背景
+    defaultBgPath: '' // 清除默认背景路径
+  };
+  
+  // 根据当前布局添加不同的配置
   if (currentStyle.value.layout === 'paper') {
-    // 更新图片和布局
-    updateStyle({ 
-      imageUrl, 
+    // 如果当前是纸条布局，切换到上图下文布局
+    Object.assign(updates, {
       layout: 'image-top', // 默认使用上图下文布局
       imageOpacity: 1, // 默认不透明
       preservePaperBg: false, // 默认不保留纸条背景
-      defaultBgId: '', // 清除默认背景
-      defaultBgPath: '' // 清除默认背景路径
     });
     
-    // 切换到布局标签页让用户看到效果
-    activeTab.value = 'layout';
+    // 使用单一更新调用，减少反应式更新次数
+    updateStyle(updates);
+    
+    // 切换到布局标签页让用户看到效果，使用setTimeout避免更新冲突
+    setTimeout(() => {
+      activeTab.value = 'layout';
+    }, 100);
   } else if (currentStyle.value.layout === 'image-bg') {
     // 如果是图片背景布局，设置半透明并保留纸条背景
-    updateStyle({ 
-      imageUrl,
+    Object.assign(updates, {
       imageOpacity: 0.7, // 默认半透明
       preservePaperBg: true, // 保留纸条背景
-      defaultBgId: '', // 清除默认背景
-      defaultBgPath: '' // 清除默认背景路径
     });
+    
+    // 使用单一更新调用
+    updateStyle(updates);
   } else {
     // 如果已经是其他图片布局，直接更新图片
-    updateStyle({ 
-      imageUrl,
+    Object.assign(updates, {
       imageOpacity: 1, // 默认不透明
       preservePaperBg: false, // 默认不保留纸条背景
-      defaultBgId: '', // 清除默认背景
-      defaultBgPath: '' // 清除默认背景路径
     });
+    
+    // 使用单一更新调用
+    updateStyle(updates);
   }
   
-  // 重置图片选项显示
+  // 重置图片选项显示状态
   resetImageOptions();
+  
+  // 如果有默认背景被选中，清除选择
+  if (selectedDefaultBg.value) {
+    // 延迟更新，避免触发循环更新
+    setTimeout(() => {
+      selectedDefaultBg.value = '';
+    }, 0);
+  }
 }
 
 function removeImage() {
@@ -1017,24 +1062,37 @@ function customOncloneHandler(clonedDoc) {
 // 处理默认背景图片选择
 function handleDefaultBackgroundSelected(background) {
   if (background) {
-    // 更新背景图片信息
-    updateStyle({ 
-      defaultBgId: background.id, 
-      defaultBgPath: background.path,
-    });
-    
-    // 如果当前是纸条布局，仅提示用户选择模板，但不自动切换布局
-    if (currentStyle.value.layout === 'paper') {
-      // 提示用户选择模板
-      nextTick(() => {
-        alert('已选择默认背景，请在"模板"选项卡中选择合适的布局来显示背景图片');
-        // 切换到布局标签页让用户选择模板
-        activeTab.value = 'layout';
-      });
+    // 防止重复更新和循环触发
+    if (currentStyle.value.defaultBgId === background.id) {
+      return;
     }
     
-    // 清除自定义上传的图片URL
-    updateStyle({ imageUrl: '' });
+    // 临时标记，防止监听器触发循环
+    const updatingFromSelection = true;
+    
+    // 创建更新对象，包含所有需要一次性更新的属性
+    const updates = { 
+      defaultBgId: background.id, 
+      defaultBgPath: background.path,
+      imageUrl: '' // 清除自定义上传的图片URL
+    };
+    
+    // 如果当前是纸条布局，可能需要稍后提示用户
+    const needLayoutReminder = currentStyle.value.layout === 'paper';
+    
+    // 执行一次性更新，减少触发watch的次数
+    updateStyle(updates);
+    
+    // 如果需要提示用户选择模板
+    if (needLayoutReminder) {
+      nextTick(() => {
+        // 使用setTimeout延迟弹窗，避免阻塞渲染
+        setTimeout(() => {
+          alert('已选择默认背景，请在"模板"选项卡中选择合适的布局来显示背景图片');
+          activeTab.value = 'layout';
+        }, 100);
+      });
+    }
   }
 }
 
@@ -1046,17 +1104,35 @@ function switchToUploader() {
   showDefaultBgs.value = false;
 }
 
-// 监听默认背景变化，只在用户手动选择时才更新
-watch(() => currentStyle.value.defaultBgId, (newBgId) => {
-  // 如果正在导出过程中，不执行更新
-  if (isExporting.value) return;
-  
-  if (newBgId) {
+// 添加新的防循环更新的标志
+const isUpdatingBgId = ref(false);
+
+// 简化的监听器，只在组件初始化时同步一次状态
+watch(() => props.initialStyle.defaultBgId, (newBgId) => {
+  if (newBgId && selectedDefaultBg.value !== newBgId) {
     selectedDefaultBg.value = newBgId;
-  } else {
-    selectedDefaultBg.value = '';
   }
-}, { immediate: false }); // 设置为false防止初始化时自动触发
+}, { immediate: true });
+
+// 使用单一监听器监控selectedDefaultBg变化
+watch(() => selectedDefaultBg.value, (newVal, oldVal) => {
+  // 避免在组件初始化或导出时触发更新
+  if (isExporting.value || isUpdatingBgId.value || newVal === oldVal) return;
+  
+  // 标记正在更新，避免循环
+  isUpdatingBgId.value = true;
+  
+  // 如果清除了背景，更新currentStyle
+  if (!newVal && currentStyle.value.defaultBgId) {
+    updateStyle({ 
+      defaultBgId: '', 
+      defaultBgPath: '' 
+    });
+  }
+  
+  // 重置标记
+  isUpdatingBgId.value = false;
+}, { immediate: false });
 
 // 切换显示图片选项
 function toggleImageOptions() {
@@ -1069,19 +1145,6 @@ function resetImageOptions() {
   showImageOptions.value = false;
   showDefaultBgs.value = false;
 }
-
-// 监听默认背景路径变化
-watch(() => [currentStyle.value.defaultBgPath, currentStyle.value.defaultBgId], () => {
-  // 如果正在导出过程中，不执行额外的更新
-  if (isExporting.value) return;
-  
-  // 同步到选择状态
-  if (currentStyle.value.defaultBgId) {
-    selectedDefaultBg.value = currentStyle.value.defaultBgId;
-  } else {
-    selectedDefaultBg.value = '';
-  }
-}, { deep: true });
 </script>
 
 <style scoped>

@@ -225,6 +225,9 @@ const loadingMessagesArray = computed(() => {
 // 修改为可旋转的消息文本
 let loadingInterval = null;
 
+// 添加防止循环更新的标志
+const isUpdatingCustomStyle = ref(false);
+
 // 方法
 function handleHeaderToggle(isCollapsed) {
   headerCollapsed.value = isCollapsed;
@@ -771,9 +774,32 @@ function openStyleCustomizer() {
 
 // 更新自定义样式
 function updateCustomStyle(newStyle) {
-  // 从新样式中解构出字体大小，其他样式属性保持不变
-  const { fontSize: newFontSize, ...otherStyles } = newStyle;
-  customStyle.value = otherStyles;
+  // 防止循环更新
+  if (isUpdatingCustomStyle.value) return;
+  
+  try {
+    isUpdatingCustomStyle.value = true;
+    
+    // 检查是否有实际变化
+    const { fontSize: newFontSize, ...otherStyles } = newStyle;
+    const oldStyleStr = JSON.stringify(customStyle.value);
+    const newStyleStr = JSON.stringify(otherStyles);
+    
+    // 只有当样式真正变化时才更新
+    if (oldStyleStr !== newStyleStr) {
+      customStyle.value = otherStyles;
+      
+      // 延迟保存到本地存储，避免触发太多同步保存操作
+      setTimeout(() => {
+        updateLocalPreferences();
+      }, 500);
+    }
+  } finally {
+    // 设置一个短暂的延迟后才重置标志，避免在同一帧中连续多次调用
+    setTimeout(() => {
+      isUpdatingCustomStyle.value = false;
+    }, 50);
+  }
 }
 
 // 更新 API 设置

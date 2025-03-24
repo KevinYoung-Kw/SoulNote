@@ -83,12 +83,20 @@ function processFile(file) {
     // 检查图片尺寸并进行压缩
     const img = new Image();
     img.onload = () => {
-      // 如果图片尺寸过大，进行压缩
-      if (img.width > 1200 || img.height > 1200) {
-        const compressedUrl = compressImage(img, file.type);
-        emit('image-selected', compressedUrl);
-      } else {
-        emit('image-selected', imageUrl);
+      try {
+        // 延迟发送事件以减轻更新压力
+        setTimeout(() => {
+          // 如果图片尺寸过大，进行压缩
+          if (img.width > 1200 || img.height > 1200) {
+            const compressedUrl = compressImage(img, file.type);
+            emit('image-selected', compressedUrl);
+          } else {
+            emit('image-selected', imageUrl);
+          }
+        }, 50);
+      } catch (error) {
+        console.error('处理图片失败:', error);
+        alert('图片处理失败，请尝试其他图片');
       }
     };
     img.src = imageUrl;

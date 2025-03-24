@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { loadSvg, createInlineSvg } from '../../utils/svgOptimizer';
 
 const props = defineProps({
@@ -36,12 +36,15 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'background-selected']);
 
-const selectedBg = computed({
-  get: () => props.modelValue,
-  set: (value) => {
-    emit('update:modelValue', value);
+// 将computed属性改为普通ref，避免引起循环更新
+const selectedBg = ref(props.modelValue || '');
+
+// 监听props变化，但避免在内部已有同值时触发更新
+watch(() => props.modelValue, (newVal) => {
+  if (newVal !== selectedBg.value) {
+    selectedBg.value = newVal || '';
   }
-});
+}, { immediate: true });
 
 // 默认背景图片列表
 const backgrounds = ref([
@@ -70,17 +73,30 @@ const backgrounds = ref([
 
 // 选择背景图片
 function selectBackground(bgId) {
+  // 避免重复选择相同的背景
+  if (selectedBg.value === bgId) {
+    return;
+  }
+  
+  // 先更新内部状态
   selectedBg.value = bgId;
   
-  // 查找选中的背景图片信息
-  const selectedBackground = backgrounds.value.find(bg => bg.id === bgId);
-  if (selectedBackground) {
-    emit('background-selected', {
-      id: selectedBackground.id,
-      path: selectedBackground.path,
-      svgContent: selectedBackground.svgContent
-    });
-  }
+  // 延迟发送事件，打破循环依赖
+  setTimeout(() => {
+    // 先发送v-model事件
+    emit('update:modelValue', bgId);
+    
+    // 查找选中的背景图片信息
+    const selectedBackground = backgrounds.value.find(bg => bg.id === bgId);
+    if (selectedBackground) {
+      // 再发送background-selected事件
+      emit('background-selected', {
+        id: selectedBackground.id,
+        path: selectedBackground.path,
+        svgContent: selectedBackground.svgContent
+      });
+    }
+  }, 0);
 }
 
 // 加载SVG图片
