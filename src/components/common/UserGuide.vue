@@ -66,8 +66,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeMount, nextTick, watch } from 'vue';
-import { saveUserPreferences, getUserPreferences } from '../services/storageService';
-import { loadSvg, createInlineSvg, preloadSvgs } from '../utils/svgOptimizer';
+import { saveUserPreferences, getUserPreferences } from '../../services/storageService';
+import { loadSvg, createInlineSvg, preloadSvgs } from '../../utils/svgOptimizer';
 
 const props = defineProps({
   visible: {

@@ -38,8 +38,8 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { saveUserPreferences, getUserPreferences } from '../services/storageService';
-import logger from '../utils/logger';
+import { saveUserPreferences, getUserPreferences } from '../../services/storageService';
+import logger from '../../utils/logger';
 
 const router = useRouter();
 

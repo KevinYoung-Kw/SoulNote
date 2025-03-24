@@ -37,9 +37,9 @@
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
-import { getApiSettings } from '../services/storageService';
-import { isFeatureSupported } from '../services/aiService';
-import { themeOptions, fortuneAspects } from '../data/emojiData';
+import { getApiSettings } from '../../services/storageService';
+import { isFeatureSupported } from '../../services/aiService';
+import { themeOptions, fortuneAspects } from '../../data/emojiData';
 
 // Props
 const props = defineProps({

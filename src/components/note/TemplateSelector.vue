@@ -59,7 +59,7 @@
 <script setup>
 import { defineProps, defineEmits, computed, toRefs } from 'vue';
 // 导入模板集合
-import { templateList } from './templates';
+import { templateList } from '../templates';
 
 // Props
 const props = defineProps({

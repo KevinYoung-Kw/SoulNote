@@ -415,8 +415,8 @@ import {
   getInviteCodeVerified 
 } from '../services/storageService';
 import { communityService } from '../services/communityService';
-import CommunityPrompt from '../components/CommunityPrompt.vue';
-import UserGuide from '../components/UserGuide.vue'; // 导入用户引导组件
+import CommunityPrompt from '../components/community/CommunityPrompt.vue';
+import UserGuide from '../components/common/UserGuide.vue'; // 导入用户引导组件
 import logger from '../utils/logger';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '开发版本';

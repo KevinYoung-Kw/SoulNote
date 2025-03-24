@@ -113,8 +113,8 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { saveUserPreferences, getUserPreferences } from '../services/storageService';
-import { APP_VERSION } from '../config/version';
+import { saveUserPreferences, getUserPreferences } from '../../services/storageService';
+import { APP_VERSION } from '../../config/version';
 
 const props = defineProps({
   visible: {

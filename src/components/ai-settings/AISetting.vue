@@ -55,10 +55,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import APIConfig from './ai-settings/APIConfig.vue';
-import KnowledgeBase from './ai-settings/KnowledgeBase.vue';
-import PremiumFeatures from './ai-settings/PremiumFeatures.vue';
-import { getApiSettings } from '@/services/storageService';
+import APIConfig from './APIConfig.vue';
+import KnowledgeBase from './KnowledgeBase.vue';
+import PremiumFeatures from './PremiumFeatures.vue';
+import { getApiSettings } from '../../services/storageService';
 
 const props = defineProps({
   visible: {

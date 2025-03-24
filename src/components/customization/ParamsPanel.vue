@@ -289,10 +289,10 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-import { saveUserPreferences, getApiSettings } from '../services/storageService';
-import { isFeatureSupported } from '../services/aiService';
-import logger from '../utils/logger';
-import { emojiCategories, themeOptions, fortuneAspects, getAllEmojis, isValidEmoji, isKnownEmoji } from '../data/emojiData';
+import { saveUserPreferences, getApiSettings } from '../../services/storageService';
+import { isFeatureSupported } from '../../services/aiService';
+import logger from '../../utils/logger';
+import { emojiCategories, themeOptions, fortuneAspects, getAllEmojis, isValidEmoji, isKnownEmoji } from '../../data/emojiData';
 
 // Props
 const props = defineProps({

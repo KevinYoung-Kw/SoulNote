@@ -166,19 +166,18 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
-import NoteCard from './NoteCard.vue';
+import NoteCard from '../note/NoteCard.vue';
 import ImageUploader from './ImageUploader.vue';
 import html2canvas from 'html2canvas';
-import { FONT_SIZE_CONFIG } from '../config/style';
+import { FONT_SIZE_CONFIG } from '../../config/style';
 import ImageFilterSelector from './ImageFilterSelector.vue';
-import TemplateSelector from './TemplateSelector.vue';
+import TemplateSelector from '../note/TemplateSelector.vue';
 import TextStyleCustomizer from './TextStyleCustomizer.vue';
 import ImageSettingsControl from './ImageSettingsControl.vue';
-import RatioAndMoodControls from './RatioAndMoodControls.vue';
+import RatioAndMoodControls from '../layout/RatioAndMoodControls.vue';
 import DefaultBackgroundSelector from './DefaultBackgroundSelector.vue';
-import { convertSvgToImageUrl } from '../utils/svgOptimizer';
-// 导入模板组件
-import { templateList } from './templates';
+import { convertSvgToImageUrl } from '../../utils/svgOptimizer';
+import { templateList } from '../templates';
 
 // Props
 const props = defineProps({

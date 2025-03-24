@@ -25,7 +25,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { loadSvg, createInlineSvg } from '../utils/svgOptimizer';
+import { loadSvg, createInlineSvg } from '../../utils/svgOptimizer';
 
 const props = defineProps({
   modelValue: {

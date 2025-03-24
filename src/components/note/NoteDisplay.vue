@@ -57,10 +57,10 @@
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue';
 import NoteCard from './NoteCard.vue';
-import NoteStyleCustomizer from './NoteStyleCustomizer.vue';
-import { saveUserPreferences, getUserPreferences } from '../services/storageService';
-import logger from '../utils/logger';
-import { getDefaultFontSize } from '../config/style';
+import NoteStyleCustomizer from '../customization/NoteStyleCustomizer.vue';
+import { saveUserPreferences, getUserPreferences } from '../../services/storageService';
+import logger from '../../utils/logger';
+import { getDefaultFontSize } from '../../config/style';
 
 // Props
 const props = defineProps({

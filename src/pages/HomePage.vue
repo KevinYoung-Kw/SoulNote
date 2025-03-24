@@ -113,16 +113,16 @@ import { useRouter } from 'vue-router';
 import { getDefaultFontSize } from '../config/style';
 
 // 导入组件
-import HeaderComponent from '../components/HeaderComponent.vue';
-import FooterNavigation from '../components/FooterNavigation.vue';
-import ParamsPreview from '../components/ParamsPreview.vue';
-import ParamsPanel from '../components/ParamsPanel.vue';
-import NoteDisplay from '../components/NoteDisplay.vue';
-import AppreciationBanner from '../components/AppreciationBanner.vue';
-import CommunityPrompt from '../components/CommunityPrompt.vue';
-import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
-import AISetting from '../components/AISetting.vue';
-import UserGuide from '../components/UserGuide.vue';
+import HeaderComponent from '../components/ui/HeaderComponent.vue';
+import FooterNavigation from '../components/ui/FooterNavigation.vue';
+import ParamsPreview from '../components/customization/ParamsPreview.vue';
+import ParamsPanel from '../components/customization/ParamsPanel.vue';
+import NoteDisplay from '../components/note/NoteDisplay.vue';
+import AppreciationBanner from '../components/ui/AppreciationBanner.vue';
+import CommunityPrompt from '../components/community/CommunityPrompt.vue';
+import NoteStyleCustomizer from '../components/customization/NoteStyleCustomizer.vue';
+import AISetting from '../components/ai-settings/AISetting.vue';
+import UserGuide from '../components/common/UserGuide.vue';
 
 // 导入服务和工具
 import { generateNote, getEstimatedResponseTime } from '../services/aiService';

@@ -16,7 +16,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { saveUserPreferences, getUserPreferences } from '../services/storageService';
+import { saveUserPreferences, getUserPreferences } from '../../services/storageService';
 
 const router = useRouter();
 

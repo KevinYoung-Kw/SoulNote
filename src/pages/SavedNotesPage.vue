@@ -111,8 +111,8 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import NoteCard from '../components/NoteCard.vue';
-import NoteStyleCustomizer from '../components/NoteStyleCustomizer.vue';
+import NoteCard from '../components/note/NoteCard.vue';
+import NoteStyleCustomizer from '../components/customization/NoteStyleCustomizer.vue';
 import { getSavedNotes, deleteNote, clearSavedNotes, updateSavedNote } from '../services/storageService';
 import { useNoteExport } from '../composables/useNoteExport';
 

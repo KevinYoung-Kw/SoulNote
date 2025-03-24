@@ -29,7 +29,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue';
-import { useNoteAnimation } from '../composables/useNoteAnimation';
+import { useNoteAnimation } from '../../composables/useNoteAnimation';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -625,20 +625,20 @@ watch(() => props.customStyle, (newStyle) => {
 const currentTemplateComponent = computed(() => {
   const layout = props.customStyle?.layout || 'paper';
   
-  // 根据布局直接加载对应模板组件
-  if (layout === 'image-top') {
-    return defineAsyncComponent(() => import('./templates/ImageTopTemplate.vue'));
-  } else if (layout === 'image-bottom') {
-    return defineAsyncComponent(() => import('./templates/ImageBottomTemplate.vue'));
-  } else if (layout === 'image-bg') {
-    return defineAsyncComponent(() => import('./templates/ImageBgTemplate.vue'));
-  } else if (layout === 'split') {
-    return defineAsyncComponent(() => import('./templates/SplitTemplate.vue'));
-  } else if (layout === 'card') {
-    return defineAsyncComponent(() => import('./templates/CardTemplate.vue'));
+  // 根据布局类型获取对应的组件
+  if (props.customStyle?.layout === 'image-top') {
+    return defineAsyncComponent(() => import('../templates/ImageTopTemplate.vue'));
+  } else if (props.customStyle?.layout === 'image-bottom') {
+    return defineAsyncComponent(() => import('../templates/ImageBottomTemplate.vue'));
+  } else if (props.customStyle?.layout === 'image-bg') {
+    return defineAsyncComponent(() => import('../templates/ImageBgTemplate.vue'));
+  } else if (props.customStyle?.layout === 'split') {
+    return defineAsyncComponent(() => import('../templates/SplitTemplate.vue'));
+  } else if (props.customStyle?.layout === 'card') {
+    return defineAsyncComponent(() => import('../templates/CardTemplate.vue'));
   } else {
-    // 默认使用纸条模板
-    return defineAsyncComponent(() => import('./templates/PaperTemplate.vue'));
+    // 默认使用纸张模板
+    return defineAsyncComponent(() => import('../templates/PaperTemplate.vue'));
   }
 });
 </script>
