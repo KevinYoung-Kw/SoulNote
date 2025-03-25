@@ -102,18 +102,27 @@ class AiService {
   }
 
   /**
-   * 验证内容是否有效 - 检查是否包含<content>标签
+   * 验证内容是否有效
    * @param {string} content 生成的内容
    * @returns {boolean} 内容是否有效
    */
   validateContent(content) {
     if (!content) return false;
     
-    // 检查是否包含<content>标签
-    const contentMatch = content.match(/<content>([\s\S]*?)<\/content>/i);
+    // 移除<think>标签内容后检查剩余内容是否有效
+    const processedContent = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     
-    // 有效内容需要存在<content>标签和内部有实际内容
-    return contentMatch && contentMatch[1] && contentMatch[1].trim().length > 0;
+    // 检查是否是默认内容（包含提示语）
+    if (processedContent.startsWith('【生成失败】')) {
+      logger.warn('AI_SERVICE', '内容生成失败，使用默认内容', {
+        content_length: processedContent.length,
+        is_default: true
+      });
+      return true; // 允许使用带提示的默认内容
+    }
+    
+    // 只要有实际内容即可
+    return processedContent.length > 0;
   }
 
   /**
@@ -151,23 +160,25 @@ class AiService {
       // 使用promptService处理请求
       const result = await promptService.generateNote(data, apiConfig);
       
-      // 验证内容是否有效（包含<content>标签）
+      // 验证内容是否有效
       if (!this.validateContent(result.content)) {
-        logger.warn('AI_SERVICE', '生成内容无效 - 缺少<content>标签', {
+        logger.warn('AI_SERVICE', '生成内容无效', {
           model: result.metadata.model,
           contentLength: result.content.length,
           hasThinkTag: result.content.includes('<think>'),
-          rawContent: result.content.substring(0, 100) + '...' // 记录部分原始内容用于调试
+          rawContent: result.content.substring(0, 100) + '...'
         });
         
-        // 抛出格式化错误，指示用户重试
-        throw new Error('生成纸条内容不完整，可能是因为服务器访问高峰期。请稍后重试。');
+        // 返回带提示的默认内容
+        result.content = '【生成失败】抱歉，当前服务繁忙，生成失败。这是默认的示例内容：\n\n点击下方"生成心语"按钮，开始您的心灵之旅...';
+        result.metadata.isDefaultContent = true;
       }
       
       logger.info('AI_SERVICE', '笔记内容生成完成', {
         model: result.metadata.model,
         processingTime: result.metadata.generationTime,
-        contentLength: result.content.length
+        contentLength: result.content.length,
+        isDefaultContent: result.metadata.isDefaultContent || false
       });
       
       return result;

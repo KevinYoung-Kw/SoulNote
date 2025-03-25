@@ -85,6 +85,50 @@ function getEstimatedResponseTime(model) {
   return defaultTime;
 }
 
+// 修改内容处理逻辑
+function processModelResponse(fullContent) {
+  if (!fullContent) {
+    logger.warn('MODEL_CONTENT', '生成内容为空，返回默认提示');
+    return '【生成失败】抱歉，当前服务繁忙，生成失败。这是默认的示例内容：\n\n点击下方"生成心语"按钮，开始您的心灵之旅...';
+  }
+  
+  // 1. 首先尝试提取<content>标签中的内容
+  const contentMatch = fullContent.match(/<content>([\s\S]*?)<\/content>/i);
+  if (contentMatch && contentMatch[1] && contentMatch[1].trim().length > 0) {
+    const content = contentMatch[1].trim();
+    // 检查是否是默认内容
+    if (content.includes('点击下方"生成心语"按钮，开始您的心灵之旅')) {
+      logger.warn('MODEL_CONTENT', '检测到默认内容');
+      return '【生成失败】抱歉，当前服务繁忙，生成失败。这是默认的示例内容：\n\n' + content;
+    }
+    return content;
+  }
+  
+  // 2. 如果没有<content>标签，则移除<think>标签内容后返回
+  let processedContent = fullContent;
+  
+  // 移除所有<think>标签及其内容
+  processedContent = processedContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  
+  // 检查处理后的内容是否为默认内容
+  if (processedContent.includes('点击下方"生成心语"按钮，开始您的心灵之旅')) {
+    logger.warn('MODEL_CONTENT', '检测到默认内容');
+    return '【生成失败】抱歉，当前服务繁忙，生成失败。这是默认的示例内容：\n\n' + processedContent;
+  }
+  
+  // 如果剩余内容太短，返回带提示的默认内容
+  if (processedContent.length < 5) {
+    logger.warn('MODEL_CONTENT', '处理后的内容过短', {
+      original_length: fullContent.length,
+      processed_length: processedContent.length,
+      content: processedContent
+    });
+    return '【生成失败】抱歉，当前服务繁忙，生成失败。这是默认的示例内容：\n\n点击下方"生成心语"按钮，开始您的心灵之旅...';
+  }
+  
+  return processedContent;
+}
+
 /**
  * 调用AI API生成内容
  * @param {string} prompt 提示词
@@ -183,85 +227,36 @@ async function callAiApi(prompt, savageMode = false, apiConfig = {}) {
     if (response.data && response.data.choices && response.data.choices.length > 0) {
       const fullContent = response.data.choices[0].message.content.trim();
       
-      // 提取<content>和<think>标签中的内容
-      const contentMatch = fullContent.match(/<content>([\s\S]*?)<\/content>/i);
-      const thinkMatch = fullContent.match(/<think>([\s\S]*?)<\/think>/i);
+      // 记录原始输出用于调试
+      logger.debug('MODEL_RAW_OUTPUT', '模型原始输出', {
+        content: fullContent,
+        length: fullContent.length,
+        has_think_tag: fullContent.includes('<think>'),
+        has_content_tag: fullContent.includes('<content>')
+      });
       
-      // 分别记录思考过程和内容
+      // 提取<think>标签中的内容用于日志记录
+      const thinkMatch = fullContent.match(/<think>([\s\S]*?)<\/think>/i);
       if (thinkMatch && thinkMatch[1]) {
-        logger.debug('MODEL_THINKING', '模型思考过程', { 
+        logger.debug('MODEL_THINKING', '模型思考过程', {
           thinking: thinkMatch[1].trim(),
           model: API_MODEL
         });
       }
       
-      if (contentMatch && contentMatch[1]) {
-        const finalContent = contentMatch[1].trim();
-        logger.debug('MODEL_CONTENT', '解析后的内容', { 
-          content: finalContent,
-          length: finalContent.length,
-          originalLength: fullContent.length,
-          model: API_MODEL
-        });
-        return finalContent;
-      } else {
-        // 如果没找到<content>标签，检查内容状态
-        logger.warn('MODEL_PARSING', '未找到<content>标签，使用完整内容', {
-          original_content_length: fullContent.length,
-          original_had_think_tag: fullContent.includes('<think>'),
-          has_content_open_tag: fullContent.includes('<content>'),
-          has_content_close_tag: fullContent.includes('</content>'),
-          model: API_MODEL
-        });
-        
-        // 尝试过滤掉<think>标签部分并返回
-        let filteredContent = fullContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        
-        // 尝试处理单个标签不完整的情况
-        if (fullContent.includes('<content>') && !fullContent.includes('</content>')) {
-          // 只有开始标签，尝试获取开始标签后的所有内容
-          const partialContentMatch = fullContent.match(/<content>([\s\S]*)/i);
-          if (partialContentMatch && partialContentMatch[1]) {
-            filteredContent = partialContentMatch[1].trim();
-            logger.warn('MODEL_PARSING', '找到不完整的content标签，使用部分内容', {
-              partial_content: filteredContent,
-              length: filteredContent.length,
-              model: API_MODEL
-            });
-          }
-        } else if (!fullContent.includes('<content>') && fullContent.includes('</content>')) {
-          // 只有结束标签，尝试获取结束标签前的所有内容
-          const partialContentMatch = fullContent.match(/([\s\S]*?)<\/content>/i);
-          if (partialContentMatch && partialContentMatch[1]) {
-            filteredContent = partialContentMatch[1].trim();
-            logger.warn('MODEL_PARSING', '找到不完整的content标签，使用部分内容', {
-              partial_content: filteredContent,
-              length: filteredContent.length,
-              model: API_MODEL
-            });
-          }
-        }
-        
-        // 仅在内容极短时才认为是错误
-        if (filteredContent.length < 5) {
-          logger.error('MODEL_INCOMPLETE', '内容生成过短', {
-            filtered_content: filteredContent,
-            model: API_MODEL,
-            error: '内容过短，可能生成失败'
-          });
-          throw new Error('生成内容不完整，请稍后重试');
-        }
-        
-        // 记录处理后的内容并返回
-        logger.info('MODEL_PARSING', '使用处理后的内容', {
-          filtered_content: filteredContent,
-          length: filteredContent.length,
-          model: API_MODEL
-        });
-        return filteredContent;
-      }
+      // 处理内容并返回
+      const processedContent = processModelResponse(fullContent);
+      
+      logger.info('MODEL_CONTENT', '处理后的内容', {
+        content: processedContent,
+        length: processedContent.length,
+        original_length: fullContent.length,
+        model: API_MODEL
+      });
+      
+      return processedContent;
     } else {
-      logger.error('MODEL_PARSING', '无效的API响应结构', { 
+      logger.error('MODEL_PARSING', '无效的API响应结构', {
         has_data: !!response.data,
         has_choices: !!(response.data && response.data.choices),
         choices_length: (response.data && response.data.choices) ? response.data.choices.length : 0,

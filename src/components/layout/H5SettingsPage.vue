@@ -163,41 +163,77 @@ async function loadLatestContent() {
   try {
     console.log('开始加载最新内容...');
     
-    // 1. 尝试从localStorage中获取最新内容
-    const savedNoteContent = localStorage.getItem('soulnote_last_content');
-    const savedNoteMood = localStorage.getItem('soulnote_last_mood');
-    
-    // 2. 如果localStorage中有内容，直接使用
-    if (savedNoteContent) {
-      console.log('从localStorage加载到内容');
-      const processedContent = processContent(savedNoteContent);
+    // 1. 首先检查路由参数中是否有笔记内容
+    const noteId = route.query.noteId;
+    if (noteId) {
+      console.log('从路由参数加载笔记:', noteId);
+      const savedNotes = await getSavedNotes();
+      const targetNote = savedNotes.find(note => note.id === noteId);
       
-      // 更新全局状态
-      if (setGlobalNoteContent && processedContent) {
-        setGlobalNoteContent(processedContent);
-      } else {
-        globalNoteContent.value = processedContent;
+      if (targetNote) {
+        console.log('找到目标笔记');
+        const processedContent = processContent(targetNote.content);
+        
+        // 更新全局状态
+        if (setGlobalNoteContent && processedContent) {
+          setGlobalNoteContent(processedContent);
+        } else {
+          globalNoteContent.value = processedContent;
+        }
+        
+        if (setGlobalNoteMood && targetNote.mood) {
+          setGlobalNoteMood(targetNote.mood);
+        } else if (targetNote.mood) {
+          globalNoteMood.value = targetNote.mood;
+        }
+        
+        // 更新localStorage
+        try {
+          localStorage.setItem('soulnote_last_content', targetNote.content);
+          localStorage.setItem('soulnote_last_mood', targetNote.mood || '');
+          localStorage.setItem('soulnote_last_note_id', noteId);
+        } catch (storageError) {
+          console.warn('保存内容到localStorage失败', storageError);
+        }
+        
+        return;
       }
-      
-      if (setGlobalNoteMood && savedNoteMood) {
-        setGlobalNoteMood(savedNoteMood);
-      } else if (savedNoteMood) {
-        globalNoteMood.value = savedNoteMood;
-      }
-      
-      return;
     }
     
-    // 3. 如果localStorage没有内容，尝试从已保存的笔记中加载最新的一条
-    console.log('未在localStorage找到内容，正在从已保存笔记中获取...');
-    const savedNotes = await getSavedNotes();
+    // 2. 如果没有路由参数，检查localStorage中是否有最近查看的笔记ID
+    const lastNoteId = localStorage.getItem('soulnote_last_note_id');
+    if (lastNoteId) {
+      const savedNotes = await getSavedNotes();
+      const lastNote = savedNotes.find(note => note.id === lastNoteId);
+      
+      if (lastNote) {
+        console.log('从最近查看的笔记加载内容');
+        const processedContent = processContent(lastNote.content);
+        
+        // 更新全局状态
+        if (setGlobalNoteContent && processedContent) {
+          setGlobalNoteContent(processedContent);
+        } else {
+          globalNoteContent.value = processedContent;
+        }
+        
+        if (setGlobalNoteMood && lastNote.mood) {
+          setGlobalNoteMood(lastNote.mood);
+        } else if (lastNote.mood) {
+          globalNoteMood.value = lastNote.mood;
+        }
+        
+        return;
+      }
+    }
     
+    // 3. 如果上述方法都失败，尝试加载最新保存的笔记
+    const savedNotes = await getSavedNotes();
     if (savedNotes && savedNotes.length > 0) {
-      // 获取最新保存的笔记内容
       const latestNote = savedNotes[0];
+      console.log('加载最新保存的笔记');
       
       if (latestNote.content) {
-        console.log('从保存的笔记中加载到内容');
         const processedContent = processContent(latestNote.content);
         
         // 更新全局状态
@@ -207,21 +243,19 @@ async function loadLatestContent() {
           globalNoteContent.value = processedContent;
         }
         
-        // 同时获取表情
-        if (latestNote.mood) {
-          if (setGlobalNoteMood) {
-            setGlobalNoteMood(latestNote.mood);
-          } else {
-            globalNoteMood.value = latestNote.mood;
-          }
-          
-          // 更新localStorage以便下次直接加载
-          try {
-            localStorage.setItem('soulnote_last_content', latestNote.content);
-            localStorage.setItem('soulnote_last_mood', latestNote.mood);
-          } catch (storageError) {
-            console.warn('保存内容到localStorage失败', storageError);
-          }
+        if (setGlobalNoteMood && latestNote.mood) {
+          setGlobalNoteMood(latestNote.mood);
+        } else if (latestNote.mood) {
+          globalNoteMood.value = latestNote.mood;
+        }
+        
+        // 更新localStorage
+        try {
+          localStorage.setItem('soulnote_last_content', latestNote.content);
+          localStorage.setItem('soulnote_last_mood', latestNote.mood || '');
+          localStorage.setItem('soulnote_last_note_id', latestNote.id);
+        } catch (storageError) {
+          console.warn('保存内容到localStorage失败', storageError);
         }
       }
     } else {

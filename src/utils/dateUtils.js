@@ -3,8 +3,21 @@
  * 提供日期相关的辅助函数
  */
 
-// 导入lunar-javascript库
-import { Lunar, Solar, HolidayUtil } from 'lunar-javascript';
+// 从window对象获取lunar-javascript库
+let Lunar, Solar, HolidayUtil;
+try {
+  // 尝试从全局对象获取
+  const LunarJS = window.LunarJS || {};
+  Lunar = LunarJS.Lunar;
+  Solar = LunarJS.Solar;
+  HolidayUtil = LunarJS.HolidayUtil;
+  
+  if (!Lunar || !Solar) {
+    console.warn('LunarJS库未正确加载或初始化');
+  }
+} catch (error) {
+  console.warn('获取LunarJS库失败:', error);
+}
 
 // 缓存日期信息，减少API请求
 let dateInfoCache = null;

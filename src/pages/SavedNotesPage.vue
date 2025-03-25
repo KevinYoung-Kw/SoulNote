@@ -69,6 +69,9 @@
           <button class="icon-btn action-btn" @click="customizeCurrentNote">
             <i class="fas fa-palette"></i>
           </button>
+          <button class="icon-btn action-btn" @click="goToH5Settings">
+            <i class="fas fa-mobile-alt"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -160,6 +163,15 @@ async function loadSavedNotes() {
 function viewNote(note) {
   currentNote.value = note;
   showNoteDetail.value = true;
+  
+  // 保存当前查看的笔记信息到localStorage
+  try {
+    localStorage.setItem('soulnote_last_content', note.content);
+    localStorage.setItem('soulnote_last_mood', note.mood || '');
+    localStorage.setItem('soulnote_last_note_id', note.id);
+  } catch (error) {
+    console.warn('保存笔记信息到localStorage失败:', error);
+  }
 }
 
 // 删除当前笔记
@@ -368,6 +380,21 @@ function checkStorage() {
   } else {
     storageState.value = '诊断工具不可用';
   }
+}
+
+// 添加：跳转到H5设置页面
+function goToH5Settings() {
+  if (!currentNote.value) return;
+  
+  // 关闭当前弹窗
+  showNoteDetail.value = false;
+  showStyleCustomizer.value = false;
+  
+  // 跳转到H5设置页面，并传递笔记ID
+  router.push({
+    path: '/h5-settings',
+    query: { noteId: currentNote.value.id }
+  });
 }
 </script>
 

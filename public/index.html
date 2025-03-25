@@ -4,8 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SoulNote</title>
-  <!-- 添加lunar-javascript库 -->
-  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/dist/lunar.min.js"></script>
+  <!-- 添加lunar-javascript库 - 使用非模块方式加载 -->
+  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/dist/lunar.min.js" type="text/javascript"></script>
+  <script>
+    // 确保LunarJS库正确初始化到全局对象
+    window.LunarJS = window.LunarJS || window.Lunar;
+  </script>
 </head>
 <body>
   <div id="app"></div>
